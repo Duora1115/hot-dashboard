@@ -96,10 +96,17 @@ def api_day(date_str: str):
             })
         top8 = []
         for t in s.get("top8_sectors", []):
+            gd = []
+            for g in t.get("group_details", []):
+                gd.append({
+                    "g": g["group"], "c": g["count"],
+                    "m": [{"t": m["time"].split(" ")[1], "x": m["text"]} for m in g["messages"]]
+                })
             top8.append({
                 "n": t["name"], "sc": t["score"],
                 "mc": t["mention_count"], "gc": t["group_count"],
-                "txt": (t.get("sample_text", ""))[:60]
+                "txt": (t.get("sample_text", ""))[:60],
+                "gd": gd
             })
         sd = s.get("sentiment_detail", {})
         compressed["snapshots"].append({

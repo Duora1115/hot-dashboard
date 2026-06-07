@@ -175,10 +175,22 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
         if len(groups) < 2 and len(details) < 3:
             continue
         score = len(groups) * 4 + len(details) * 2
+        # 按群聚合消息明细
+        group_msgs = defaultdict(list)
+        for d in details:
+            group_msgs[d["group"]].append({"time": d["time"], "text": d["text"]})
+        group_details = []
+        for gn in sorted(group_msgs.keys()):
+            group_details.append({
+                "group": gn,
+                "count": len(group_msgs[gn]),
+                "messages": [{"time": m["time"], "text": m["text"]} for m in group_msgs[gn][:5]]  # 每群最多5条
+            })
         hot_sectors.append({
             "name": sec, "score": score,
             "mention_count": len(details), "group_count": len(groups),
             "groups": sorted(groups),
+            "group_details": group_details,
             "sample_text": details[0]["text"] if details else ""
         })
     hot_sectors.sort(key=lambda x: (-x["score"], -x["group_count"]))

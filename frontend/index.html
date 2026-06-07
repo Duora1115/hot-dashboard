@@ -58,6 +58,16 @@
   <table><thead><tr><th>信号类型</th><th>数量</th><th>占比</th><th>示例关键词</th></tr></thead><tbody id="actBody"></tbody></table>
 </div>
 <div class="footer">数据来源：25个飞书投资群 | 每5分钟更新 | 仅供参考</div>
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2 id="modalTitle">板块详情</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-stats" id="modalStats"></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
 <script src="/static/app.js"></script>
 </body>
 </html>

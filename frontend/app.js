@@ -261,24 +261,64 @@ function renderStocks(snap, maxS) {
 }
 
 function renderSectors(snap) {
+  currentSectors = snap.sec || [];
   var grid = document.getElementById('sectorGrid');
-  if (!snap.sec || !snap.sec.length) {
+  if (!currentSectors.length) {
     grid.innerHTML = '<div class="empty">暂无板块数据</div>';
     return;
   }
-  var maxSc = snap.sec[0].sc || 1;
+  var maxSc = currentSectors[0].sc || 1;
   var colors = ['var(--accent)', 'var(--green)', 'var(--purple)', 'var(--yellow)', 'var(--orange)', 'var(--red)', 'var(--text2)'];
   var h = '';
-  snap.sec.forEach(function (it, i) {
+  currentSectors.forEach(function (it, i) {
     var pct = Math.min(100, it.sc / maxSc * 100);
     var bg = colors[i % colors.length];
-    h += '<div class="sector-card">' +
+    h += '<div class="sector-card" onclick="openSectorModal(' + i + ')">' +
       '<div class="sn">' + it.n + '</div>' +
       '<div class="info">' + it.mc + '次提及 · ' + it.gc + '个群</div>' +
       '<div class="bar"><div class="fill" style="width:' + pct + '%;background:' + bg + '"></div></div>' +
       '<div class="info" style="margin-top:3px;opacity:.7">' + (it.txt || '') + '</div></div>';
   });
   grid.innerHTML = h;
+}
+
+// ========== 板块详情弹窗 ==========
+let currentSectors = [];
+function openSectorModal(idx) {
+  var sec = currentSectors[idx];
+  if (!sec) return;
+  document.getElementById('modalTitle').textContent = '🏭 ' + sec.n;
+  document.getElementById('modalStats').innerHTML =
+    '<div class="stat"><div class="val" style="color:var(--accent)">' + sec.mc + '</div><div class="label">提及</div></div>' +
+    '<div class="stat"><div class="val" style="color:var(--green)">' + sec.gc + '</div><div class="label">群数</div></div>' +
+    '<div class="stat"><div class="val" style="color:var(--gold)">' + sec.sc + '</div><div class="label">热度</div></div>';
+  var h = '';
+  if (sec.gd && sec.gd.length > 0) {
+    sec.gd.forEach(function (g) {
+      h += '<div class="msg-group">' +
+        '<div class="msg-group-header"><span class="gn">' + g.g + '</span><span class="gc">' + g.c + '条消息</span></div>';
+      g.m.forEach(function (m) {
+        h += '<div class="msg-item"><div class="mt">' + m.t + '</div><div class="mx">' + escHtml(m.x) + '</div></div>';
+      });
+      h += '</div>';
+    });
+  } else {
+    h = '<div class="empty">暂无详情</div>';
+  }
+  document.getElementById('modalBody').innerHTML = h;
+  document.getElementById('modalOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeModal();
+});
+function escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 }
 
 function renderSentiment(snap) {
