@@ -41,6 +41,7 @@
 </div>
 <div class="panel active" id="panel-stocks">
   <table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>热度</th><th>提及</th><th>群</th><th>多空</th><th>板块</th><th>操作</th></tr></thead><tbody id="stockBody"></tbody></table>
+  <div id="stockMobile"></div>
 </div>
 <div class="panel" id="panel-sectors">
   <div class="sector-grid" id="sectorGrid"></div>
@@ -52,10 +53,12 @@
     <div class="sent-labels"><span>看多</span><span>观望</span><span>看空</span></div>
   </div>
   <div class="stats" id="sentDetails"></div>
+  <div class="sent-detail-cards" id="sentDetailCards"></div>
   <table><thead><tr><th>情绪类型</th><th>匹配数</th><th>占比</th></tr></thead><tbody id="sentBody"></tbody></table>
 </div>
 <div class="panel" id="panel-actions">
   <div class="action-grid" id="actionGrid"></div>
+  <div class="act-detail-cards" id="actDetailCards"></div>
   <table><thead><tr><th>信号类型</th><th>数量</th><th>占比</th><th>示例关键词</th></tr></thead><tbody id="actBody"></tbody></table>
 </div>
 <div class="footer">数据来源：25个飞书投资群 | 每5分钟更新 | 仅供参考</div>
