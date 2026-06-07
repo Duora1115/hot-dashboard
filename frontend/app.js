@@ -352,31 +352,13 @@ function renderSectors(snap) {
 }
 
 function renderSectorsMobile(snap) {
-  currentSectors = snap.sec || [];
-  var grid = document.getElementById('sectorGrid');
-  if (!currentSectors.length) {
-    grid.innerHTML = '<div class="empty">暂无板块数据</div>';
-    return;
-  }
-  var maxSc = currentSectors[0].sc || 1;
-  var colors = ['var(--accent)', 'var(--green)', 'var(--purple)', 'var(--yellow)', 'var(--orange)', 'var(--red)', 'var(--text2)'];
-  var h = '';
-  currentSectors.forEach(function (it, i) {
-    var pct = Math.min(100, it.sc / maxSc * 100);
-    var bg = colors[i % colors.length];
-    h += '<div class="sector-card" onclick="openSectorModal(' + i + ')">' +
-      '<div class="sn">' + it.n + '</div>' +
-      '<div class="info">' + it.mc + '次提及 · ' + it.gc + '个群</div>' +
-      '<div class="bar"><div class="fill" style="width:' + pct + '%;background:' + bg + '"></div></div>' +
-      '<div class="info" style="margin-top:3px;opacity:.7">' + (it.txt || '') + '</div></div>';
-  });
-  grid.innerHTML = h;
+  renderSectors(snap);
 }
 
 // ========== 板块详情弹窗 ==========
 let currentSectors = [];
-function openSectorModal(idx) {
-  var sec = currentSectors[idx];
+function openSectorModal(sectorIdx) {
+  var sec = currentSectors[sectorIdx];
   if (!sec) return;
   document.getElementById('modalTitle').textContent = '🏭 ' + sec.n;
   document.getElementById('modalStats').innerHTML =

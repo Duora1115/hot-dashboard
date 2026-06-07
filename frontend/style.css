@@ -327,6 +327,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang 
   display: none;
 }
 
+:root.mobile-mode #sentDetails {
+  display: none;
+}
+
 :root.mobile-mode #panel-actions table {
   display: none;
 }
