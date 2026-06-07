@@ -150,7 +150,11 @@ function loadLive() {
             sec: (d.top8_sectors || []).map(t => ({
               n: t.name, sc: t.score,
               mc: t.mention_count, gc: t.group_count,
-              txt: (t.sample_text || '').slice(0, 60)
+              txt: (t.sample_text || '').slice(0, 60),
+              gd: (t.group_details || []).map(g => ({
+                g: g.group, c: g.count,
+                m: g.messages.map(m => ({ t: m.time, x: m.text }))
+              }))
             }))
           }]
         };
