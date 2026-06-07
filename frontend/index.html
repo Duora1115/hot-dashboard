@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>飞书群热点多维看板</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="header">
+  <h1>🔥 飞书投资群 · 多维热点看板</h1>
+  <div class="date" id="dateLabel">连接中...</div>
+  <div class="controls">
+    <button class="btn" id="btnPlay" onclick="togglePlay()">▶ 播放</button>
+    <button class="btn" id="btnSpeed" onclick="cycleSpeed()">1x</button>
+    <button class="btn" onclick="jumpLatest()">⏭</button>
+    <button class="btn" onclick="jumpFirst()">⏮</button>
+    <button class="btn" id="btnCollect" onclick="triggerCollect()">🔄 采集</button>
+  </div>
+</div>
+<div class="mode-bar">
+  <button class="mode-btn active" onclick="switchMode('replay')">📼 回放</button>
+  <button class="mode-btn" onclick="switchMode('live')">🔴 实时</button>
+</div>
+<div class="date-picker" id="datePicker">
+  <select id="dateSelect" onchange="loadDate(this.value)"></select>
+  <button class="btn" onclick="fetchAvailableDates()">刷新日期</button>
+</div>
+<div class="tabs" id="tabBar">
+  <div class="tab active" data-tab="stocks">📈 股票热点</div>
+  <div class="tab" data-tab="sectors">🏭 板块热度</div>
+  <div class="tab" data-tab="sentiment">💭 市场情绪</div>
+  <div class="tab" data-tab="actions">⚡ 操作信号</div>
+</div>
+<div class="stats" id="statsBar"></div>
+<div class="timeline" id="timelineBar">
+  <div class="tl-label"><span id="tlS">--</span><span id="tlE">--</span></div>
+  <input type="range" id="slider" min="0" max="100" value="100">
+  <div class="cur-time" id="curTime">--:--</div>
+</div>
+<div class="panel active" id="panel-stocks">
+  <table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>热度</th><th>提及</th><th>群</th><th>多空</th><th>板块</th><th>操作</th></tr></thead><tbody id="stockBody"></tbody></table>
+</div>
+<div class="panel" id="panel-sectors">
+  <div class="sector-grid" id="sectorGrid"></div>
+</div>
+<div class="panel" id="panel-sentiment">
+  <div class="sent-box">
+    <div class="sent-label" id="sentLabel">--</div>
+    <div class="sent-meter" id="sentMeter"></div>
+    <div class="sent-labels"><span>看多</span><span>观望</span><span>看空</span></div>
+  </div>
+  <div class="stats" id="sentDetails"></div>
+  <table><thead><tr><th>情绪类型</th><th>匹配数</th><th>占比</th></tr></thead><tbody id="sentBody"></tbody></table>
+</div>
+<div class="panel" id="panel-actions">
+  <div class="action-grid" id="actionGrid"></div>
+  <table><thead><tr><th>信号类型</th><th>数量</th><th>占比</th><th>示例关键词</th></tr></thead><tbody id="actBody"></tbody></table>
+</div>
+<div class="footer">数据来源：25个飞书投资群 | 每5分钟更新 | 仅供参考</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

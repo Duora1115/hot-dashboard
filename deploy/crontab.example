@@ -1,0 +1,12 @@
+# Hot Dashboard Crontab 配置
+# 安装: crontab -e 后粘贴以下内容
+# 或将下方 launchd plist 用于 macOS
+
+PROJECT_DIR="$HOME/git/hot-dashboard"
+PYTHON="/usr/bin/python3"
+
+# ---- 盘中采集 (周一-五 9:00-15:55, 每5分钟) ----
+*/5 9-15 * * 1-5   cd $PROJECT_DIR && $PYTHON scripts/collect.py >> /tmp/hot_dashboard.log 2>&1
+
+# ---- 盘外采集 (每30分钟, 0-8点和16-23点) ----
+0,30 0-8,16-23 * * *   cd $PROJECT_DIR && $PYTHON scripts/collect.py >> /tmp/hot_dashboard.log 2>&1

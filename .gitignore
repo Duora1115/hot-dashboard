@@ -1,0 +1,16 @@
+# 数据文件（本地存储）
+data/*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
