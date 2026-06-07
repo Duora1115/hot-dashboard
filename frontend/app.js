@@ -319,7 +319,6 @@ document.addEventListener('keydown', function (e) {
 function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-}
 
 function renderSentiment(snap) {
   var sd = snap.sd;
