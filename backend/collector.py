@@ -397,6 +397,60 @@ def _build_windows(date_str):
     return windows
 
 
+def push_to_cloud(cfg, date_str, data_dir=None):
+    """推送数据到云端（latest + day）"""
+    if data_dir is None:
+        data_dir = Path(cfg["server"]["data_dir"])
+
+    cloud_cfg = cfg.get("cloud", {})
+    if not cloud_cfg.get("enabled", False):
+        print("  ☁️ 云端同步未启用", flush=True)
+        return
+
+    base_url = cloud_cfg.get("base_url", "").rstrip("/")
+    if not base_url:
+        print("  ☁️ 云端地址未配置", flush=True)
+        return
+
+    timeout = cloud_cfg.get("timeout", 30)
+    push_mode = cloud_cfg.get("push_mode", "both")
+    import urllib.request, urllib.error
+
+    def _push(url, payload, label):
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            resp = urllib.request.urlopen(req, timeout=timeout)
+            print(f"  ☁️ {label} → 成功 ({resp.status}, {len(data)//1024}KB)", flush=True)
+            return True
+        except urllib.error.HTTPError as e:
+            print(f"  ☁️ {label} → HTTP {e.code}: {e.read().decode('utf-8','replace')[:200]}", flush=True)
+            return False
+        except Exception as e:
+            print(f"  ☁️ {label} → 失败: {e}", flush=True)
+            return False
+
+    # 推送 latest
+    if push_mode in ("both", "latest"):
+        latest_file = data_dir / "latest.json"
+        if latest_file.exists():
+            with open(latest_file, encoding="utf-8") as f:
+                latest_data = json.load(f)
+            _push(f"{base_url}/api/upload/latest", latest_data, "latest")
+        else:
+            print(f"  ☁️ latest.json 不存在，跳过", flush=True)
+
+    # 推送 day
+    if push_mode in ("both", "day"):
+        day_file = data_dir / f"day_{date_str}.json"
+        if day_file.exists():
+            with open(day_file, encoding="utf-8") as f:
+                day_data = json.load(f)
+            _push(f"{base_url}/api/upload/day/{date_str}", day_data, f"day_{date_str}")
+        else:
+            print(f"  ☁️ day_{date_str}.json 不存在，跳过", flush=True)
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "replay":

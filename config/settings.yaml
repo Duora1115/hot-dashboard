@@ -5,6 +5,14 @@ server:
   data_dir: "data"
   replay_dir: "data"
 
+# 云端同步（本地采集后推送到云端）
+cloud:
+  enabled: true
+  base_url: "http://47.253.54.6:8765"
+  timeout: 30
+  # 推送策略: "both" = 同时推送 latest + day; "latest" = 仅 latest; "day" = 仅 day
+  push_mode: "both"
+
 collector:
   max_pages: 8
   window_minutes: 30  # 实时采集覆盖窗口
