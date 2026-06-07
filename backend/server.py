@@ -12,6 +12,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi import Body
 import yaml
 
 # 确保项目根目录在 path 中
@@ -133,12 +134,58 @@ def api_collect():
 @app.post("/api/replay/{date_str}")
 def api_replay(date_str: str):
     """触发历史回放数据采集（后台执行，返回后不等待）"""
-    # 同步执行（回放耗时较长，前端需等待）
     try:
         result = collect_replay(date_str, cfg, data_dir)
         return {"status": "ok", "date": date_str, "windows": result.get("windows", len(result.get("snapshots", [])))}
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+@app.post("/api/upload")
+def api_upload(data: dict = Body(...)):
+    """上传数据文件到本地 data/ 目录。云端可用此接口推送数据。
+
+    请求体:
+    {
+        "filename": "day_2026-06-07.json" | "latest.json",
+        "data": { ... JSON内容 ... }
+    }
+    """
+    filename = data.get("filename")
+    if not filename or "/" in filename or "\\" in filename:
+        raise HTTPException(400, "filename 必须为文件名（不含路径），如 day_2026-06-07.json 或 latest.json")
+    if not filename.endswith(".json"):
+        raise HTTPException(400, "filename 必须以 .json 结尾")
+
+    content = data.get("data")
+    if content is None:
+        raise HTTPException(400, "缺少 data 字段")
+
+    target = data_dir / filename
+    with open(target, "w", encoding="utf-8") as f:
+        json.dump(content, f, ensure_ascii=False)
+
+    return {"status": "ok", "filename": filename, "size_kb": round(target.stat().st_size / 1024, 1)}
+
+
+@app.post("/api/upload/latest")
+def api_upload_latest(data: dict = Body(...)):
+    """快捷上传 latest.json。直接把请求体作为 latest.json 内容保存。"""
+    target = data_dir / "latest.json"
+    with open(target, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+    return {"status": "ok", "filename": "latest.json", "size_kb": round(target.stat().st_size / 1024, 1)}
+
+
+@app.post("/api/upload/day/{date_str}")
+def api_upload_day(date_str: str, data: dict = Body(...)):
+    """快捷上传 day_YYYY-MM-DD.json。直接把请求体作为当天数据保存。"""
+    if not __import__("re").match(r"^\d{4}-\d{2}-\d{2}$", date_str):
+        raise HTTPException(400, "日期格式必须为 YYYY-MM-DD")
+    target = data_dir / f"day_{date_str}.json"
+    with open(target, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+    return {"status": "ok", "filename": f"day_{date_str}.json", "size_kb": round(target.stat().st_size / 1024, 1)}
 
 
 # ---- 前端托管 ----
