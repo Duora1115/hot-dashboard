@@ -292,7 +292,7 @@ function renderStocks(snap, maxS) {
     var bullTag = it.bu > it.be ? '<span class="tag tag-g">多' + it.bu + '</span>' :
       it.be > it.bu ? '<span class="tag tag-r">空' + it.be + '</span>' :
         '<span class="tag tag-b">均</span>';
-    var actTag = it.ac > 0 ? '<span class="tag tag-r">操' + it.ac + '</span>' : '-';
+    var actTag = it.ac > 0 ? '<span class="tag tag-r" title="操作建议 ' + it.ac + ' 次">建议' + it.ac + '</span>' : '-';
     var secTags = it.sec.slice(0, 3).map(function (s) { return '<span class="tag tag-s">' + s + '</span>'; }).join(' ');
     h += '<tr><td style="font-weight:700">' + rd + '</td>' +
       '<td><span class="code">' + it.c + '</span></td><td>' + (it.n || '-') + '</td>' +
@@ -318,7 +318,7 @@ function renderStocksMobile(snap, maxS) {
     var bullTag = it.bu > it.be ? '<span class="tag tag-g">多' + it.bu + '</span>' :
       it.be > it.bu ? '<span class="tag tag-r">空' + it.be + '</span>' :
         '<span class="tag tag-b">均</span>';
-    var actTag = it.ac > 0 ? '<span class="tag tag-r">操' + it.ac + '</span>' : '';
+    var actTag = it.ac > 0 ? '<span class="tag tag-r" title="操作建议 ' + it.ac + ' 次">建议' + it.ac + '</span>' : '';
     var secTags = it.sec.slice(0, 3).map(function (s) { return '<span class="tag tag-s">' + s + '</span>'; }).join(' ');
     var nm = it.n || '-';
     h += '<div class="stock-card">' +

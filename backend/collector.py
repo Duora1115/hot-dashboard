@@ -10,11 +10,107 @@ import time
 import re
 import os
 import yaml
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 from pathlib import Path
 
 CST = timezone(timedelta(hours=8))
+
+# ---- 股票名称映射（本地权威对照表） ----
+_stock_mapping = None
+
+def load_stock_mapping(data_dir=None):
+    """加载本地股票代码→标准名称映射表"""
+    global _stock_mapping
+    if _stock_mapping is not None:
+        return _stock_mapping
+    if data_dir is None:
+        data_dir = Path(__file__).parent.parent / "data"
+    mapping_file = Path(data_dir) / "stock_mapping.json"
+    if mapping_file.exists():
+        try:
+            with open(mapping_file, encoding="utf-8") as f:
+                _stock_mapping = json.load(f)
+            return _stock_mapping
+        except Exception:
+            pass
+    _stock_mapping = {}
+    return _stock_mapping
+
+def resolve_stock_name(code, fallback_name=""):
+    """优先用本地映射表校正名称，fallback 为消息中提取的名称"""
+    mapping = load_stock_mapping()
+    if code in mapping:
+        return mapping[code]
+    return fallback_name if fallback_name else code
+
+# ---- 消息缓存 ----
+def _cache_path(data_dir):
+    return Path(data_dir) / "msg_cache.json"
+
+def load_cache(data_dir):
+    p = _cache_path(data_dir)
+    if p.exists():
+        try:
+            with open(p, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_cache(data_dir, cache):
+    p = _cache_path(data_dir)
+    try:
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+# ---- 增量抓取 ----
+def fetch_messages_incremental(chat_id, data_dir, max_pages=3):
+    """增量抓取：加载缓存 → 抓新消息 → 合并 → 保存缓存"""
+    cache = load_cache(data_dir)
+    grp_cache = cache.get(chat_id, {})
+    existing_ids = set(grp_cache.keys())
+    msgs = []
+    cmd_base = [
+        "lark-cli", "im", "+chat-messages-list",
+        "--chat-id", chat_id, "--page-size", "50",
+        "--sort", "desc", "--format", "json"
+    ]
+    page_token = None
+    for page in range(max_pages):
+        cmd = cmd_base[:]
+        if page_token:
+            cmd.extend(["--page-token", page_token])
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            if r.returncode != 0:
+                break
+            d = json.loads(r.stdout)
+            batch = d.get("data", {}).get("messages", [])
+            if not batch:
+                break
+            for m in batch:
+                mid = m.get("message_id") or m.get("msg_id")
+                if mid and mid not in existing_ids:
+                    existing_ids.add(mid)
+                    grp_cache[mid] = m
+                msgs.append(m)
+            pt = d.get("data", {}).get("page_token")
+            if not d.get("data", {}).get("has_more") or not pt:
+                break
+            page_token = pt
+            time.sleep(0.15)
+        except Exception:
+            break
+    cache[chat_id] = grp_cache
+    save_cache(data_dir, cache)
+    # 只返回今日消息
+    today = datetime.now(CST).strftime("%Y-%m-%d")
+    return [m for m in msgs if m.get("create_time", "").startswith(today)]
 
 # ---- 配置加载 ----
 def load_config(config_path=None):
@@ -25,7 +121,12 @@ def load_config(config_path=None):
 
 # ---- 飞书消息抓取 ----
 def fetch_messages(chat_id, max_pages=8):
-    """抓取单个群的消息，返回列表"""
+    """抓取单个群的消息（兼容旧接口，优先走增量）"""
+    # 如果 caller 没有传 data_dir，降级为全量抓取
+    return fetch_messages_full(chat_id, max_pages)
+
+def fetch_messages_full(chat_id, max_pages=8):
+    """全量抓取（仅 replay 模式使用）"""
     msgs = []
     cmd_base = [
         "lark-cli", "im", "+chat-messages-list",
@@ -38,7 +139,7 @@ def fetch_messages(chat_id, max_pages=8):
         if page_token:
             cmd.extend(["--page-token", page_token])
         try:
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
             d = json.loads(r.stdout)
             batch = d.get("data", {}).get("messages", [])
             if not batch:
@@ -48,7 +149,7 @@ def fetch_messages(chat_id, max_pages=8):
             if not d.get("data", {}).get("has_more") or not pt:
                 break
             page_token = pt
-            time.sleep(0.2)
+            time.sleep(0.15)
         except Exception:
             break
     return msgs
@@ -121,7 +222,7 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
             for sec in analysis.get("sectors", []):
                 sector_data[sec].append({
                     "group": grp_name, "time": ct,
-                    "text": m.get("content", "")[:80]
+                    "text": m.get("content", "")
                 })
 
             # 股票聚合
@@ -132,7 +233,7 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
                     "has_action": bool(analysis.get("actions")),
                     "bull": any(s in analysis.get("sentiments", {}) for s in ["看多", "情绪高涨"]),
                     "bear": any(s in analysis.get("sentiments", {}) for s in ["看空", "情绪低迷"]),
-                    "text": m.get("content", "")[:120]
+                    "text": m.get("content", "")
                 })
 
     # 股票热度排行
@@ -140,7 +241,9 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
     for code, details in stock_data.items():
         groups = set(d["group"] for d in details)
         action_count = sum(1 for d in details if d["has_action"])
-        name = next((d["name"] for d in details if d["name"]), "")
+        # 优先用本地映射表校正名称
+        raw_name = next((d["name"] for d in details if d["name"]), "")
+        name = resolve_stock_name(code, raw_name)
         bull = sum(1 for d in details if d["bull"])
         bear = sum(1 for d in details if d["bear"])
 
@@ -241,30 +344,38 @@ def collect_live(cfg=None, data_dir=None):
     time_str = now.strftime("%Y-%m-%d %H:%M")
     max_pages = cfg["collector"]["max_pages"]
 
-    # 抓取所有群消息
+    # 并发抓取所有群消息（线程池）
     all_analyzed = {}
     total = 0
     active = 0
 
-    for g in cfg["groups"]:
+    def _fetch_one(g):
+        """单个群抓取+分析"""
         try:
-            msgs = fetch_messages(g["chat_id"], max_pages)
+            msgs = fetch_messages_incremental(g["chat_id"], data_dir, max_pages=3)
             day_msgs = [
                 m for m in msgs
                 if m.get("create_time", "").startswith(date_str)
                 and m.get("create_time", "") <= time_str
             ]
-            # 预处理分析
             for m in day_msgs:
                 text = m.get("content", "")
-                if text:
+                if text and "_analysis" not in m:
                     m["_analysis"] = analyze_text(text, cfg)
-            all_analyzed[g["name"]] = day_msgs
+            return g["name"], day_msgs
+        except Exception as e:
+            print(f"  跳过 {g['name']}: {e}")
+            return g["name"], []
+
+    # 并发执行：最多10个线程
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {pool.submit(_fetch_one, g): g["name"] for g in cfg["groups"]}
+        for future in as_completed(futures):
+            grp_name, day_msgs = future.result(timeout=30)
+            all_analyzed[grp_name] = day_msgs
             if day_msgs:
                 active += 1
                 total += len(day_msgs)
-        except Exception as e:
-            print(f"  跳过 {g['name']}: {e}")
 
     # 计算快照
     snapshot = compute_snapshot(all_analyzed, time_str, cfg)
@@ -315,20 +426,30 @@ def collect_replay(date_str, cfg=None, data_dir=None):
     windows = _build_windows(date_str)
     print(f"📅 {date_str} | {len(windows)} 个时间窗口", flush=True)
 
-    # Step 1: 抓取全天消息（只抓一次）
+    # Step 1: 抓取全天消息（只抓一次，并发）
     all_analyzed = {}
     total = 0
     t0 = time.time()
-    for g in cfg["groups"]:
-        print(f"  抓取 {g['name']}...", flush=True)
-        msgs = fetch_messages(g["chat_id"], max_pages)
-        day_msgs = [m for m in msgs if m.get("create_time", "").startswith(date_str)]
-        for m in day_msgs:
-            text = m.get("content", "")
-            if text:
-                m["_analysis"] = analyze_text(text, cfg)
-        all_analyzed[g["name"]] = day_msgs
-        total += len(day_msgs)
+
+    def _fetch_one_replay(g):
+        try:
+            msgs = fetch_messages_full(g["chat_id"], max_pages)
+            day_msgs = [m for m in msgs if m.get("create_time", "").startswith(date_str)]
+            for m in day_msgs:
+                text = m.get("content", "")
+                if text:
+                    m["_analysis"] = analyze_text(text, cfg)
+            return g["name"], day_msgs
+        except Exception as e:
+            print(f"  skip {g['name']}: {e}")
+            return g["name"], []
+
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {pool.submit(_fetch_one_replay, g): g["name"] for g in cfg["groups"]}
+        for future in as_completed(futures):
+            grp_name, day_msgs = future.result(timeout=30)
+            all_analyzed[grp_name] = day_msgs
+            total += len(day_msgs)
     elapsed = time.time() - t0
     print(f"\n✅ 抓取完成：{total}条消息，耗时{elapsed:.0f}s", flush=True)
 
