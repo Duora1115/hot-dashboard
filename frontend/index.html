@@ -4,19 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>飞书群热点多维看板</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/dist/styles.css">
 </head>
 <body>
-<div class="header">
-  <h1>🔥 飞书投资群 · 多维热点看板</h1>
-  <div class="date" id="dateLabel">连接中...</div>
-  <button class="view-toggle" id="btnViewToggle" onclick="toggleViewMode()" title="切换桌面/移动视图">📱</button>
-  <div class="controls">
-    <button class="btn" id="btnPlay" onclick="togglePlay()">▶ 播放</button>
-    <button class="btn" id="btnSpeed" onclick="cycleSpeed()">1x</button>
-    <button class="btn" onclick="jumpLatest()">⏭</button>
-    <button class="btn" onclick="jumpFirst()">⏮</button>
-    <button class="btn" id="btnCollect" onclick="triggerCollect()">🔄 采集</button>
+<div class="text-center mb-4">
+  <h1 class="text-xl md:text-2xl font-bold text-white">🔥 飞书投资群 · 多维热点看板</h1>
+  <div class="text-sm text-primary mt-1" id="dateLabel">连接中...</div>
+  <div class="flex gap-2 justify-center flex-wrap my-3">
+    <button class="btn btn-sm btn-outline" id="btnPlay" onclick="togglePlay()">▶ 播放</button>
+    <button class="btn btn-sm btn-outline" id="btnSpeed" onclick="cycleSpeed()">1x</button>
+    <button class="btn btn-sm btn-outline" onclick="jumpLatest()">⏭</button>
+    <button class="btn btn-sm btn-outline" onclick="jumpFirst()">⏮</button>
+    <button class="btn btn-sm btn-outline" id="btnCollect" onclick="triggerCollect()">🔄 采集</button>
   </div>
 </div>
 <div class="mode-bar">
