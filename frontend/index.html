@@ -26,11 +26,11 @@
   <select class="select select-sm select-bordered" id="dateSelect" onchange="loadDate(this.value)"></select>
   <button class="btn btn-sm btn-outline" onclick="fetchAvailableDates()">刷新日期</button>
 </div>
-<div class="tabs" id="tabBar">
-  <div class="tab active" data-tab="stocks">📈 股票热点</div>
-  <div class="tab" data-tab="sectors">🏭 板块热度</div>
-  <div class="tab" data-tab="sentiment">💭 市场情绪</div>
-  <div class="tab" data-tab="actions">⚡ 操作信号</div>
+<div class="flex gap-1.5 justify-center md:justify-center p-1 bg-base-200 rounded-xl border border-base-300 mb-4 mx-auto max-w-2xl overflow-x-auto">
+  <button class="btn btn-sm btn-primary whitespace-nowrap" data-tab="stocks" onclick="switchTab('stocks')">📈 股票热点</button>
+  <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="sectors" onclick="switchTab('sectors')">🏭 板块热度</button>
+  <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="sentiment" onclick="switchTab('sentiment')">💭 市场情绪</button>
+  <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="actions" onclick="switchTab('actions')">⚡ 操作信号</button>
 </div>
 <div class="stats" id="statsBar"></div>
 <div class="timeline" id="timelineBar">
