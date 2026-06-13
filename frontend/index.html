@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -18,22 +18,22 @@
     <button class="btn btn-sm btn-outline" id="btnCollect" onclick="triggerCollect()">🔄 采集</button>
   </div>
 </div>
-<div class="flex gap-1.5 justify-center p-1 bg-base-200 rounded-xl border border-base-300 mb-4 mx-auto max-w-lg">
+<div id="modeBar" class="flex gap-1.5 justify-center p-1 bg-base-200 rounded-xl border border-base-300 mb-4 mx-auto max-w-lg">
   <button class="btn btn-sm btn-primary" onclick="switchMode('replay')">📼 回放</button>
   <button class="btn btn-sm btn-ghost" onclick="switchMode('live')">🔴 实时</button>
 </div>
-<div class="flex gap-2 justify-center mb-4 items-center">
+<div id="datePicker" class="flex gap-2 justify-center mb-4 items-center">
   <select class="select select-sm select-bordered" id="dateSelect" onchange="loadDate(this.value)"></select>
   <button class="btn btn-sm btn-outline" onclick="fetchAvailableDates()">刷新日期</button>
 </div>
 <div class="flex gap-1.5 justify-center md:justify-center p-1 bg-base-200 rounded-xl border border-base-300 mb-4 mx-auto max-w-2xl overflow-x-auto">
-  <button class="btn btn-sm btn-primary whitespace-nowrap" data-tab="stocks" onclick="switchTab('stocks')">📈 股票热点</button>
-  <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="sectors" onclick="switchTab('sectors')">🏭 板块热度</button>
-  <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="sentiment" onclick="switchTab('sentiment')">💭 市场情绪</button>
-  <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="actions" onclick="switchTab('actions')">⚡ 操作信号</button>
+  <button class="btn btn-sm btn-primary whitespace-nowrap" data-tab="stocks">📈 股票热点</button>
+  <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="sectors">🏭 板块热度</button>
+  <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="sentiment">💭 市场情绪</button>
+  <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="actions">⚡ 操作信号</button>
 </div>
 <div class="flex gap-2 justify-center flex-wrap my-3" id="statsBar"></div>
-<div class="my-3">
+<div id="timelineBar" class="my-3">
   <div class="flex justify-between text-xs text-slate-400 mb-1">
     <span id="tlS">--</span>
     <span id="tlE">--</span>
