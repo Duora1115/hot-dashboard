@@ -32,11 +32,14 @@
   <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="sentiment" onclick="switchTab('sentiment')">💭 市场情绪</button>
   <button class="btn btn-sm btn-ghost whitespace-nowrap" data-tab="actions" onclick="switchTab('actions')">⚡ 操作信号</button>
 </div>
-<div class="stats" id="statsBar"></div>
-<div class="timeline" id="timelineBar">
-  <div class="tl-label"><span id="tlS">--</span><span id="tlE">--</span></div>
-  <input type="range" id="slider" min="0" max="100" value="100">
-  <div class="cur-time" id="curTime">--:--</div>
+<div class="flex gap-2 justify-center flex-wrap my-3" id="statsBar"></div>
+<div class="my-3">
+  <div class="flex justify-between text-xs text-slate-400 mb-1">
+    <span id="tlS">--</span>
+    <span id="tlE">--</span>
+  </div>
+  <input type="range" class="range range-primary range-sm w-full" id="slider" min="0" max="100" value="100">
+  <div class="text-center text-base font-bold text-accent mt-2" id="curTime">--:--</div>
 </div>
 <div class="panel active" id="panel-stocks">
   <table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>热度</th><th>提及</th><th>群</th><th>多空</th><th>板块</th><th>操作建议</th></tr></thead><tbody id="stockBody"></tbody></table>
