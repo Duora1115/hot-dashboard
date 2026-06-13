@@ -34,13 +34,13 @@ function setupTabs() {
 // ========== 模式切换 ==========
 function switchMode(m) {
   mode = m;
-  document.querySelectorAll('.mode-bar button').forEach(b => {
+  document.querySelectorAll('#modeBar button').forEach(b => {
     b.classList.remove('btn-primary');
     b.classList.add('btn-ghost');
   });
   var activeBtn = m === 'replay'
-    ? Array.from(document.querySelectorAll('.mode-bar button')).find(b => b.textContent.includes('回放'))
-    : Array.from(document.querySelectorAll('.mode-bar button')).find(b => b.textContent.includes('实时'));
+    ? Array.from(document.querySelectorAll('#modeBar button')).find(b => b.textContent.includes('回放'))
+    : Array.from(document.querySelectorAll('#modeBar button')).find(b => b.textContent.includes('实时'));
   if (activeBtn) {
     activeBtn.classList.remove('btn-ghost');
     activeBtn.classList.add('btn-primary');
@@ -265,13 +265,14 @@ function render() {
 
 
 function renderStocks(snap) {
+  currentStocks = snap.stk || [];
   var container = document.getElementById('stockMobile');
-  if (!snap.stk || !snap.stk.length) {
+  if (!currentStocks.length) {
     container.innerHTML = '<div class="empty">暂无热点</div>';
     return;
   }
   var h = '';
-  snap.stk.forEach(function (it, i) {
+  currentStocks.forEach(function (it, i) {
     var rank = i + 1;
     var heatColor = it.sc >= 80 ? 'success' : it.sc >= 60 ? 'warning' : 'error';
     var heatGradient = it.sc >= 80 ? 'from-success to-green-700' : it.sc >= 60 ? 'from-warning to-yellow-700' : 'from-error to-red-700';
@@ -279,7 +280,7 @@ function renderStocks(snap) {
     var sentTag = sentText === '看多' ? 'badge-success' : sentText === '看空' ? 'badge-error' : 'badge-warning';
     var secTags = it.sec.slice(0, 2).map(function (s) { return '<span class="badge badge-info badge-sm">' + s + '</span>'; }).join('');
 
-    h += '<div class="bg-base-200 border border-base-300 rounded-lg p-3 hover:border-primary transition-colors cursor-pointer">' +
+    h += '<div class="bg-base-200 border border-base-300 rounded-lg p-3 hover:border-primary transition-colors cursor-pointer" onclick="openStockModal(' + i + ')">' +
       '<div class="flex justify-between items-center mb-2">' +
         '<span class="text-xs text-slate-400 font-semibold">#' + rank + '</span>' +
         '<span class="text-xl font-bold text-' + heatColor + '">' + it.sc + '</span>' +
@@ -320,6 +321,7 @@ function renderSectors(snap) {
 
 // ========== 板块详情弹窗 ==========
 let currentSectors = [];
+let currentStocks = [];
 
 function showModal(title, stats, body) {
   document.getElementById('modalTitle').textContent = title;
@@ -330,6 +332,47 @@ function showModal(title, stats, body) {
 
 function closeModal() {
   document.getElementById('modalOverlay').close();
+}
+
+function openStockModal(stockIdx) {
+  var stk = currentStocks[stockIdx];
+  if (!stk) return;
+
+  var statsHtml =
+    '<div class="flex-1 min-w-[100px] text-center">' +
+      '<div class="text-xl font-bold text-success">' + stk.bu + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">看多</div>' +
+    '</div>' +
+    '<div class="flex-1 min-w-[100px] text-center">' +
+      '<div class="text-xl font-bold text-error">' + stk.be + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">看空</div>' +
+    '</div>' +
+    '<div class="flex-1 min-w-[100px] text-center">' +
+      '<div class="text-xl font-bold text-warning">' + (stk.mc - stk.bu - stk.be) + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">观望</div>' +
+    '</div>';
+
+  var h = '';
+  if (stk.messages && stk.messages.length) {
+    stk.messages.forEach(function (g) {
+      h += '<div class="mb-3">' +
+        '<div class="flex justify-between items-center px-3 py-2 bg-primary/10 rounded-lg mb-1.5">' +
+          '<span class="font-bold text-sm text-primary">📊 ' + escHtml(g.group) + '</span>' +
+          '<span class="text-xs text-slate-400">' + g.messages.length + ' 条消息</span>' +
+        '</div>';
+      g.messages.forEach(function (m) {
+        h += '<div class="pl-3.5 ml-3 border-l-2 border-base-300 bg-white/5 rounded-r-lg py-2 px-3 my-1">' +
+          '<div class="text-xs text-slate-400 mb-1">' + m.time + '</div>' +
+          '<div class="text-sm text-slate-200 leading-relaxed">' + escHtml(m.text) + '</div>' +
+        '</div>';
+      });
+      h += '</div>';
+    });
+  } else {
+    h = '<div class="text-center text-slate-400 py-8">暂无相关消息记录</div>';
+  }
+
+  showModal('📈 ' + stk.n + ' (' + stk.c + ')', statsHtml, h);
 }
 
 function openSectorModal(sectorIdx) {
@@ -395,10 +438,55 @@ function renderSentiment(snap) {
     '<div class="w-[' + bp + '%] h-full bg-gradient-to-r from-success to-green-700"></div>' +
     '<div class="w-[' + np + '%] h-full bg-slate-500"></div>' +
     '<div class="w-[' + ep + '%] h-full bg-gradient-to-r from-error to-red-700"></div>';
+
+  // Update sentDetails (stats cards)
+  document.getElementById('sentDetails').innerHTML =
+    '<div class="bg-base-200 border border-base-300 rounded-lg px-4 py-2 text-center min-w-[80px]">' +
+      '<div class="text-lg font-bold text-success">' + sd.bu + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">看多</div>' +
+    '</div>' +
+    '<div class="bg-base-200 border border-base-300 rounded-lg px-4 py-2 text-center min-w-[80px]">' +
+      '<div class="text-lg font-bold text-warning">' + sd.ne + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">观望</div>' +
+    '</div>' +
+    '<div class="bg-base-200 border border-base-300 rounded-lg px-4 py-2 text-center min-w-[80px]">' +
+      '<div class="text-lg font-bold text-error">' + sd.be + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">看空</div>' +
+    '</div>' +
+    '<div class="bg-base-200 border border-base-300 rounded-lg px-4 py-2 text-center min-w-[80px]">' +
+      '<div class="text-lg font-bold text-accent">' + sd.eh + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">亢奋</div>' +
+    '</div>' +
+    '<div class="bg-base-200 border border-base-300 rounded-lg px-4 py-2 text-center min-w-[80px]">' +
+      '<div class="text-lg font-bold text-error">' + sd.el + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">悲观</div>' +
+    '</div>';
+
+  // Update sentDetailCards (mobile cards)
+  var items = [
+    { n: '看多', v: sd.bu, c: 'success' },
+    { n: '看空', v: sd.be, c: 'error' },
+    { n: '观望', v: sd.ne, c: 'warning' },
+    { n: '极度亢奋', v: sd.eh, c: 'accent' },
+    { n: '极度悲观', v: sd.el, c: 'error' }
+  ];
+  var ch = '';
+  items.forEach(function (it) {
+    ch += '<div class="bg-base-200 border border-base-300 rounded-lg p-3 flex justify-between items-center mb-2">' +
+      '<span class="text-sm text-' + it.c + '">' + it.n + '</span>' +
+      '<span class="text-base font-bold text-' + it.c + '">' + it.v + ' (' + Math.round(it.v / total * 100) + '%)</span>' +
+    '</div>';
+  });
+  var dc = document.getElementById('sentDetailCards');
+  if (dc) dc.innerHTML = ch;
 }
 
 function renderActions(snap) {
   var act = snap.act || {};
+  var total = 0;
+  for (var k in act) total += act[k];
+  if (!total) total = 1;
+
   var icons = { '买入信号': '🟢', '卖出信号': '🔴', '持有建议': '🟡', '风险提示': '⚠️' };
   var colors = { '买入信号': 'success', '卖出信号': 'error', '持有建议': 'warning', '风险提示': 'error' };
 
@@ -411,5 +499,25 @@ function renderActions(snap) {
   }).join('');
 
   document.getElementById('actionGrid').innerHTML = html;
+
+  // Update actDetailCards (mobile cards)
+  var keywords = {
+    '买入信号': '买/加仓/建仓/上车/抄底/打板',
+    '卖出信号': '卖/减仓/清仓/取关/割肉',
+    '持有建议': '持有/拿住/格局/等/再看看',
+    '风险提示': '风险/注意/谨慎/别追/别急/等回调'
+  };
+  var ch = '';
+  for (var k in act) {
+    ch += '<div class="bg-base-200 border border-base-300 rounded-lg p-3 mb-2">' +
+      '<div class="flex justify-between items-center mb-1">' +
+        '<span class="text-sm font-bold">' + k + '</span>' +
+        '<span class="text-base font-bold text-' + (colors[k] || 'primary') + '">' + act[k] + ' (' + Math.round(act[k] / total * 100) + '%)</span>' +
+      '</div>' +
+      '<div class="text-xs text-slate-400">' + (keywords[k] || '') + '</div>' +
+    '</div>';
+  }
+  var dc = document.getElementById('actDetailCards');
+  if (dc) dc.innerHTML = ch;
 }
 

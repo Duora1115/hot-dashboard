@@ -87,6 +87,12 @@ def api_day(date_str: str):
     for s in data["snapshots"]:
         top10 = []
         for t in s.get("top10_stocks", []):
+            stock_messages = []
+            for g in t.get("group_details", []):
+                stock_messages.append({
+                    "group": g["group"],
+                    "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
+                })
             top10.append({
                 "c": t["code"], "n": t.get("name", ""), "sc": t["score"],
                 "mc": t["mention_count"], "gc": t["group_count"],
@@ -94,6 +100,7 @@ def api_day(date_str: str):
                 "ft": t.get("first_time", "").split(" ")[1] if t.get("first_time") else "",
                 "lt": t.get("last_time", "").split(" ")[1] if t.get("last_time") else "",
                 "sec": t.get("sectors", []),
+                "messages": stock_messages
             })
         top8 = []
         for t in s.get("top8_sectors", []):
