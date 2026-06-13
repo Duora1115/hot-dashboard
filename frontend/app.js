@@ -8,35 +8,8 @@ let si = 0;
 let liveTimer = null;
 const API = window.location.origin;
 
-// ========== 视图模式切换 ==========
-function detectMobile() {
-  var saved = localStorage.getItem('viewMode');
-  if (saved) {
-    document.documentElement.classList.toggle('mobile-mode', saved === 'mobile');
-  } else {
-    document.documentElement.classList.toggle('mobile-mode', window.innerWidth <= 768);
-  }
-  updateViewToggleBtn();
-}
-
-function toggleViewMode() {
-  var isMobile = document.documentElement.classList.toggle('mobile-mode');
-  localStorage.setItem('viewMode', isMobile ? 'mobile' : 'desktop');
-  updateViewToggleBtn();
-  render();
-}
-
-function updateViewToggleBtn() {
-  var btn = document.getElementById('btnViewToggle');
-  if (!btn) return;
-  var isMobile = document.documentElement.classList.contains('mobile-mode');
-  btn.textContent = isMobile ? '🖥' : '📱';
-  btn.title = isMobile ? '切换到桌面版' : '切换到移动版';
-}
-
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', () => {
-  detectMobile();
   fetchAvailableDates();
   setupTabs();
 });
@@ -257,107 +230,17 @@ function render() {
     '<div class="stat"><div class="val" style="color:var(--red)">' + (snap.sd ? snap.sd.be : '-') + '</div><div class="label">看空</div></div>' +
     '<div class="stat"><div class="val" style="color:var(--gold)">' + snap.sent + '</div><div class="label">情绪</div></div>';
 
-  var maxS = snap.stk && snap.stk.length > 0 ? snap.stk[0].sc : 1;
-
-  var isMobile = document.documentElement.classList.contains('mobile-mode');
-
   if (activeTab === 'stocks') {
-    if (isMobile) renderStocksMobile(snap, maxS);
-    else renderStocks(snap, maxS);
+    renderStocks(snap);
   } else if (activeTab === 'sectors') {
-    if (isMobile) renderSectorsMobile(snap);
-    else renderSectors(snap);
+    renderSectors(snap);
   } else if (activeTab === 'sentiment') {
-    if (isMobile) renderSentimentMobile(snap);
-    else renderSentiment(snap);
+    renderSentiment(snap);
   } else if (activeTab === 'actions') {
-    if (isMobile) renderActionsMobile(snap);
-    else renderActions(snap);
+    renderActions(snap);
   }
 }
 
-function renderStocks(snap, maxS) {
-  var tb = document.getElementById('stockBody');
-  if (!snap.stk || !snap.stk.length) {
-    tb.innerHTML = '<tr><td colspan="9" class="empty">暂无热点</td></tr>';
-    return;
-  }
-  var h = '';
-  snap.stk.forEach(function (it, i) {
-    var r = i + 1, rd = r;
-    if (r === 1) rd = '🥇'; else if (r === 2) rd = '🥈'; else if (r === 3) rd = '🥉';
-    var sc = 'sc-l';
-    if (it.sc >= 60) sc = 'sc-h'; else if (it.sc >= 30) sc = 'sc-m';
-    var p = Math.min(100, it.sc / maxS * 100);
-    var bullTag = it.bu > it.be ? '<span class="tag tag-g">多' + it.bu + '</span>' :
-      it.be > it.bu ? '<span class="tag tag-r">空' + it.be + '</span>' :
-        '<span class="tag tag-b">均</span>';
-    var actTag = it.ac > 0 ? '<span class="tag tag-r" title="操作建议 ' + it.ac + ' 次">建议' + it.ac + '</span>' : '-';
-    var secTags = it.sec.slice(0, 3).map(function (s) { return '<span class="tag tag-s">' + s + '</span>'; }).join(' ');
-    h += '<tr><td style="font-weight:700">' + rd + '</td>' +
-      '<td><span class="code">' + it.c + '</span></td><td>' + (it.n || '-') + '</td>' +
-      '<td><span class="' + sc + '">' + it.sc + '</span><span class="pbar"><span class="fill" style="width:' + p + '%"></span></span></td>' +
-      '<td>' + it.mc + '</td><td>' + it.gc + '</td><td>' + bullTag + '</td><td>' + secTags + '</td><td>' + actTag + '</td></tr>';
-  });
-  tb.innerHTML = h;
-}
-
-function renderStocksMobile(snap, maxS) {
-  var container = document.getElementById('stockMobile');
-  if (!snap.stk || !snap.stk.length) {
-    container.innerHTML = '<div class="empty">暂无热点</div>';
-    return;
-  }
-  var h = '';
-  snap.stk.forEach(function (it, i) {
-    var r = i + 1, rd = r;
-    if (r === 1) rd = '🥇'; else if (r === 2) rd = '🥈'; else if (r === 3) rd = '🥉';
-    var sc = 'sc-l';
-    if (it.sc >= 60) sc = 'sc-h'; else if (it.sc >= 30) sc = 'sc-m';
-    var p = Math.min(100, it.sc / maxS * 100);
-    var bullTag = it.bu > it.be ? '<span class="tag tag-g">多' + it.bu + '</span>' :
-      it.be > it.bu ? '<span class="tag tag-r">空' + it.be + '</span>' :
-        '<span class="tag tag-b">均</span>';
-    var actTag = it.ac > 0 ? '<span class="tag tag-r" title="操作建议 ' + it.ac + ' 次">建议' + it.ac + '</span>' : '';
-    var secTags = it.sec.slice(0, 3).map(function (s) { return '<span class="tag tag-s">' + s + '</span>'; }).join(' ');
-    var nm = it.n || '-';
-    h += '<div class="stock-card">' +
-      '<div class="name-row"><div><span class="rank">' + rd + '</span> <span class="code">' + it.c + '</span><span class="name">' + nm + '</span></div><span class="' + sc + '">' + it.sc + '</span></div>' +
-      '<div class="heat-bar"><div class="fill" style="width:' + p + '%;background:' + (it.sc >= 60 ? 'var(--green)' : it.sc >= 30 ? 'var(--yellow)' : 'var(--text2)') + '"></div></div>' +
-      '<div class="meta">' +
-      '<span class="tag tag-b">' + it.mc + '提及</span>' +
-      '<span class="tag tag-b">' + it.gc + '群</span>' +
-      bullTag + actTag + secTags +
-      '</div></div>';
-  });
-  container.innerHTML = h;
-}
-
-function renderSectors(snap) {
-  currentSectors = snap.sec || [];
-  var grid = document.getElementById('sectorGrid');
-  if (!currentSectors.length) {
-    grid.innerHTML = '<div class="empty">暂无板块数据</div>';
-    return;
-  }
-  var maxSc = currentSectors[0].sc || 1;
-  var colors = ['var(--accent)', 'var(--green)', 'var(--purple)', 'var(--yellow)', 'var(--orange)', 'var(--red)', 'var(--text2)'];
-  var h = '';
-  currentSectors.forEach(function (it, i) {
-    var pct = Math.min(100, it.sc / maxSc * 100);
-    var bg = colors[i % colors.length];
-    h += '<div class="sector-card" onclick="openSectorModal(' + i + ')">' +
-      '<div class="sn">' + it.n + '</div>' +
-      '<div class="info">' + it.mc + '次提及 · ' + it.gc + '个群</div>' +
-      '<div class="bar"><div class="fill" style="width:' + pct + '%;background:' + bg + '"></div></div>' +
-      '<div class="info" style="margin-top:3px;opacity:.7">' + (it.txt || '') + '</div></div>';
-  });
-  grid.innerHTML = h;
-}
-
-function renderSectorsMobile(snap) {
-  renderSectors(snap);
-}
 
 // ========== 板块详情弹窗 ==========
 let currentSectors = [];
@@ -397,100 +280,3 @@ function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function renderSentiment(snap) {
-  var sd = snap.sd;
-  if (!sd) return;
-  var total = sd.bu + sd.be + sd.ne || 1;
-  var bp = Math.round(sd.bu / total * 100), ep = Math.round(sd.be / total * 100), np = 100 - bp - ep;
-  document.getElementById('sentLabel').textContent = snap.sent;
-  document.getElementById('sentMeter').innerHTML =
-    '<div class="sent-bar sent-bull" style="width:' + bp + '%"></div>' +
-    '<div class="sent-bar sent-neu" style="width:' + np + '%"></div>' +
-    '<div class="sent-bar sent-bear" style="width:' + ep + '%"></div>';
-  document.getElementById('sentDetails').innerHTML =
-    '<div class="stat"><div class="val" style="color:var(--green)">' + sd.bu + '</div><div class="label">看多</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--yellow)">' + sd.ne + '</div><div class="label">观望</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--red)">' + sd.be + '</div><div class="label">看空</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--gold)">' + sd.eh + '</div><div class="label">亢奋</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--red)">' + sd.el + '</div><div class="label">悲观</div></div>';
-  var items = [
-    { n: '看多', v: sd.bu, c: 'var(--green)' }, { n: '看空', v: sd.be, c: 'var(--red)' },
-    { n: '观望', v: sd.ne, c: 'var(--yellow)' }, { n: '极度亢奋', v: sd.eh, c: 'var(--gold)' },
-    { n: '极度悲观', v: sd.el, c: 'var(--red)' }
-  ];
-  var h = '';
-  items.forEach(function (it) {
-    h += '<tr><td style="color:' + it.c + '">' + it.n + '</td><td>' + it.v + '</td><td>' + Math.round(it.v / total * 100) + '%</td></tr>';
-  });
-  document.getElementById('sentBody').innerHTML = h;
-}
-
-function renderSentimentMobile(snap) {
-  var sd = snap.sd;
-  if (!sd) return;
-  var total = sd.bu + sd.be + sd.ne || 1;
-  var bp = Math.round(sd.bu / total * 100), ep = Math.round(sd.be / total * 100), np = 100 - bp - ep;
-  document.getElementById('sentLabel').textContent = snap.sent;
-  document.getElementById('sentMeter').innerHTML =
-    '<div class="sent-bar sent-bull" style="width:' + bp + '%"></div>' +
-    '<div class="sent-bar sent-neu" style="width:' + np + '%"></div>' +
-    '<div class="sent-bar sent-bear" style="width:' + ep + '%"></div>';
-  var items = [
-    { n: '看多', v: sd.bu, c: 'var(--green)' }, { n: '看空', v: sd.be, c: 'var(--red)' },
-    { n: '观望', v: sd.ne, c: 'var(--yellow)' }, { n: '极度亢奋', v: sd.eh, c: 'var(--gold)' },
-    { n: '极度悲观', v: sd.el, c: 'var(--red)' }
-  ];
-  var ch = '';
-  items.forEach(function (it) {
-    ch += '<div class="detail-card"><span class="dc-label" style="color:' + it.c + '">' + it.n + '</span>' +
-      '<span class="dc-value" style="color:' + it.c + '">' + it.v + ' (' + Math.round(it.v / total * 100) + '%)</span></div>';
-  });
-  var dc = document.getElementById('sentDetailCards');
-  if (dc) dc.innerHTML = ch;
-}
-
-function renderActions(snap) {
-  var act = snap.act || {};
-  var total = 0;
-  for (var k in act) total += act[k];
-  if (!total) total = 1;
-  var icons = { '买入信号': '🟢', '卖出信号': '🔴', '持有建议': '🟡', '风险提示': '⚠️' };
-  var grid = document.getElementById('actionGrid'), gh = '';
-  for (var k in act) {
-    gh += '<div class="action-card"><div class="icon">' + (icons[k] || '📊') + '</div>' +
-      '<div class="count">' + act[k] + '</div><div class="label">' + k + '</div></div>';
-  }
-  grid.innerHTML = gh;
-  var keywords = {
-    '买入信号': '买/加仓/建仓/上车/抄底/打板',
-    '卖出信号': '卖/减仓/清仓/取关/割肉',
-    '持有建议': '持有/拿住/格局/等/再看看',
-    '风险提示': '风险/注意/谨慎/别追/别急/等回调'
-  };
-  var h = '';
-  for (var k in act) {
-    h += '<tr><td>' + k + '</td><td>' + act[k] + '</td><td>' + Math.round(act[k] / total * 100) + '%</td><td style="font-size:10px;color:var(--text2)">' + (keywords[k] || '') + '</td></tr>';
-  }
-  document.getElementById('actBody').innerHTML = h;
-}
-
-function renderActionsMobile(snap) {
-  var act = snap.act || {};
-  var total = 0;
-  for (var k in act) total += act[k];
-  if (!total) total = 1;
-  var icons = { '买入信号': '🟢', '卖出信号': '🔴', '持有建议': '🟡', '风险提示': '⚠️' };
-  var grid = document.getElementById('actionGrid'), gh = '';
-  for (var k in act) {
-    gh += '<div class="action-card"><div class="icon">' + (icons[k] || '📊') + '</div>' +
-      '<div class="count">' + act[k] + '</div><div class="label">' + k + '</div></div>';
-  }
-  grid.innerHTML = gh;
-  var ch = '';
-  for (var k in act) {
-    ch += '<div class="detail-card"><span class="dc-label">' + k + '</span>' +
-      '<span class="dc-value">' + act[k] + ' (' + Math.round(act[k] / total * 100) + '%)</span></div>';
-  }
-  var dc = document.getElementById('actDetailCards');
-  if (dc) dc.innerHTML = ch;
-}
