@@ -42,26 +42,27 @@
   <div class="text-center text-base font-bold text-accent mt-2" id="curTime">--:--</div>
 </div>
 <div class="panel active" id="panel-stocks">
-  <table><thead><tr><th>#</th><th>代码</th><th>名称</th><th>热度</th><th>提及</th><th>群</th><th>多空</th><th>板块</th><th>操作建议</th></tr></thead><tbody id="stockBody"></tbody></table>
-  <div id="stockMobile"></div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3" id="stockMobile"></div>
 </div>
 <div class="panel" id="panel-sectors">
-  <div class="sector-grid" id="sectorGrid"></div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" id="sectorGrid"></div>
 </div>
 <div class="panel" id="panel-sentiment">
-  <div class="sent-box">
-    <div class="sent-label" id="sentLabel">--</div>
-    <div class="sent-meter" id="sentMeter"></div>
-    <div class="sent-labels"><span>看多</span><span>观望</span><span>看空</span></div>
+  <div class="text-center mb-4">
+    <div class="text-lg font-bold mb-2" id="sentLabel">--</div>
+    <div class="flex h-6 bg-base-200 border border-base-300 rounded-lg overflow-hidden max-w-md mx-auto" id="sentMeter"></div>
+    <div class="flex justify-between max-w-md mx-auto mt-1.5 text-xs text-slate-400">
+      <span>看多</span>
+      <span>观望</span>
+      <span>看空</span>
+    </div>
   </div>
-  <div class="stats" id="sentDetails"></div>
-  <div class="sent-detail-cards" id="sentDetailCards"></div>
-  <table><thead><tr><th>情绪类型</th><th>匹配数</th><th>占比</th></tr></thead><tbody id="sentBody"></tbody></table>
+  <div class="flex gap-2 justify-center flex-wrap my-3" id="sentDetails"></div>
+  <div class="block md:hidden" id="sentDetailCards"></div>
 </div>
 <div class="panel" id="panel-actions">
-  <div class="action-grid" id="actionGrid"></div>
-  <div class="act-detail-cards" id="actDetailCards"></div>
-  <table><thead><tr><th>信号类型</th><th>数量</th><th>占比</th><th>示例关键词</th></tr></thead><tbody id="actBody"></tbody></table>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4" id="actionGrid"></div>
+  <div class="block md:hidden" id="actDetailCards"></div>
 </div>
 <div class="footer">数据来源：25个飞书投资群 | 每5分钟更新 | 仅供参考</div>
 <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
