@@ -34,10 +34,17 @@ function setupTabs() {
 // ========== 模式切换 ==========
 function switchMode(m) {
   mode = m;
-  document.querySelectorAll('.mode-btn').forEach(b => {
-    b.classList.toggle('active', (m === 'replay' && b.textContent.includes('回放')) ||
-      (m === 'live' && b.textContent.includes('实时')));
+  document.querySelectorAll('.mode-bar button').forEach(b => {
+    b.classList.remove('btn-primary');
+    b.classList.add('btn-ghost');
   });
+  var activeBtn = m === 'replay'
+    ? Array.from(document.querySelectorAll('.mode-bar button')).find(b => b.textContent.includes('回放'))
+    : Array.from(document.querySelectorAll('.mode-bar button')).find(b => b.textContent.includes('实时'));
+  if (activeBtn) {
+    activeBtn.classList.remove('btn-ghost');
+    activeBtn.classList.add('btn-primary');
+  }
   document.getElementById('datePicker').style.display = m === 'replay' ? 'flex' : 'none';
   document.getElementById('timelineBar').style.display = m === 'replay' ? 'block' : 'none';
   document.getElementById('btnPlay').style.display = m === 'replay' ? '' : 'none';
