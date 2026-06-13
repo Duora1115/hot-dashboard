@@ -16,3 +16,9 @@ __pycache__/
 .DS_Store
 .superpowers/
 .worktrees/
+
+# Tailwind CSS 编译输出
+frontend/dist/
+
+# npm
+node_modules/

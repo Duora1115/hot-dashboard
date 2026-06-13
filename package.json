@@ -1,0 +1,20 @@
+{
+  "name": "tailwind-redesign",
+  "version": "1.0.0",
+  "description": "从25个飞书投资群采集消息，多维度分析A股热点（股票/板块/情绪/操作），提供可视化Web看板。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "daisyui": "^5.5.23",
+    "tailwindcss": "^4.3.1"
+  }
+}
