@@ -1,13 +1,13 @@
 # Hot Dashboard Makefile
 
-.PHONY: install server collect replay cron status
+.PHONY: install server collect replay cron status css css-watch css-prod
 
 # 安装依赖
 install:
 	pip3 install -r requirements.txt
 
 # 启动开发服务器
-server:
+server: css
 	cd $$(pwd) && python3 -m uvicorn backend.server:app --host 127.0.0.1 --port 8765 --reload
 
 # 生产服务器（后台运行）
@@ -63,3 +63,13 @@ status:
 	@echo ""
 	@echo "=== 可用日期 ==="
 	@curl -s http://127.0.0.1:8765/api/dates 2>/dev/null || echo "服务器未运行"
+
+# Tailwind CSS 编译
+css:
+	npx tailwindcss -i frontend/src/styles.css -o frontend/dist/styles.css
+
+css-watch:
+	npx tailwindcss -i frontend/src/styles.css -o frontend/dist/styles.css --watch
+
+css-prod:
+	npx tailwindcss -i frontend/src/styles.css -o frontend/dist/styles.css --minify
