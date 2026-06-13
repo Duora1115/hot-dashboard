@@ -8,6 +8,9 @@ let si = 0;
 let liveTimer = null;
 const API = window.location.origin;
 
+// 提取时间部分：兼容 "YYYY-MM-DD HH:MM" 和 "HH:MM" 两种格式
+function fmtTime(t) { return t && t.indexOf(' ') >= 0 ? t.split(' ')[1] : (t || '--'); }
+
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', () => {
   fetchAvailableDates();
@@ -132,7 +135,7 @@ function loadLive() {
               sec: t.sectors || [],
               messages: (t.group_details || []).map(g => ({
                 group: g.group,
-                messages: (g.messages || []).map(m => ({ time: m.time, text: m.text }))
+                messages: (g.messages || []).map(m => ({ t: m.time, x: m.text }))
               }))
             })),
             sec: (d.top8_sectors || []).map(t => ({
@@ -148,7 +151,7 @@ function loadLive() {
         };
         idx = 0;
         document.getElementById('dateLabel').textContent = '📅 ' + data.date + ' · 实时';
-        document.getElementById('curTime').textContent = data.snapshots[0].t.split(' ')[1];
+        document.getElementById('curTime').textContent = fmtTime(data.snapshots[0].t);
         render();
       })
       .catch(() => {
@@ -192,8 +195,8 @@ function initSlider() {
   document.getElementById('slider').max = s.length - 1;
   document.getElementById('slider').value = s.length - 1;
   idx = s.length - 1;
-  document.getElementById('tlS').textContent = s[0].t.split(' ')[1];
-  document.getElementById('tlE').textContent = s[s.length - 1].t.split(' ')[1];
+  document.getElementById('tlS').textContent = fmtTime(s[0].t);
+  document.getElementById('tlE').textContent = fmtTime(s[s.length - 1].t);
   document.getElementById('slider').oninput = function () { idx = +this.value; render(); };
 }
 
@@ -236,7 +239,7 @@ function jumpFirst() { idx = 0; document.getElementById('slider').value = 0; ren
 function render() {
   if (!data || !data.snapshots || !data.snapshots[idx]) return;
   var snap = data.snapshots[idx];
-  document.getElementById('curTime').textContent = snap.t.split(' ')[1];
+  document.getElementById('curTime').textContent = fmtTime(snap.t);
 
   document.getElementById('statsBar').innerHTML =
     '<div class="bg-base-200 border border-base-300 rounded-lg px-4 py-2 text-center min-w-[80px]">' +
@@ -366,8 +369,8 @@ function openStockModal(stockIdx) {
         '</div>';
       g.messages.forEach(function (m) {
         h += '<div class="pl-3.5 ml-3 border-l-2 border-base-300 bg-white/5 rounded-r-lg py-2 px-3 my-1">' +
-          '<div class="text-xs text-slate-400 mb-1">' + m.time + '</div>' +
-          '<div class="text-sm text-slate-200 leading-relaxed">' + escHtml(m.text) + '</div>' +
+          '<div class="text-xs text-slate-400 mb-1">' + m.t + '</div>' +
+          '<div class="text-sm text-slate-200 leading-relaxed">' + escHtml(m.x) + '</div>' +
         '</div>';
       });
       h += '</div>';

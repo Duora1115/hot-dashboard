@@ -10,6 +10,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi import Body
@@ -27,6 +28,8 @@ data_dir = PROJECT_ROOT / cfg["server"]["data_dir"]
 frontend_dir = PROJECT_ROOT / "frontend"
 
 app = FastAPI(title="Hot Dashboard API", version="1.0.0")
+# 启用 GZip 压缩，超过 1KB 的响应自动压缩
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 # ---- API 路由 ----
@@ -88,15 +91,19 @@ def api_day(date_str: str):
     if not total and data.get("snapshots"):
         total = data["snapshots"][-1].get("total_messages", 0)
     compressed = {"date": data["date"], "total": total, "snapshots": []}
-    for s in data["snapshots"]:
+    snap_count = len(data["snapshots"])
+    for idx, s in enumerate(data["snapshots"]):
+        # 只有最后一个快照包含完整消息明细，历史快照省略 messages（减少 90%+ 数据量）
+        is_last = (idx == snap_count - 1)
         top10 = []
         for t in s.get("top10_stocks", []):
             stock_messages = []
-            for g in t.get("group_details", []):
-                stock_messages.append({
-                    "group": g["group"],
-                    "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
-                })
+            if is_last:
+                for g in t.get("group_details", []):
+                    stock_messages.append({
+                        "group": g["group"],
+                        "messages": [{"t": m["time"].split(" ")[1], "x": m["text"][:120]} for m in g["messages"][:3]]
+                    })
             top10.append({
                 "c": t["code"], "n": t.get("name", ""), "sc": t["score"],
                 "mc": t["mention_count"], "gc": t["group_count"],
@@ -109,11 +116,12 @@ def api_day(date_str: str):
         top8 = []
         for t in s.get("top8_sectors", []):
             gd = []
-            for g in t.get("group_details", []):
-                gd.append({
-                    "g": g["group"], "c": g["count"],
-                    "m": [{"t": m["time"].split(" ")[1], "x": m["text"]} for m in g["messages"]]
-                })
+            if is_last:
+                for g in t.get("group_details", []):
+                    gd.append({
+                        "g": g["group"], "c": g["count"],
+                        "m": [{"t": m["time"].split(" ")[1], "x": m["text"][:120]} for m in g["messages"][:3]]
+                    })
             top8.append({
                 "n": t["name"], "sc": t["score"],
                 "mc": t["mention_count"], "gc": t["group_count"],
@@ -122,7 +130,7 @@ def api_day(date_str: str):
             })
         sd = s.get("sentiment_detail", {})
         compressed["snapshots"].append({
-            "t": s["time"], "msg": s["total_messages"], "grp": s["active_groups"],
+            "t": s["time"].split(" ")[1], "msg": s["total_messages"], "grp": s["active_groups"],
             "sent": s.get("overall_sentiment", ""),
             "sd": {"bu": sd.get("bull", 0), "be": sd.get("bear", 0), "ne": sd.get("neutral", 0),
                    "eh": sd.get("extreme_high", 0), "el": sd.get("extreme_low", 0)},
