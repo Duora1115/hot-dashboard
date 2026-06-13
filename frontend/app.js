@@ -15,11 +15,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupTabs() {
-  document.querySelectorAll('.tab').forEach(function (t) {
+  document.querySelectorAll('[data-tab]').forEach(function (t) {
     t.addEventListener('click', function () {
       activeTab = this.getAttribute('data-tab');
-      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-      this.classList.add('active');
+      document.querySelectorAll('[data-tab]').forEach(x => {
+        x.classList.remove('btn-primary');
+        x.classList.add('btn-ghost');
+      });
+      this.classList.remove('btn-ghost');
+      this.classList.add('btn-primary');
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById('panel-' + activeTab).classList.add('active');
       render();
