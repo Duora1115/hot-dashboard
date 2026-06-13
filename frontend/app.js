@@ -320,34 +320,53 @@ function renderSectors(snap) {
 
 // ========== 板块详情弹窗 ==========
 let currentSectors = [];
+
+function showModal(title, stats, body) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalStats').innerHTML = stats;
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalOverlay').showModal();
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').close();
+}
+
 function openSectorModal(sectorIdx) {
   var sec = currentSectors[sectorIdx];
   if (!sec) return;
-  document.getElementById('modalTitle').textContent = '🏭 ' + sec.n;
-  document.getElementById('modalStats').innerHTML =
-    '<div class="stat"><div class="val" style="color:var(--accent)">' + sec.mc + '</div><div class="label">提及</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--green)">' + sec.gc + '</div><div class="label">群数</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--gold)">' + sec.sc + '</div><div class="label">热度</div></div>';
+
+  var statsHtml =
+    '<div class="flex-1 min-w-[100px] text-center">' +
+      '<div class="text-xl font-bold text-success">' + sec.mc + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">总提及</div>' +
+    '</div>' +
+    '<div class="flex-1 min-w-[100px] text-center">' +
+      '<div class="text-xl font-bold text-primary">' + sec.gc + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">活跃群</div>' +
+    '</div>';
+
   var h = '';
   if (sec.gd && sec.gd.length > 0) {
     sec.gd.forEach(function (g) {
-      h += '<div class="msg-group">' +
-        '<div class="msg-group-header"><span class="gn">' + g.g + '</span><span class="gc">' + g.c + '条消息</span></div>';
+      h += '<div class="mb-3">' +
+        '<div class="flex justify-between items-center px-3 py-2 bg-primary/10 rounded-lg mb-1.5">' +
+          '<span class="font-bold text-sm text-primary">📊 ' + g.g + '</span>' +
+          '<span class="text-xs text-slate-400">' + g.c + ' 条消息</span>' +
+        '</div>';
       g.m.forEach(function (m) {
-        h += '<div class="msg-item"><div class="mt">' + m.t + '</div><div class="mx">' + escHtml(m.x) + '</div></div>';
+        h += '<div class="pl-3.5 ml-3 border-l-2 border-base-300 bg-white/5 rounded-r-lg py-2 px-3 my-1">' +
+          '<div class="text-xs text-slate-400 mb-1">' + m.t + '</div>' +
+          '<div class="text-sm text-slate-200 leading-relaxed">' + escHtml(m.x) + '</div>' +
+        '</div>';
       });
       h += '</div>';
     });
   } else {
     h = '<div class="empty">暂无详情</div>';
   }
-  document.getElementById('modalBody').innerHTML = h;
-  document.getElementById('modalOverlay').classList.add('show');
-  document.body.style.overflow = 'hidden';
-}
-function closeModal() {
-  document.getElementById('modalOverlay').classList.remove('show');
-  document.body.style.overflow = '';
+
+  showModal('🏭 ' + sec.n, statsHtml, h);
 }
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') closeModal();
