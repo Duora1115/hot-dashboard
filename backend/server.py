@@ -8,9 +8,9 @@ import os
 import sys
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi import Body
@@ -28,8 +28,46 @@ data_dir = PROJECT_ROOT / cfg["server"]["data_dir"]
 frontend_dir = PROJECT_ROOT / "frontend"
 
 app = FastAPI(title="Hot Dashboard API", version="1.0.0")
-# 启用 GZip 压缩，超过 1KB 的响应自动压缩
-app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+# ---- 响应缓存（同日期不重复处理） ----
+_day_cache = {}  # {date_str: {"mtime": float, "data": dict}}
+
+
+def _compress_snapshot(s):
+    """压缩单个快照（线程安全，无共享状态）"""
+    top10 = []
+    for t in s.get("top10_stocks", []):
+        top10.append({
+            "c": t["code"], "n": t.get("name", ""), "sc": t["score"],
+            "mc": t["mention_count"], "gc": t["group_count"],
+            "ac": t["action_count"], "bu": t["bull"], "be": t["bear"],
+            "ft": t.get("first_time", "").split(" ")[1] if t.get("first_time") else "",
+            "lt": t.get("last_time", "").split(" ")[1] if t.get("last_time") else "",
+            "sec": t.get("sectors", []),
+        })
+    top8 = []
+    for t in s.get("top8_sectors", []):
+        gd = []
+        for g in t.get("group_details", []):
+            gd.append({
+                "g": g["group"], "c": g["count"],
+                "m": [{"t": m["time"].split(" ")[1], "x": m["text"]} for m in g["messages"]]
+            })
+        top8.append({
+            "n": t["name"], "sc": t["score"],
+            "mc": t["mention_count"], "gc": t["group_count"],
+            "txt": (t.get("sample_text", ""))[:60],
+            "gd": gd
+        })
+    sd = s.get("sentiment_detail", {})
+    return {
+        "t": s["time"], "msg": s["total_messages"], "grp": s["active_groups"],
+        "sent": s.get("overall_sentiment", ""),
+        "sd": {"bu": sd.get("bull", 0), "be": sd.get("bear", 0), "ne": sd.get("neutral", 0),
+               "eh": sd.get("extreme_high", 0), "el": sd.get("extreme_low", 0)},
+        "act": s.get("action_summary", {}),
+        "stk": top10, "sec": top8
+    }
 
 
 # ---- API 路由 ----
@@ -78,66 +116,70 @@ def api_latest():
 
 @app.get("/api/day/{date_str}")
 def api_day(date_str: str):
-    """获取指定日期的完整回放数据"""
+    """获取指定日期的完整回放数据（多线程并行 + 缓存）"""
     day_file = data_dir / f"day_{date_str}.json"
     if not day_file.exists():
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
+
+    # 检查缓存（文件修改时间一致则命中）
+    mtime = day_file.stat().st_mtime
+    cached = _day_cache.get(date_str)
+    if cached and cached["mtime"] == mtime:
+        return cached["data"]
+
     with open(day_file, encoding="utf-8") as f:
         data = json.load(f)
 
-    # 压缩返回（前端需要）
-    # total_msgs 可能为 0（云端推送/采集异常），用最后一个快照的实际消息数兜底
+    # total_msgs 可能为 0（云端推送/采集异常），用最后一个快照兜底
     total = data.get("total_msgs", 0)
     if not total and data.get("snapshots"):
         total = data["snapshots"][-1].get("total_messages", 0)
-    compressed = {"date": data["date"], "total": total, "snapshots": []}
-    snap_count = len(data["snapshots"])
-    for idx, s in enumerate(data["snapshots"]):
-        # 只有最后一个快照包含完整消息明细，历史快照省略 messages（减少 90%+ 数据量）
-        is_last = (idx == snap_count - 1)
-        top10 = []
-        for t in s.get("top10_stocks", []):
-            stock_messages = []
-            if is_last:
-                for g in t.get("group_details", []):
-                    stock_messages.append({
-                        "group": g["group"],
-                        "messages": [{"t": m["time"].split(" ")[1], "x": m["text"][:120]} for m in g["messages"][:3]]
-                    })
-            top10.append({
-                "c": t["code"], "n": t.get("name", ""), "sc": t["score"],
-                "mc": t["mention_count"], "gc": t["group_count"],
-                "ac": t["action_count"], "bu": t["bull"], "be": t["bear"],
-                "ft": t.get("first_time", "").split(" ")[1] if t.get("first_time") else "",
-                "lt": t.get("last_time", "").split(" ")[1] if t.get("last_time") else "",
-                "sec": t.get("sectors", []),
-                "messages": stock_messages
-            })
-        top8 = []
-        for t in s.get("top8_sectors", []):
-            gd = []
-            if is_last:
-                for g in t.get("group_details", []):
-                    gd.append({
-                        "g": g["group"], "c": g["count"],
-                        "m": [{"t": m["time"].split(" ")[1], "x": m["text"][:120]} for m in g["messages"][:3]]
-                    })
-            top8.append({
-                "n": t["name"], "sc": t["score"],
-                "mc": t["mention_count"], "gc": t["group_count"],
-                "txt": (t.get("sample_text", ""))[:60],
-                "gd": gd
-            })
-        sd = s.get("sentiment_detail", {})
-        compressed["snapshots"].append({
-            "t": s["time"].split(" ")[1], "msg": s["total_messages"], "grp": s["active_groups"],
-            "sent": s.get("overall_sentiment", ""),
-            "sd": {"bu": sd.get("bull", 0), "be": sd.get("bear", 0), "ne": sd.get("neutral", 0),
-                   "eh": sd.get("extreme_high", 0), "el": sd.get("extreme_low", 0)},
-            "act": s.get("action_summary", {}),
-            "stk": top10, "sec": top8
-        })
-    return compressed
+
+    # 多线程并行处理所有快照
+    snapshots = data["snapshots"]
+    with ThreadPoolExecutor(max_workers=min(8, len(snapshots) or 1)) as pool:
+        compressed_snaps = list(pool.map(_compress_snapshot, snapshots))
+
+    result = {"date": data["date"], "total": total, "snapshots": compressed_snaps}
+
+    # 写入缓存
+    _day_cache[date_str] = {"mtime": mtime, "data": result}
+    return result
+
+
+@app.get("/api/stock-messages/{date_str}")
+def api_stock_messages(date_str: str, code: str, time: str = ""):
+    """按需获取指定股票的消息原文（延迟加载）"""
+    day_file = data_dir / f"day_{date_str}.json"
+    if not day_file.exists():
+        raise HTTPException(404, f"日期 {date_str} 数据不存在")
+
+    target_time = time or ""
+    with open(day_file, encoding="utf-8") as f:
+        data = json.load(f)
+
+    # 找到目标快照（默认最后一个）
+    snap = None
+    for s in data.get("snapshots", []):
+        if target_time and s["time"] == target_time:
+            snap = s
+            break
+    if snap is None and data.get("snapshots"):
+        snap = data["snapshots"][-1]
+    if snap is None:
+        return []
+
+    # 查找该股票的 group_details
+    for t in snap.get("top10_stocks", []):
+        if t["code"] == code:
+            result = []
+            for g in t.get("group_details", []):
+                result.append({
+                    "group": g["group"],
+                    "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
+                })
+            return result
+    return []
 
 
 @app.post("/api/collect")
