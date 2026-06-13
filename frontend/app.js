@@ -235,11 +235,22 @@ function render() {
   document.getElementById('curTime').textContent = snap.t.split(' ')[1];
 
   document.getElementById('statsBar').innerHTML =
-    '<div class="stat"><div class="val" style="color:var(--accent)">' + snap.msg + '</div><div class="label">消息</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--accent)">' + snap.grp + '</div><div class="label">群</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--green)">' + (snap.sd ? snap.sd.bu : '-') + '</div><div class="label">看多</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--red)">' + (snap.sd ? snap.sd.be : '-') + '</div><div class="label">看空</div></div>' +
-    '<div class="stat"><div class="val" style="color:var(--gold)">' + snap.sent + '</div><div class="label">情绪</div></div>';
+    '<div class="bg-base-200 border border-base-300 rounded-lg px-4 py-2 text-center min-w-[80px]">' +
+      '<div class="text-lg font-bold text-white">' + snap.msg + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">总提及</div>' +
+    '</div>' +
+    '<div class="bg-base-200 border border-base-300 rounded-lg px-4 py-2 text-center min-w-[80px]">' +
+      '<div class="text-lg font-bold text-success">' + snap.grp + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">活跃群</div>' +
+    '</div>' +
+    '<div class="bg-base-200 border border-base-300 rounded-lg px-4 py-2 text-center min-w-[80px]">' +
+      '<div class="text-lg font-bold text-primary">' + (snap.stk ? snap.stk.length : 0) + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">股票数</div>' +
+    '</div>' +
+    '<div class="bg-base-200 border border-base-300 rounded-lg px-4 py-2 text-center min-w-[80px]">' +
+      '<div class="text-lg font-bold text-secondary">' + (snap.sec ? snap.sec.length : 0) + '</div>' +
+      '<div class="text-xs text-slate-400 mt-0.5">板块数</div>' +
+    '</div>';
 
   if (activeTab === 'stocks') {
     renderStocks(snap);
