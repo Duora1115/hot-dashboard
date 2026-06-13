@@ -345,3 +345,25 @@ function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function renderSentiment(snap) {
+  var sd = snap.sd;
+  if (!sd) return;
+  var total = sd.bu + sd.be + sd.ne || 1;
+  var bp = Math.round(sd.bu / total * 100);
+  var ep = Math.round(sd.be / total * 100);
+  var np = 100 - bp - ep;
+
+  var sentColor = snap.sent && snap.sent.includes('多') ? 'success' : snap.sent && snap.sent.includes('空') ? 'error' : 'warning';
+  var sentLabelEn = snap.sent && snap.sent.includes('多') ? 'Bullish' : snap.sent && snap.sent.includes('空') ? 'Bearish' : 'Neutral';
+
+  var sentLabel = document.getElementById('sentLabel');
+  sentLabel.textContent = snap.sent + ' (' + sentLabelEn + ')';
+  sentLabel.className = 'text-lg font-bold mb-2 text-' + sentColor;
+
+  var meter = document.getElementById('sentMeter');
+  meter.innerHTML =
+    '<div class="w-[' + bp + '%] h-full bg-gradient-to-r from-success to-green-700"></div>' +
+    '<div class="w-[' + np + '%] h-full bg-slate-500"></div>' +
+    '<div class="w-[' + ep + '%] h-full bg-gradient-to-r from-error to-red-700"></div>';
+}
+
