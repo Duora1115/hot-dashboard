@@ -18,13 +18,13 @@
     <button class="btn btn-sm btn-outline" id="btnCollect" onclick="triggerCollect()">🔄 采集</button>
   </div>
 </div>
-<div class="mode-bar">
-  <button class="mode-btn active" onclick="switchMode('replay')">📼 回放</button>
-  <button class="mode-btn" onclick="switchMode('live')">🔴 实时</button>
+<div class="flex gap-1.5 justify-center p-1 bg-base-200 rounded-xl border border-base-300 mb-4 mx-auto max-w-lg">
+  <button class="btn btn-sm btn-primary" onclick="switchMode('replay')">📼 回放</button>
+  <button class="btn btn-sm btn-ghost" onclick="switchMode('live')">🔴 实时</button>
 </div>
-<div class="date-picker" id="datePicker">
-  <select id="dateSelect" onchange="loadDate(this.value)"></select>
-  <button class="btn" onclick="fetchAvailableDates()">刷新日期</button>
+<div class="flex gap-2 justify-center mb-4 items-center">
+  <select class="select select-sm select-bordered" id="dateSelect" onchange="loadDate(this.value)"></select>
+  <button class="btn btn-sm btn-outline" onclick="fetchAvailableDates()">刷新日期</button>
 </div>
 <div class="tabs" id="tabBar">
   <div class="tab active" data-tab="stocks">📈 股票热点</div>
