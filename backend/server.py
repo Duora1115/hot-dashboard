@@ -83,7 +83,11 @@ def api_day(date_str: str):
         data = json.load(f)
 
     # 压缩返回（前端需要）
-    compressed = {"date": data["date"], "total": data["total_msgs"], "snapshots": []}
+    # total_msgs 可能为 0（云端推送/采集异常），用最后一个快照的实际消息数兜底
+    total = data.get("total_msgs", 0)
+    if not total and data.get("snapshots"):
+        total = data["snapshots"][-1].get("total_messages", 0)
+    compressed = {"date": data["date"], "total": total, "snapshots": []}
     for s in data["snapshots"]:
         top10 = []
         for t in s.get("top10_stocks", []):

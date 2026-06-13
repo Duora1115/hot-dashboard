@@ -260,6 +260,18 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
                 if any(kw in txt.lower() for kw in kws):
                     involved_sectors.add(sec)
 
+        # 按群聚合消息明细
+        group_msgs = defaultdict(list)
+        for d in details:
+            group_msgs[d["group"]].append({"time": d["time"], "text": d["text"]})
+        group_details = []
+        for gn in sorted(group_msgs.keys()):
+            group_details.append({
+                "group": gn,
+                "count": len(group_msgs[gn]),
+                "messages": [{"time": m["time"], "text": m["text"]} for m in group_msgs[gn][:5]]  # 每群最多5条
+            })
+
         hot_stocks.append({
             "code": code, "name": name, "score": score,
             "mention_count": len(details), "group_count": len(groups),
@@ -268,6 +280,7 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
             "sectors": sorted(involved_sectors),
             "first_time": min(d["time"] for d in details),
             "last_time": max(d["time"] for d in details),
+            "group_details": group_details,
         })
     hot_stocks.sort(key=lambda x: (-x["score"], -x["group_count"], -x["mention_count"]))
 
@@ -404,6 +417,8 @@ def collect_live(cfg=None, data_dir=None):
         day_data["snapshots"].append(snapshot)
     else:
         day_data = {"date": date_str, "total_msgs": total, "snapshots": [snapshot]}
+    # 用最新快照的实际消息数更新 total_msgs，保证一致
+    day_data["total_msgs"] = snapshot.get("total_messages", day_data.get("total_msgs", 0))
     with open(day_file, "w", encoding="utf-8") as f:
         json.dump(day_data, f, ensure_ascii=False, indent=2, default=str)
 

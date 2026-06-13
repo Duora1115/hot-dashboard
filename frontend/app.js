@@ -129,7 +129,11 @@ function loadLive() {
               c: t.code, n: t.name || '', sc: t.score,
               mc: t.mention_count, gc: t.group_count,
               ac: t.action_count, bu: t.bull, be: t.bear,
-              sec: t.sectors || []
+              sec: t.sectors || [],
+              messages: (t.group_details || []).map(g => ({
+                group: g.group,
+                messages: (g.messages || []).map(m => ({ time: m.time, text: m.text }))
+              }))
             })),
             sec: (d.top8_sectors || []).map(t => ({
               n: t.name, sc: t.score,
