@@ -367,3 +367,19 @@ function renderSentiment(snap) {
     '<div class="w-[' + ep + '%] h-full bg-gradient-to-r from-error to-red-700"></div>';
 }
 
+function renderActions(snap) {
+  var act = snap.act || {};
+  var icons = { '买入信号': '🟢', '卖出信号': '🔴', '持有建议': '🟡', '风险提示': '⚠️' };
+  var colors = { '买入信号': 'success', '卖出信号': 'error', '持有建议': 'warning', '风险提示': 'error' };
+
+  var html = Object.keys(act).map(function (k) {
+    return '<div class="bg-base-200 border border-base-300 rounded-lg p-4 text-center">' +
+      '<div class="text-2xl mb-1.5">' + (icons[k] || '📊') + '</div>' +
+      '<div class="text-3xl font-bold text-' + (colors[k] || 'primary') + '">' + act[k] + '</div>' +
+      '<div class="text-xs text-slate-400 mt-1">' + k + '</div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('actionGrid').innerHTML = html;
+}
+
