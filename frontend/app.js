@@ -288,6 +288,25 @@ function renderStocks(snap) {
   container.innerHTML = h;
 }
 
+function renderSectors(snap) {
+  currentSectors = snap.sec || [];
+  var grid = document.getElementById('sectorGrid');
+  if (!currentSectors.length) {
+    grid.innerHTML = '<div class="empty">暂无板块数据</div>';
+    return;
+  }
+  var html = currentSectors.map(function (s, i) {
+    return '<div class="bg-base-200 border border-base-300 rounded-lg p-3 hover:border-primary transition-colors cursor-pointer" onclick="openSectorModal(' + i + ')">' +
+      '<div class="text-base font-bold text-white mb-1">' + s.n + '</div>' +
+      '<div class="text-xs text-slate-400 mb-2">提及 ' + s.mc + ' 次 · ' + s.gc + ' 个群</div>' +
+      '<div class="h-1 bg-base-300 rounded-full overflow-hidden">' +
+        '<div class="h-full bg-gradient-to-r from-primary to-blue-700 rounded-full" style="width:' + Math.min(100, s.sc) + '%"></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  grid.innerHTML = html;
+}
+
 // ========== 板块详情弹窗 ==========
 let currentSectors = [];
 function openSectorModal(sectorIdx) {
