@@ -194,6 +194,11 @@ def api_upload_day(date_str: str, data: dict = Body(...)):
 if frontend_dir.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_dir)), name="static")
 
+# Tailwind CSS 编译输出
+dist_dir = PROJECT_ROOT / "frontend" / "dist"
+if dist_dir.exists():
+    app.mount("/static/dist", StaticFiles(directory=str(dist_dir)), name="static-dist")
+
 
 @app.get("/")
 def root():
