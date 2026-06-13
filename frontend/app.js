@@ -253,6 +253,41 @@ function render() {
 }
 
 
+function renderStocks(snap) {
+  var container = document.getElementById('stockMobile');
+  if (!snap.stk || !snap.stk.length) {
+    container.innerHTML = '<div class="empty">暂无热点</div>';
+    return;
+  }
+  var h = '';
+  snap.stk.forEach(function (it, i) {
+    var rank = i + 1;
+    var heatColor = it.sc >= 80 ? 'success' : it.sc >= 60 ? 'warning' : 'error';
+    var heatGradient = it.sc >= 80 ? 'from-success to-green-700' : it.sc >= 60 ? 'from-warning to-yellow-700' : 'from-error to-red-700';
+    var sentText = it.bu > it.be ? '看多' : it.be > it.bu ? '看空' : '观望';
+    var sentTag = sentText === '看多' ? 'badge-success' : sentText === '看空' ? 'badge-error' : 'badge-warning';
+    var secTags = it.sec.slice(0, 2).map(function (s) { return '<span class="badge badge-info badge-sm">' + s + '</span>'; }).join('');
+
+    h += '<div class="bg-base-200 border border-base-300 rounded-lg p-3 hover:border-primary transition-colors cursor-pointer">' +
+      '<div class="flex justify-between items-center mb-2">' +
+        '<span class="text-xs text-slate-400 font-semibold">#' + rank + '</span>' +
+        '<span class="text-xl font-bold text-' + heatColor + '">' + it.sc + '</span>' +
+      '</div>' +
+      '<div class="text-sm font-bold text-white mb-0.5">' + (it.n || '-') + '</div>' +
+      '<div class="text-xs text-primary font-mono mb-2">' + it.c + '</div>' +
+      '<div class="flex gap-1 flex-wrap mb-2">' +
+        '<span class="badge ' + sentTag + ' badge-sm">' + sentText + '</span>' +
+        (it.sec.length > 0 ? secTags : '') +
+      '</div>' +
+      '<div class="h-1 bg-base-300 rounded-full overflow-hidden">' +
+        '<div class="h-full bg-gradient-to-r ' + heatGradient + ' rounded-full" style="width:' + Math.min(100, it.sc) + '%"></div>' +
+      '</div>' +
+      '<div class="text-xs text-slate-400 mt-1.5">提及 ' + it.mc + ' 次 · ' + it.gc + ' 个群</div>' +
+    '</div>';
+  });
+  container.innerHTML = h;
+}
+
 // ========== 板块详情弹窗 ==========
 let currentSectors = [];
 function openSectorModal(sectorIdx) {
