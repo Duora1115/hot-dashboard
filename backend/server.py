@@ -30,7 +30,8 @@ frontend_dir = PROJECT_ROOT / "frontend"
 app = FastAPI(title="Hot Dashboard API", version="1.0.0")
 
 # ---- 响应缓存（同日期不重复处理） ----
-_day_cache = {}  # {date_str: {"mtime": float, "data": dict}}
+_day_cache = {}  # {date_str: {"mtime": float, "data": dict}} 压缩后缓存
+_raw_cache = {}  # {date_str: {"mtime": float, "data": dict}} 原始数据缓存（用于快照范围查询）
 
 
 def _compress_snapshot(s):
@@ -145,6 +146,75 @@ def api_day(date_str: str):
     # 写入缓存
     _day_cache[date_str] = {"mtime": mtime, "data": result}
     return result
+
+
+@app.get("/api/day/{date_str}/meta")
+def api_day_meta(date_str: str):
+    """获取日期的元信息（快照数量 + 时间列表），不加载完整数据。用于懒加载初始化。"""
+    day_file = data_dir / f"day_{date_str}.json"
+    if not day_file.exists():
+        raise HTTPException(404, f"日期 {date_str} 数据不存在")
+
+    with open(day_file, encoding="utf-8") as f:
+        data = json.load(f)
+
+    snapshots = data.get("snapshots", [])
+    total = data.get("total_msgs", 0)
+    if not total and snapshots:
+        total = snapshots[-1].get("total_messages", 0)
+
+    return {
+        "date": data["date"],
+        "total": total,
+        "count": len(snapshots),
+        "times": [s["time"] for s in snapshots],
+    }
+
+
+@app.get("/api/day/{date_str}/snapshots")
+def api_day_snapshots(date_str: str, start: int = 0, count: int = 20):
+    """按需获取指定范围的快照数据（懒加载）。
+
+    参数:
+    - start: 起始快照索引（默认 0）
+    - count: 获取数量（默认 20，最大 100）
+    """
+    day_file = data_dir / f"day_{date_str}.json"
+    if not day_file.exists():
+        raise HTTPException(404, f"日期 {date_str} 数据不存在")
+
+    count = min(count, 100)  # 限制单次最大加载量
+
+    # 尝试从缓存获取原始数据
+    mtime = day_file.stat().st_mtime
+    cached_raw = _raw_cache.get(date_str)
+    if cached_raw and cached_raw["mtime"] == mtime:
+        raw_data = cached_raw["data"]
+    else:
+        with open(day_file, encoding="utf-8") as f:
+            raw_data = json.load(f)
+        _raw_cache[date_str] = {"mtime": mtime, "data": raw_data}
+
+    snapshots = raw_data.get("snapshots", [])
+    total = raw_data.get("total_msgs", 0)
+    if not total and snapshots:
+        total = snapshots[-1].get("total_messages", 0)
+
+    # 取指定范围
+    end = min(start + count, len(snapshots))
+    batch = snapshots[start:end]
+
+    # 压缩这批快照
+    compressed_snaps = [_compress_snapshot(s) for s in batch]
+
+    return {
+        "date": raw_data["date"],
+        "total": total,
+        "count": len(snapshots),
+        "start": start,
+        "end": end,
+        "snapshots": compressed_snaps,
+    }
 
 
 @app.get("/api/stock-messages/{date_str}")

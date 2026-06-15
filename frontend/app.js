@@ -92,18 +92,82 @@ function fetchAvailableDates() {
 
 function loadDate(dateStr) {
   document.getElementById('dateLabel').textContent = '加载中 ' + dateStr + '...';
-  fetch(API + '/api/day/' + dateStr)
+
+  // Step 1: 加载元信息（快照数量 + 时间列表），非常快
+  fetch(API + '/api/day/' + dateStr + '/meta')
     .then(r => {
       if (!r.ok) throw new Error('not found');
       return r.json();
     })
-    .then(d => {
-      data = d;
-      initSlider();
-      render();
+    .then(meta => {
+      // 初始化数据结构：时间已知，快照为空
+      data = {
+        date: meta.date,
+        total: meta.total,
+        count: meta.count,
+        snapshots: [],
+        _loadedRanges: {},  // {start: end} 记录已加载范围
+        _times: meta.times   // 所有快照时间（用于时间轴显示）
+      };
+
+      // 初始化时间轴（基于时间列表，不需要完整数据）
+      initSliderWithTimes(meta.times);
+
+      // Step 2: 懒加载 — 先加载最后一批快照（用户最关心最新数据）
+      var batchSize = 20;
+      var lastStart = Math.max(0, meta.count - batchSize);
+      loadSnapshotRange(dateStr, lastStart, batchSize, function() {
+        render();
+      });
     })
     .catch(() => {
       document.getElementById('dateLabel').textContent = '加载失败: ' + dateStr;
+    });
+}
+
+// 加载指定范围的快照
+function loadSnapshotRange(dateStr, start, count, callback) {
+  // 检查是否已加载
+  if (data._loadedRanges) {
+    for (var loadedStart in data._loadedRanges) {
+      var loadedEnd = data._loadedRanges[loadedStart];
+      loadedStart = parseInt(loadedStart);
+      if (start >= loadedStart && (start + count) <= loadedEnd) {
+        // 已完全覆盖，直接回调
+        if (callback) callback();
+        return;
+      }
+    }
+  }
+
+  document.getElementById('dateLabel').textContent = '加载中 ' + dateStr + ' (' + (start + 1) + '-' + (start + count) + '/' + data.count + ')...';
+
+  fetch(API + '/api/day/' + dateStr + '/snapshots?start=' + start + '&count=' + count)
+    .then(r => {
+      if (!r.ok) throw new Error('not found');
+      return r.json();
+    })
+    .then(batch => {
+      // 合并到 data.snapshots 中
+      var snaps = data.snapshots;
+      batch.snapshots.forEach(function(s, i) {
+        var idx = batch.start + i;
+        if (!snaps[idx]) snaps[idx] = s;
+      });
+
+      // 记录已加载范围
+      if (!data._loadedRanges) data._loadedRanges = {};
+      data._loadedRanges[batch.start] = batch.end;
+
+      // 用已加载的时间覆盖 _times 中对应位置（服务端返回的更准确）
+      if (data._times) {
+        batch.times = batch.times || [];
+      }
+
+      if (callback) callback();
+    })
+    .catch(() => {
+      document.getElementById('dateLabel').textContent = '加载快照失败: ' + dateStr;
     });
 }
 
@@ -190,7 +254,42 @@ function initSlider() {
   idx = s.length - 1;
   document.getElementById('tlS').textContent = s[0].t.split(' ')[1];
   document.getElementById('tlE').textContent = s[s.length - 1].t.split(' ')[1];
-  document.getElementById('slider').oninput = function () { idx = +this.value; render(); };
+  document.getElementById('slider').oninput = function () { idx = +this.value; onSliderMove(); };
+}
+
+// 基于时间列表初始化时间轴（懒加载用，不需要完整快照数据）
+function initSliderWithTimes(times) {
+  if (!times || !times.length) return;
+  document.getElementById('dateLabel').textContent = '📅 ' + data.date + ' · 共' + data.total + '条消息 · ' + times.length + '个快照';
+  document.getElementById('slider').max = times.length - 1;
+  document.getElementById('slider').value = times.length - 1;
+  idx = times.length - 1;
+  document.getElementById('tlS').textContent = times[0].split(' ')[1];
+  document.getElementById('tlE').textContent = times[times.length - 1].split(' ')[1];
+  document.getElementById('slider').oninput = function () { idx = +this.value; onSliderMove(); };
+}
+
+// 滑块移动时：懒加载未加载的快照
+var _loadingRange = false;
+function onSliderMove() {
+  var cur = idx;
+  var total = data.count || data.snapshots.length;
+
+  // 如果当前快照未加载，加载包含它的批次
+  if (!data.snapshots[cur]) {
+    if (_loadingRange) return;  // 避免重复请求
+    _loadingRange = true;
+    var batchSize = 20;
+    var start = Math.max(0, cur - 5);  // 从当前位置往前一点开始
+    start = Math.floor(start / batchSize) * batchSize;  // 对齐批次边界
+    loadSnapshotRange(data.date, start, batchSize, function() {
+      _loadingRange = false;
+      render();
+    });
+    return;
+  }
+
+  render();
 }
 
 function togglePlay() {
@@ -201,9 +300,10 @@ function togglePlay() {
   if (playing) {
     timer = setInterval(function () {
       idx++;
-      if (idx >= data.snapshots.length) idx = 0;
+      var total = data.count || data.snapshots.length;
+      if (idx >= total) idx = 0;
       document.getElementById('slider').value = idx;
-      render();
+      onSliderMove();
     }, 1000 / speed);
   } else {
     clearInterval(timer);
@@ -218,16 +318,25 @@ function cycleSpeed() {
     clearInterval(timer);
     timer = setInterval(function () {
       idx++;
-      if (idx >= data.snapshots.length) idx = 0;
+      var total = data.count || data.snapshots.length;
+      if (idx >= total) idx = 0;
       document.getElementById('slider').value = idx;
-      render();
+      onSliderMove();
     }, 1000 / speed);
   }
 }
 
-function jumpLatest() { idx = data.snapshots.length - 1; document.getElementById('slider').value = idx; render(); }
-function jumpFirst() { idx = 0; document.getElementById('slider').value = 0; render(); }
-
+function jumpLatest() {
+  var total = data.count || data.snapshots.length;
+  idx = total - 1;
+  document.getElementById("slider").value = idx;
+  onSliderMove();
+}
+function jumpFirst() {
+  idx = 0;
+  document.getElementById("slider").value = idx;
+  onSliderMove();
+}
 // ========== 渲染 ==========
 function render() {
   if (!data || !data.snapshots || !data.snapshots[idx]) return;
