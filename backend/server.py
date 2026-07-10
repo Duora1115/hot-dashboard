@@ -44,17 +44,22 @@ _day_cache = {}  # {date_str: {"mtime": float, "data": dict}} 压缩后缓存
 _raw_cache = {}  # {date_str: {"mtime": float, "data": dict}} 原始数据缓存（用于快照范围查询）
 
 
+_ACTION_TYPE_MAP = {
+    "买入信号": "buy", "卖出信号": "sell",
+    "持有建议": "hold", "风险提示": "risk",
+}
+
 def _compress_snapshot(s):
     """压缩单个快照（线程安全，无共享状态）"""
     top10 = []
     for t in s.get("top10_stocks", []):
         top10.append({
-            "c": t["code"], "n": t.get("name", ""), "sc": t["score"],
+            "c": t["code"], "n": t.get("name", ""), "h": t["score"], "sc": t["score"],
             "mc": t["mention_count"], "gc": t["group_count"],
             "ac": t["action_count"], "bu": t["bull"], "be": t["bear"],
             "ft": t.get("first_time", "").split(" ")[1] if t.get("first_time") else "",
             "lt": t.get("last_time", "").split(" ")[1] if t.get("last_time") else "",
-            "sec": t.get("sectors", []),
+            "sec": t.get("sectors", []), "s": t.get("sectors", []),
         })
     top8 = []
     for t in s.get("top8_sectors", []):
@@ -65,18 +70,27 @@ def _compress_snapshot(s):
                 "m": [{"t": m["time"].split(" ")[1], "x": m["text"]} for m in g["messages"]]
             })
         top8.append({
-            "n": t["name"], "sc": t["score"],
-            "mc": t["mention_count"], "gc": t["group_count"],
+            "n": t["name"], "h": t["score"], "sc": t["score"],
+            "m": t["mention_count"], "mc": t["mention_count"],
+            "g": t["group_count"], "gc": t["group_count"],
+            "s": [st["name"] for st in s.get("top10_stocks", []) if t["name"] in st.get("sectors", [])],
             "txt": (t.get("sample_text", ""))[:60],
             "gd": gd
         })
     sd = s.get("sentiment_detail", {})
+    total = s.get("total_messages", 1) or 1
+    act_summary = s.get("action_summary", {})
+    act_items = []
+    for label, cnt in act_summary.items():
+        act_type = _ACTION_TYPE_MAP.get(label, "hold")
+        for _ in range(min(cnt, 3)):
+            act_items.append({"type": act_type})
     return {
         "t": s["time"], "msg": s["total_messages"], "grp": s["active_groups"],
         "sent": s.get("overall_sentiment", ""),
         "sd": {"bu": sd.get("bull", 0), "be": sd.get("bear", 0), "ne": sd.get("neutral", 0),
                "eh": sd.get("extreme_high", 0), "el": sd.get("extreme_low", 0)},
-        "act": s.get("action_summary", {}),
+        "act": act_items,
         "stk": top10, "sec": top8
     }
 
@@ -108,10 +122,21 @@ def api_dates():
     """列出所有可用日期"""
     if not data_dir.exists():
         return []
-    dates = sorted([
-        {"date": f.stem.replace("day_", ""), "size_kb": round(f.stat().st_size / 1024, 1)}
-        for f in data_dir.glob("day_*.json")
-    ], key=lambda x: x["date"], reverse=True)
+    dates = []
+    for f in data_dir.glob("day_*.json"):
+        date_str = f.stem.replace("day_", "")
+        size = f.stat().st_size
+        cached = _raw_cache.get(date_str)
+        if cached and cached["mtime"] == f.stat().st_mtime:
+            total = cached["data"].get("total_msgs", 0)
+        else:
+            total = 0
+        dates.append({
+            "date": date_str,
+            "has_data": size > 1000,
+            "message_count": total,
+        })
+    dates.sort(key=lambda x: x["date"], reverse=True)
     return dates
 
 
@@ -122,7 +147,8 @@ def api_latest():
     if not latest.exists():
         raise HTTPException(404, "暂无实时数据")
     with open(latest, encoding="utf-8") as f:
-        return json.load(f)
+        raw = json.load(f)
+    return _compress_snapshot(raw)
 
 
 @app.get("/api/day/{date_str}")
@@ -182,18 +208,16 @@ def api_day_meta(date_str: str):
 
 
 @app.get("/api/day/{date_str}/snapshots")
-def api_day_snapshots(date_str: str, start: int = 0, count: int = 20):
+def api_day_snapshots(date_str: str, start: int = 0, count: int = 0):
     """按需获取指定范围的快照数据（懒加载）。
 
     参数:
     - start: 起始快照索引（默认 0）
-    - count: 获取数量（默认 20，最大 100）
+    - count: 获取数量（默认 0 = 全部，最大 100）
     """
     day_file = data_dir / f"day_{date_str}.json"
     if not day_file.exists():
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
-
-    count = min(count, 100)  # 限制单次最大加载量
 
     # 尝试从缓存获取原始数据
     mtime = day_file.stat().st_mtime
@@ -206,25 +230,16 @@ def api_day_snapshots(date_str: str, start: int = 0, count: int = 20):
         _raw_cache[date_str] = {"mtime": mtime, "data": raw_data}
 
     snapshots = raw_data.get("snapshots", [])
-    total = raw_data.get("total_msgs", 0)
-    if not total and snapshots:
-        total = snapshots[-1].get("total_messages", 0)
 
-    # 取指定范围
-    end = min(start + count, len(snapshots))
+    if count <= 0:
+        end = len(snapshots)
+    else:
+        count = min(count, 100)
+        end = min(start + count, len(snapshots))
     batch = snapshots[start:end]
 
-    # 压缩这批快照
     compressed_snaps = [_compress_snapshot(s) for s in batch]
-
-    return {
-        "date": raw_data["date"],
-        "total": total,
-        "count": len(snapshots),
-        "start": start,
-        "end": end,
-        "snapshots": compressed_snaps,
-    }
+    return compressed_snaps
 
 
 @app.get("/api/stock-messages/{date_str}")
