@@ -12,7 +12,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Body
 import yaml
 
@@ -28,6 +29,15 @@ data_dir = PROJECT_ROOT / cfg["server"]["data_dir"]
 frontend_dir = PROJECT_ROOT / "frontend"
 
 app = FastAPI(title="Hot Dashboard API", version="1.0.0")
+
+# CORS 支持（允许前端跨域访问 API）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ---- 响应缓存（同日期不重复处理） ----
 _day_cache = {}  # {date_str: {"mtime": float, "data": dict}} 压缩后缓存
@@ -330,6 +340,14 @@ dist_dir = PROJECT_ROOT / "frontend" / "dist"
 if dist_dir.exists():
     app.mount("/static/dist", StaticFiles(directory=str(dist_dir)), name="static-dist")
 
+
+@app.exception_handler(404)
+async def not_found_handler(request, exc):
+    """React Router SPA catch-all: 任何未知路径返回 index.html"""
+    index = frontend_dir / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    return JSONResponse({"detail": "Not found"}, status_code=404)
 
 @app.get("/")
 def root():

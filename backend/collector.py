@@ -11,12 +11,81 @@ import re
 import os
 import yaml
 import threading
+import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 from pathlib import Path
 
+try:
+    from PIL import Image
+    import pytesseract
+    _OCR_AVAILABLE = True
+except ImportError:
+    _OCR_AVAILABLE = False
+
 CST = timezone(timedelta(hours=8))
+
+# ---- 图片 OCR ----
+_image_ocr_cache = {}  # message_id -> extracted_text
+
+
+def extract_image_text(message, data_dir=None):
+    """从图片消息中提取文字（OCR）"""
+    msg_id = message.get("message_id") or message.get("msg_id", "")
+    if msg_id in _image_ocr_cache:
+        return _image_ocr_cache[msg_id]
+
+    if not _OCR_AVAILABLE:
+        return ""
+
+    content = message.get("content", "")
+    # 提取 image_key: [Image: img_xxx]
+    match = re.search(r'\[Image:\s*([a-zA-Z0-9_\-]+)\]', content)
+    if not match:
+        return ""
+    image_key = match.group(1)
+
+    # 创建临时目录下载图片
+    tmp_dir = Path(tempfile.gettempdir()) / "hot_ocr"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    img_path = tmp_dir / f"{image_key}.png"
+
+    # 如果已经下载过，直接读取
+    if img_path.exists():
+        try:
+            img = Image.open(img_path)
+            text = pytesseract.image_to_string(img, lang='chi_sim+eng')
+            _image_ocr_cache[msg_id] = text
+            return text
+        except Exception:
+            pass
+
+    # 下载图片
+    try:
+        r = subprocess.run(
+            ["lark-cli", "im", "+messages-resources-download",
+             "--message-id", msg_id,
+             "--file-key", image_key,
+             "--type", "image",
+             "--output", str(img_path.name)],
+            cwd=str(tmp_dir),
+            capture_output=True, text=True, timeout=15
+        )
+        if r.returncode != 0:
+            return ""
+        result = json.loads(r.stdout)
+        if not result.get("ok"):
+            return ""
+        # 实际保存路径
+        saved = result.get("data", {}).get("saved_path", str(img_path))
+        img = Image.open(saved)
+        text = pytesseract.image_to_string(img, lang='chi_sim+eng')
+        _image_ocr_cache[msg_id] = text
+        return text
+    except Exception:
+        return ""
+
 
 # ---- 股票名称映射（本地权威对照表） ----
 _stock_mapping = None
@@ -47,34 +116,42 @@ def resolve_stock_name(code, fallback_name=""):
     return fallback_name if fallback_name else code
 
 # ---- 消息缓存 ----
+_cache_lock = threading.RLock()
+
 def _cache_path(data_dir):
     return Path(data_dir) / "msg_cache.json"
 
 def load_cache(data_dir):
     p = _cache_path(data_dir)
-    if p.exists():
-        try:
-            with open(p, encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
+    with _cache_lock:
+        if p.exists():
+            try:
+                with open(p, encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
 
 def save_cache(data_dir, cache):
     p = _cache_path(data_dir)
-    try:
-        with open(p, "w", encoding="utf-8") as f:
-            json.dump(cache, f, ensure_ascii=False)
-    except Exception:
-        pass
+    with _cache_lock:
+        try:
+            with open(p, "w", encoding="utf-8") as f:
+                json.dump(cache, f, ensure_ascii=False)
+        except Exception:
+            pass
 
 # ---- 增量抓取 ----
 def fetch_messages_incremental(chat_id, data_dir, max_pages=3):
-    """增量抓取：加载缓存 → 抓新消息 → 合并 → 保存缓存"""
-    cache = load_cache(data_dir)
-    grp_cache = cache.get(chat_id, {})
-    existing_ids = set(grp_cache.keys())
+    """增量抓取：加载缓存 → 抓新消息 → 合并 → 保存缓存（线程安全）"""
+    # 1. 加锁读取缓存
+    with _cache_lock:
+        cache = load_cache(data_dir)
+        grp_cache = cache.get(chat_id, {})
+        existing_ids = set(grp_cache.keys())
+
     msgs = []
+    new_msgs = {}
     cmd_base = [
         "lark-cli", "im", "+chat-messages-list",
         "--chat-id", chat_id, "--page-size", "50",
@@ -96,8 +173,7 @@ def fetch_messages_incremental(chat_id, data_dir, max_pages=3):
             for m in batch:
                 mid = m.get("message_id") or m.get("msg_id")
                 if mid and mid not in existing_ids:
-                    existing_ids.add(mid)
-                    grp_cache[mid] = m
+                    new_msgs[mid] = m
                 msgs.append(m)
             pt = d.get("data", {}).get("page_token")
             if not d.get("data", {}).get("has_more") or not pt:
@@ -106,8 +182,15 @@ def fetch_messages_incremental(chat_id, data_dir, max_pages=3):
             time.sleep(0.15)
         except Exception:
             break
-    cache[chat_id] = grp_cache
-    save_cache(data_dir, cache)
+
+    # 2. 加锁合并并保存缓存（重新读取避免覆盖其他线程的更新）
+    with _cache_lock:
+        cache = load_cache(data_dir)
+        if chat_id not in cache:
+            cache[chat_id] = {}
+        cache[chat_id].update(new_msgs)
+        save_cache(data_dir, cache)
+
     # 只返回今日消息
     today = datetime.now(CST).strftime("%Y-%m-%d")
     return [m for m in msgs if m.get("create_time", "").startswith(today)]
@@ -373,6 +456,12 @@ def collect_live(cfg=None, data_dir=None):
             ]
             for m in day_msgs:
                 text = m.get("content", "")
+                # 图片消息：OCR 提取文字
+                if m.get("msg_type") == "image" and text:
+                    ocr_text = extract_image_text(m)
+                    if ocr_text:
+                        text = f"[图片OCR]{ocr_text}[/图片OCR]"
+                        m["content"] = text
                 if text and "_analysis" not in m:
                     m["_analysis"] = analyze_text(text, cfg)
             return g["name"], day_msgs
@@ -452,6 +541,12 @@ def collect_replay(date_str, cfg=None, data_dir=None):
             day_msgs = [m for m in msgs if m.get("create_time", "").startswith(date_str)]
             for m in day_msgs:
                 text = m.get("content", "")
+                # 图片消息：OCR 提取文字
+                if m.get("msg_type") == "image" and text:
+                    ocr_text = extract_image_text(m)
+                    if ocr_text:
+                        text = f"[图片OCR]{ocr_text}[/图片OCR]"
+                        m["content"] = text
                 if text:
                     m["_analysis"] = analyze_text(text, cfg)
             return g["name"], day_msgs

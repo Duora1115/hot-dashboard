@@ -22,3 +22,11 @@ frontend/dist/
 
 # npm
 node_modules/
+
+# Backup files
+*.bak
+*.bak/
+src.bak/
+
+# Build artifacts (but keep dist/ for deployment)
+node_modules/
