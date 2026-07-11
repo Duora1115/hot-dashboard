@@ -1,24 +1,128 @@
+/** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./frontend/**/*.{html,js}"],
+  darkMode: ["class"],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
+          foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
+        },
+        'bg-primary': '#0B0E14',
+        'bg-secondary': '#111827',
+        'bg-tertiary': '#1A2332',
+        'bg-elevated': '#1E293B',
+        'border-subtle': '#1E293B',
+        'border-default': '#334155',
+        'border-focus': '#475569',
+        'text-primary': '#F1F5F9',
+        'text-secondary': '#94A3B8',
+        'text-tertiary': '#64748B',
+        'text-muted': '#475569',
+        'bull': '#00E396',
+        'bear': '#FF4560',
+        'neutral': '#FBBF24',
+        'accent-blue': '#3B82F6',
+        'accent-purple': '#8B5CF6',
+        'accent-cyan': '#06B6D4',
+        'heat-high': '#EF4444',
+        'heat-medium': '#F59E0B',
+        'heat-low': '#10B981',
+      },
+      fontFamily: {
+        display: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Segoe UI', 'sans-serif'],
+        mono: ['JetBrains Mono', 'SF Mono', 'Fira Code', 'Courier New', 'monospace'],
+      },
+      borderRadius: {
+        xl: "calc(var(--radius) + 4px)",
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+        xs: "calc(var(--radius) - 6px)",
+        'radius-sm': '6px',
+        'radius-md': '10px',
+        'radius-lg': '14px',
+        'radius-xl': '20px',
+        'radius-full': '9999px',
+      },
+      boxShadow: {
+        xs: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        'card': '0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2)',
+        'elevated': '0 4px 6px rgba(0,0,0,0.3), 0 12px 24px rgba(0,0,0,0.3)',
+        'glow-bull': '0 0 20px rgba(0,227,150,0.2)',
+        'glow-bear': '0 0 20px rgba(255,69,96,0.2)',
+        'inner': 'inset 0 1px 2px rgba(0,0,0,0.3)',
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "caret-blink": {
+          "0%,70%,100%": { opacity: "1" },
+          "20%,50%": { opacity: "0" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { boxShadow: "0 0 5px rgba(0,227,150,0.3)" },
+          "50%": { boxShadow: "0 0 20px rgba(0,227,150,0.6)" },
+        },
+        "flash-border": {
+          "0%, 100%": { borderColor: "rgba(239,68,68,0.2)" },
+          "50%": { borderColor: "rgba(239,68,68,0.6)" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "caret-blink": "caret-blink 1.25s ease-out infinite",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "flash-border": "flash-border 2s ease-in-out infinite",
+      },
+    },
   },
-  plugins: [require("daisyui")],
-  daisyui: {
-    themes: [{
-      dark: {
-        "primary": "#60a5fa",
-        "secondary": "#a855f7",
-        "accent": "#fbbf24",
-        "neutral": "#1e293b",
-        "base-100": "#0f172a",
-        "base-200": "#1e293b",
-        "base-300": "#334155",
-        "info": "#60a5fa",
-        "success": "#22c55e",
-        "warning": "#eab308",
-        "error": "#ef4444",
-      }
-    }]
-  }
+  plugins: [require("tailwindcss-animate")],
 }
