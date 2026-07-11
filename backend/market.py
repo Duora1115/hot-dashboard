@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
 行情数据获取 — 新浪实时指数 + 东方财富涨跌统计/K线
+带缓存，避免频繁调用外部 API
 """
 
 import re
+import time
 import requests
 import logging
 
 logger = logging.getLogger(__name__)
 
-_TIMEOUT = 5  # 秒
+_TIMEOUT = 3  # 秒（降低超时时间，快速失败）
+_CACHE_TTL = 300  # 5 分钟缓存
 
 # 新浪指数代码映射
 _INDEX_SYMBOLS = {
@@ -18,6 +21,41 @@ _INDEX_SYMBOLS = {
     "399006": {"symbol": "s_sz399006", "name": "创业板指"},
 }
 
+# 缓存存储
+_cache = {
+    "indices": {"data": None, "time": 0},
+    "advance_decline": {"data": None, "time": 0},
+    "kline": {},  # {code: {"data": ..., "time": ...}}
+}
+
+
+def _is_cache_valid(cache_key: str, sub_key: str = None) -> bool:
+    """检查缓存是否有效"""
+    if sub_key:
+        entry = _cache.get(cache_key, {}).get(sub_key)
+    else:
+        entry = _cache.get(cache_key)
+    if not entry:
+        return False
+    return (time.time() - entry.get("time", 0)) < _CACHE_TTL
+
+
+def _get_cached(cache_key: str, sub_key: str = None):
+    """获取缓存数据"""
+    if sub_key:
+        return _cache.get(cache_key, {}).get(sub_key, {}).get("data")
+    return _cache.get(cache_key, {}).get("data")
+
+
+def _set_cache(cache_key: str, data, sub_key: str = None):
+    """设置缓存"""
+    if sub_key:
+        if cache_key not in _cache:
+            _cache[cache_key] = {}
+        _cache[cache_key][sub_key] = {"data": data, "time": time.time()}
+    else:
+        _cache[cache_key] = {"data": data, "time": time.time()}
+
 
 def fetch_indices() -> list[dict]:
     """获取大盘指数实时数据（上证、深证、创业板）。
@@ -25,6 +63,10 @@ def fetch_indices() -> list[dict]:
     返回: [{name, code, value, change, changePercent, open, high, low, prevClose}]
     失败时返回空列表。
     """
+    # 检查缓存
+    if _is_cache_valid("indices"):
+        return _get_cached("indices")
+
     symbols = ",".join(info["symbol"] for info in _INDEX_SYMBOLS.values())
     url = f"https://hq.sinajs.cn/list={symbols}"
     try:
@@ -33,7 +75,9 @@ def fetch_indices() -> list[dict]:
         text = resp.text
     except Exception as e:
         logger.warning(f"获取指数行情失败: {e}")
-        return []
+        # 返回过期缓存（如果有）
+        cached = _get_cached("indices")
+        return cached if cached is not None else []
 
     results = []
     for code, info in _INDEX_SYMBOLS.items():
@@ -64,6 +108,9 @@ def fetch_indices() -> list[dict]:
         except (ValueError, IndexError) as e:
             logger.warning(f"解析 {info['name']} 行情失败: {e}")
             continue
+
+    # 更新缓存
+    _set_cache("indices", results)
     return results
 
 
@@ -73,6 +120,10 @@ def fetch_advance_decline() -> dict | None:
     返回: {rising, falling, unchanged, limitUp, limitDown, risingPercent}
     失败时返回 None。
     """
+    # 检查缓存
+    if _is_cache_valid("advance_decline"):
+        return _get_cached("advance_decline")
+
     url = "https://push2.eastmoney.com/api/qt/clist/get"
     params = {
         "pn": 1, "pz": 5000, "po": 1, "np": 1, "fltt": 2, "invt": 2,
@@ -87,7 +138,8 @@ def fetch_advance_decline() -> dict | None:
             return None
     except Exception as e:
         logger.warning(f"获取涨跌统计失败: {e}")
-        return None
+        # 返回过期缓存（如果有）
+        return _get_cached("advance_decline")
 
     rising = 0
     falling = 0
@@ -115,7 +167,7 @@ def fetch_advance_decline() -> dict | None:
     total = rising + falling + unchanged
     rising_pct = (rising / total * 100) if total > 0 else 50.0
 
-    return {
+    result = {
         "rising": rising,
         "falling": falling,
         "unchanged": unchanged,
@@ -123,6 +175,10 @@ def fetch_advance_decline() -> dict | None:
         "limitDown": limit_down,
         "risingPercent": round(rising_pct, 1),
     }
+
+    # 更新缓存
+    _set_cache("advance_decline", result)
+    return result
 
 
 def fetch_kline(code: str = "1.000001", days: int = 60) -> list[dict]:
@@ -132,6 +188,10 @@ def fetch_kline(code: str = "1.000001", days: int = 60) -> list[dict]:
     返回: [{date, open, close, high, low, volume}]
     失败时返回空列表。
     """
+    # 检查缓存
+    if _is_cache_valid("kline", code):
+        return _get_cached("kline", code)
+
     url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
     params = {
         "secid": code,
@@ -149,7 +209,9 @@ def fetch_kline(code: str = "1.000001", days: int = 60) -> list[dict]:
             return []
     except Exception as e:
         logger.warning(f"获取K线数据失败: {e}")
-        return []
+        # 返回过期缓存（如果有）
+        cached = _get_cached("kline", code)
+        return cached if cached is not None else []
 
     results = []
     for line in klines:
@@ -167,4 +229,7 @@ def fetch_kline(code: str = "1.000001", days: int = 60) -> list[dict]:
             })
         except (ValueError, IndexError):
             continue
+
+    # 更新缓存
+    _set_cache("kline", results, code)
     return results
