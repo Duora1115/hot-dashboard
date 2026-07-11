@@ -10,16 +10,17 @@ import {
   GitCompare,
   Menu,
   X,
+  TrendingUp,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/replay', label: 'Replay', icon: PlayCircle },
-  { path: '/sectors', label: 'Sectors', icon: Layers },
-  { path: '/sentiment', label: 'Sentiment', icon: Activity },
-  { path: '/report', label: 'Report', icon: FileText },
-  { path: '/compare', label: 'Compare', icon: GitCompare },
+  { path: '/', label: '仪表盘', icon: LayoutDashboard },
+  { path: '/replay', label: '回放', icon: PlayCircle },
+  { path: '/sectors', label: '板块', icon: Layers },
+  { path: '/sentiment', label: '情绪', icon: Activity },
+  { path: '/report', label: '晨报', icon: FileText },
+  { path: '/compare', label: '对比', icon: GitCompare },
 ];
 
 const springTransition = {
@@ -56,7 +57,9 @@ export default function Navbar() {
       <div className="h-full max-w-[1440px] mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 shrink-0">
-          <img src="/logo-icon.svg" alt="HotAlpha" className="w-7 h-7" />
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-white" strokeWidth={2.5} />
+          </div>
           <span className="text-[#F1F5F9] font-semibold text-base tracking-tight hidden sm:inline">
             HotAlpha
           </span>
