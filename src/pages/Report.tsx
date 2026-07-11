@@ -206,7 +206,7 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  DAILY REPORT: Core Review                                    */}
       {/* ============================================================ */}
-      {data.dailyReport && (
+      {data.dailyReport?.coreReview && (
         <SectionWrapper id="review">
           <SectionTitle icon={Eye} title="核心复盘与交叉验证" />
 
@@ -215,7 +215,7 @@ export default function Report() {
             variants={staggerChild}
             className="bg-gradient-to-r from-[#111827] to-[#1A2332] border border-[#1E293B] rounded-[14px] p-5 md:p-6 mb-4"
           >
-            <h3 className="text-lg font-bold text-[#F1F5F9]">{data.dailyReport.title}</h3>
+            <h3 className="text-lg font-bold text-[#F1F5F9]">{data.dailyReport?.title}</h3>
           </motion.div>
 
           {/* Market Consensus */}
@@ -225,7 +225,7 @@ export default function Report() {
           >
             <h3 className="text-sm font-semibold text-[#3B82F6] mb-3">1. 市场核心共识</h3>
             <div className="space-y-3">
-              {data.dailyReport.coreReview.marketConsensus.map((item, i) => (
+              {data.dailyReport.coreReview.marketConsensus?.map((item, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <span className="text-[#3B82F6] font-bold text-sm mt-0.5 shrink-0">•</span>
                   <div className="flex-1">
@@ -250,7 +250,7 @@ export default function Report() {
           >
             <h3 className="text-sm font-semibold text-[#FBBF24] mb-3">2. 观点分歧与多空博弈</h3>
             <div className="space-y-3">
-              {data.dailyReport.coreReview.divergences.map((item, i) => (
+              {data.dailyReport?.coreReview?.divergences?.map((item, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <span className="text-[#FBBF24] font-bold text-sm mt-0.5 shrink-0">•</span>
                   <div className="flex-1">
@@ -279,7 +279,7 @@ export default function Report() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.dailyReport.coreReview.keySectors.map((s, i) => (
+                  {data.dailyReport?.coreReview?.keySectors?.map((s, i) => (
                     <tr key={i} className="border-b border-[#1E293B]/50 last:border-0">
                       <td className="py-2.5 pr-3 text-[#F1F5F9] font-medium text-xs">{s.sector}</td>
                       <td className="py-2.5 px-3 text-center">
@@ -309,11 +309,11 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  DAILY REPORT: Group Views                                    */}
       {/* ============================================================ */}
-      {data.dailyReport && (
+      {data.dailyReport?.groupViews && (
         <SectionWrapper id="groups">
           <SectionTitle icon={MessageSquare} title="各社群独立观点精华" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            {data.dailyReport.groupViews.map((gv) => (
+            {data.dailyReport?.groupViews?.map((gv) => (
               <motion.div
                 key={gv.groupId}
                 variants={staggerChild}
