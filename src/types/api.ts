@@ -210,9 +210,49 @@ export interface ReportData {
   actionRecommendations: ActionRecommendation;
   sentimentTimeline: SentimentTimelineItem[];
   overviewText: string;
+  dailyReport?: DailyReport | null;
 }
 
 export interface ExtremeStats {
   month_extreme_high: number;
   month_extreme_low: number;
+}
+
+/* ---- 社群观点大日报 (Daily Report) ---- */
+
+export interface MarketConsensus {
+  text: string;
+  groupIds: string[];
+}
+
+export interface Divergence {
+  topic: string;
+  text: string;
+}
+
+export interface KeySector {
+  sector: string;
+  groupCount: number;
+  stocks: string;
+  sentiment: string;
+}
+
+export interface CoreReview {
+  marketConsensus: MarketConsensus[];
+  divergences: Divergence[];
+  keySectors: KeySector[];
+}
+
+export interface GroupView {
+  groupId: string;
+  groupName: string;
+  sentimentJudgment: string | null;
+  coreView: string;
+}
+
+export interface DailyReport {
+  date: string;
+  title: string;
+  coreReview: CoreReview;
+  groupViews: GroupView[];
 }

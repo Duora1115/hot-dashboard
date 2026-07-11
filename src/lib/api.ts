@@ -9,6 +9,7 @@ import type {
   ReportData,
   SentimentTimelineItem,
   ExtremeStats,
+  DailyReport,
 } from '@/types/api';
 
 const API_BASE = '';
@@ -104,4 +105,13 @@ export async function fetchSentimentTimeline(date: string): Promise<SentimentTim
 // GET /api/day/{date}/extreme-stats
 export async function fetchExtremeStats(date: string): Promise<ExtremeStats> {
   return fetchJson<ExtremeStats>(`/api/day/${date}/extreme-stats`);
+}
+
+// GET /api/daily-report/{date}
+export async function fetchDailyReport(date: string): Promise<DailyReport | null> {
+  try {
+    return await fetchJson<DailyReport>(`/api/daily-report/${date}`);
+  } catch {
+    return null;
+  }
 }

@@ -336,7 +336,38 @@ def api_report(date_str: str):
     except Exception:
         adv_dec = None
 
-    return generate_report(date_str, day_data, market_idx, adv_dec)
+    result = generate_report(date_str, day_data, market_idx, adv_dec)
+
+    # 合并日报数据（若存在）
+    daily_report_file = data_dir / f"daily_report_{date_str}.json"
+    if daily_report_file.exists():
+        try:
+            with open(daily_report_file, encoding="utf-8") as f:
+                result["dailyReport"] = json.load(f)
+        except Exception:
+            pass
+
+    return result
+
+
+@app.post("/api/daily-report/{date_str}")
+def api_post_daily_report(date_str: str, body: dict = Body(...)):
+    """提交社群观点大日报数据"""
+    report_file = data_dir / f"daily_report_{date_str}.json"
+    body["date"] = date_str
+    with open(report_file, "w", encoding="utf-8") as f:
+        json.dump(body, f, ensure_ascii=False, indent=2)
+    return {"status": "ok", "date": date_str}
+
+
+@app.get("/api/daily-report/{date_str}")
+def api_get_daily_report(date_str: str):
+    """获取社群观点大日报数据"""
+    report_file = data_dir / f"daily_report_{date_str}.json"
+    if not report_file.exists():
+        raise HTTPException(404, f"日期 {date_str} 日报不存在")
+    with open(report_file, encoding="utf-8") as f:
+        return json.load(f)
 
 
 @app.get("/api/day/{date_str}/sentiment-timeline")

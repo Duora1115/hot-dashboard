@@ -91,6 +91,8 @@ function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: s
 /* ------------------------------------------------------------------ */
 
 const navItems = [
+  { id: 'review', label: '复盘', icon: Eye },
+  { id: 'groups', label: '社群', icon: MessageSquare },
   { id: 'overview', label: '综述', icon: FileText },
   { id: 'market', label: '大盘', icon: BarChart3 },
   { id: 'statistics', label: '涨跌', icon: Activity },
@@ -200,6 +202,155 @@ export default function Report() {
       {/*  STICKY NAV                                                  */}
       {/* ============================================================ */}
       <ReportNav activeSection={activeSection} scrollTo={scrollTo} />
+
+      {/* ============================================================ */}
+      {/*  DAILY REPORT: Core Review                                    */}
+      {/* ============================================================ */}
+      {data.dailyReport && (
+        <SectionWrapper id="review">
+          <SectionTitle icon={Eye} title="核心复盘与交叉验证" />
+
+          {/* Daily Report Title */}
+          <motion.div
+            variants={staggerChild}
+            className="bg-gradient-to-r from-[#111827] to-[#1A2332] border border-[#1E293B] rounded-[14px] p-5 md:p-6 mb-4"
+          >
+            <h3 className="text-lg font-bold text-[#F1F5F9]">{data.dailyReport.title}</h3>
+          </motion.div>
+
+          {/* Market Consensus */}
+          <motion.div
+            variants={staggerChild}
+            className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-5 md:p-6 mb-4"
+          >
+            <h3 className="text-sm font-semibold text-[#3B82F6] mb-3">1. 市场核心共识</h3>
+            <div className="space-y-3">
+              {data.dailyReport.coreReview.marketConsensus.map((item, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <span className="text-[#3B82F6] font-bold text-sm mt-0.5 shrink-0">•</span>
+                  <div className="flex-1">
+                    <p className="text-sm text-[#F1F5F9] leading-relaxed">{item.text}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {item.groupIds.map((gid) => (
+                        <span key={gid} className="px-1.5 py-0.5 rounded text-[10px] bg-[#3B82F6]/15 text-[#3B82F6] font-medium">
+                          {gid}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Divergences */}
+          <motion.div
+            variants={staggerChild}
+            className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-5 md:p-6 mb-4"
+          >
+            <h3 className="text-sm font-semibold text-[#FBBF24] mb-3">2. 观点分歧与多空博弈</h3>
+            <div className="space-y-3">
+              {data.dailyReport.coreReview.divergences.map((item, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <span className="text-[#FBBF24] font-bold text-sm mt-0.5 shrink-0">•</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[#F1F5F9] mb-1">{item.topic}</p>
+                    <p className="text-xs text-[#94A3B8] leading-relaxed">{item.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Key Sectors Table */}
+          <motion.div
+            variants={staggerChild}
+            className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-5 md:p-6"
+          >
+            <h3 className="text-sm font-semibold text-[#00E396] mb-3">3. 核心关注板块与高频标的</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[#64748B] text-xs border-b border-[#1E293B]">
+                    <th className="text-left py-2 pr-3 font-medium">板块</th>
+                    <th className="text-center py-2 px-3 font-medium">提及群数</th>
+                    <th className="text-left py-2 px-3 font-medium">核心标的</th>
+                    <th className="text-left py-2 pl-3 font-medium">情绪</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.dailyReport.coreReview.keySectors.map((s, i) => (
+                    <tr key={i} className="border-b border-[#1E293B]/50 last:border-0">
+                      <td className="py-2.5 pr-3 text-[#F1F5F9] font-medium text-xs">{s.sector}</td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className="px-2 py-0.5 rounded-full bg-[#3B82F6]/15 text-[#3B82F6] text-xs font-medium">
+                          {s.groupCount}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-[#94A3B8] text-xs">{s.stocks}</td>
+                      <td className="py-2.5 pl-3">
+                        <span className={`text-xs font-medium ${
+                          s.sentiment.includes('强') ? 'text-[#00E396]' :
+                          s.sentiment.includes('弱') ? 'text-[#FF4560]' :
+                          'text-[#FBBF24]'
+                        }`}>
+                          {s.sentiment}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        </SectionWrapper>
+      )}
+
+      {/* ============================================================ */}
+      {/*  DAILY REPORT: Group Views                                    */}
+      {/* ============================================================ */}
+      {data.dailyReport && (
+        <SectionWrapper id="groups">
+          <SectionTitle icon={MessageSquare} title="各社群独立观点精华" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            {data.dailyReport.groupViews.map((gv) => (
+              <motion.div
+                key={gv.groupId}
+                variants={staggerChild}
+                className={`bg-[#111827] border rounded-[14px] p-4 md:p-5 ${
+                  gv.sentimentJudgment ? 'border-[#1E293B] hover:border-[#475569]' : 'border-[#1E293B]/50 opacity-60'
+                } transition-colors duration-200`}
+              >
+                {/* Group Header */}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-[#8B5CF6]/15 text-[#8B5CF6] font-bold">
+                    {gv.groupId}
+                  </span>
+                  <h4 className="text-sm font-semibold text-[#F1F5F9]">{gv.groupName}</h4>
+                </div>
+
+                {/* Sentiment Judgment */}
+                {gv.sentimentJudgment ? (
+                  <div className="mb-3">
+                    <span className="text-[10px] text-[#64748B] uppercase tracking-wider">情绪周期判断</span>
+                    <p className="text-xs text-[#FBBF24] leading-relaxed mt-1">{gv.sentimentJudgment}</p>
+                  </div>
+                ) : (
+                  <div className="mb-3">
+                    <p className="text-xs text-[#64748B] italic">无显著观点</p>
+                  </div>
+                )}
+
+                {/* Core View */}
+                <div className="border-t border-[#1E293B] pt-3">
+                  <span className="text-[10px] text-[#64748B] uppercase tracking-wider">核心操作/观点</span>
+                  <p className="text-xs text-[#94A3B8] leading-relaxed mt-1">{gv.coreView}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </SectionWrapper>
+      )}
 
       {/* ============================================================ */}
       {/*  SECTION 1: Market Overview                                  */}
