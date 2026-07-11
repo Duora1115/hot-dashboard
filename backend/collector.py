@@ -511,6 +511,14 @@ def collect_live(cfg=None, data_dir=None):
     with open(day_file, "w", encoding="utf-8") as f:
         json.dump(day_data, f, ensure_ascii=False, indent=2, default=str)
 
+    # 新增：更新 DataStore
+    try:
+        from backend.server import store
+        store.update_day(date_str)
+        store.update_latest()  # collect_live 也写了 latest.json
+    except (ImportError, AttributeError):
+        pass  # 独立运行 collector 时 store 不存在
+
     return output
 
 
@@ -584,6 +592,14 @@ def collect_replay(date_str, cfg=None, data_dir=None):
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(day_data, f, ensure_ascii=False, indent=2, default=str)
     print(f"\n💾 回放数据: {out_path}", flush=True)
+
+    # 新增：更新 DataStore
+    try:
+        from backend.server import store
+        store.update_day(date_str)
+    except (ImportError, AttributeError):
+        pass
+
     return day_data
 
 
