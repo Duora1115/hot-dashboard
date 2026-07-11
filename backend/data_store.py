@@ -97,7 +97,6 @@ class DataStore:
         """加载并压缩一天的数据到内存"""
         with open(path, encoding="utf-8") as f:
             raw = json.load(f)
-        self._raw[date_str] = raw
 
         total = raw.get("total_msgs", 0)
         snapshots = raw.get("snapshots", [])
@@ -113,7 +112,12 @@ class DataStore:
             "count": len(snapshots),
             "message_count": total,
         }
-        self._days[date_str] = {"date": raw.get("date", date_str), "meta": meta, "snapshots": compressed_snaps}
+        day_data = {"date": raw.get("date", date_str), "meta": meta, "snapshots": compressed_snaps}
+
+        # Assign atomically after all processing succeeds, so a compression
+        # exception cannot leave _raw populated while _days is missing.
+        self._raw[date_str] = raw
+        self._days[date_str] = day_data
 
     def update_day(self, date_str: str):
         """增量更新某天（collector/upload 写完后调用）"""
