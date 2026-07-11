@@ -182,15 +182,26 @@ def api_report(date_str: str):
     if day_data is None:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
 
-    # 获取行情数据（容错）
-    try:
-        market_idx = fetch_indices()
-    except Exception:
-        market_idx = []
-    try:
-        adv_dec = fetch_advance_decline()
-    except Exception:
-        adv_dec = None
+    # 并行获取行情数据（容错）
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    market_idx = []
+    adv_dec = None
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = {
+            executor.submit(fetch_indices): "indices",
+            executor.submit(fetch_advance_decline): "advance_decline",
+        }
+        for future in as_completed(futures):
+            try:
+                result = future.result(timeout=3)
+                if futures[future] == "indices":
+                    market_idx = result
+                else:
+                    adv_dec = result
+            except Exception:
+                pass  # 使用默认值
 
     result = generate_report(date_str, day_data, market_idx, adv_dec)
 
