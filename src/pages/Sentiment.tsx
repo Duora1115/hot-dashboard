@@ -780,10 +780,7 @@ export default function Sentiment() {
       </div>
 
       {/* Group × Time Heatmap */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.5 }}
+      <div
         className="bg-[#111827] rounded-xl border border-[#1E293B] p-4 md:p-5"
       >
         <h2 className="text-lg font-semibold text-[#F1F5F9] mb-4 flex items-center gap-2">
@@ -816,12 +813,9 @@ export default function Sentiment() {
                       const style = getGroupCellColor(cell);
                       const msgCount = cell?.msgCount ?? 0;
                       return (
-                        <motion.div
+                        <div
                           key={t}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: gi * 0.03 + ti * 0.005, duration: 0.3 }}
-                          className={`flex-1 aspect-[2/3] rounded-sm relative group cursor-pointer ${style.bg} ${style.pulse ? 'animate-pulse' : ''}`}
+                          className={`flex-1 aspect-[2/3] rounded-sm relative group cursor-pointer transition-opacity hover:opacity-80 ${style.bg} ${style.pulse ? 'animate-pulse' : ''}`}
                           style={{ opacity: style.opacity }}
                           title={`${group} ${t} · 消息:${msgCount} · ${cell?.sent ?? ''}`}
                         >
@@ -830,7 +824,7 @@ export default function Sentiment() {
                             <br />
                             消息: {msgCount} · {cell?.sent ?? '-'}
                           </div>
-                        </motion.div>
+                        </div>
                       );
                     })}
                   </div>
@@ -861,7 +855,7 @@ export default function Sentiment() {
             <span className="text-xs text-[#94A3B8]">颜色越深 = 群消息越活跃</span>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Sentiment Insights */}
       <motion.div

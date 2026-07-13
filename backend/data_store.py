@@ -1,6 +1,7 @@
 # backend/data_store.py
 """
-DataStore — 启动时全量预加载，API 请求零磁盘 I/O
+DataStore — 启动时全量预加载压缩数据，常规 API 零磁盘 I/O；
+原始数据按需从磁盘读取，不缓存，节省内存。
 """
 
 import json
@@ -55,9 +56,7 @@ class DataStore:
     def __init__(self, data_dir: Path):
         self.data_dir = data_dir
         self._days: dict[str, dict] = {}        # {date: compressed day data}
-        self._raw: dict[str, dict] = {}          # {date: raw day data}
         self._latest: dict | None = None          # compressed latest snapshot
-        self._latest_raw: dict | None = None      # raw latest data
         self._dates: list[str] = []               # sorted date list
         self._dates_info: dict[str, int] = {}     # {date: size_kb}
 
@@ -94,7 +93,7 @@ class DataStore:
         logger.info(f"✅ 预加载完成: {len(self._days)} 天数据, 耗时 {elapsed:.1f}s")
 
     def _load_day(self, date_str: str, path: Path):
-        """加载并压缩一天的数据到内存"""
+        """加载并压缩一天的数据到内存（不保留原始数据）"""
         with open(path, encoding="utf-8") as f:
             raw = json.load(f)
 
@@ -114,9 +113,6 @@ class DataStore:
         }
         day_data = {"date": raw.get("date", date_str), "meta": meta, "snapshots": compressed_snaps}
 
-        # Assign atomically after all processing succeeds, so a compression
-        # exception cannot leave _raw populated while _days is missing.
-        self._raw[date_str] = raw
         self._days[date_str] = day_data
 
     def update_day(self, date_str: str):
@@ -137,15 +133,22 @@ class DataStore:
         latest_path = self.data_dir / "latest.json"
         if not latest_path.exists():
             self._latest = None
-            self._latest_raw = None
             return
         with open(latest_path, encoding="utf-8") as f:
             raw = json.load(f)
-        self._latest_raw = raw
         self._latest = _compress_snapshot(raw)
 
     def get_latest_raw(self) -> dict | None:
-        return self._latest_raw
+        """按需从磁盘读取 latest.json 原始数据（不缓存）"""
+        latest_path = self.data_dir / "latest.json"
+        if not latest_path.exists():
+            return None
+        try:
+            with open(latest_path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning(f"读取 latest.json 失败: {e}")
+            return None
 
     def get_dates(self) -> list[str]:
         return list(self._dates)
@@ -173,10 +176,20 @@ class DataStore:
         return snaps[start:start + count]
 
     def get_raw_day(self, date_str: str) -> dict | None:
-        return self._raw.get(date_str)
+        """按需从磁盘读取原始 day 数据（不缓存）"""
+        path = self.data_dir / f"day_{date_str}.json"
+        if not path.exists():
+            return None
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning(f"读取 day_{date_str}.json 失败: {e}")
+            return None
 
     def get_raw_snapshots(self, date_str: str) -> list[dict]:
-        raw = self._raw.get(date_str)
+        """按需从磁盘读取原始快照数据（不缓存）"""
+        raw = self.get_raw_day(date_str)
         if not raw:
             return []
         return raw.get("snapshots", [])

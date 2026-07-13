@@ -316,7 +316,8 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
                     "has_action": bool(analysis.get("actions")),
                     "bull": any(s in analysis.get("sentiments", {}) for s in ["看多", "情绪高涨"]),
                     "bear": any(s in analysis.get("sentiments", {}) for s in ["看空", "情绪低迷"]),
-                    "text": m.get("content", "")
+                    "text": m.get("content", ""),
+                    "sectors": analysis.get("sectors", [])
                 })
 
     # 股票热度排行
@@ -335,13 +336,10 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
         if score < 5 and len(groups) < 2:
             continue
 
-        # 关联板块
+        # 关联板块（复用前面 analyze_text 已识别的板块，避免重复关键词扫描）
         involved_sectors = set()
         for d in details:
-            txt = d["text"]
-            for sec, kws in cfg["sectors"].items():
-                if any(kw in txt.lower() for kw in kws):
-                    involved_sectors.add(sec)
+            involved_sectors.update(d.get("sectors", []))
 
         # 按群聚合消息明细
         group_msgs = defaultdict(list)

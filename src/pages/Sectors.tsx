@@ -43,14 +43,20 @@ function buildHeatmapData(
   snapshots: Snapshot[],
   sectors: SectorItem[]
 ): Record<string, number[]> {
-  const map: Record<string, number[]> = {};
+  const result: Record<string, number[]> = {};
   sectors.forEach((sec) => {
-    map[sec.n] = snapshots.map((snap) => {
-      const found = snap.sec.find((s) => s.n === sec.n);
-      return found ? found.sc : 0;
+    result[sec.n] = new Array(snapshots.length).fill(0);
+  });
+
+  snapshots.forEach((snap, snapIdx) => {
+    snap.sec.forEach((sectorData) => {
+      if (result[sectorData.n]) {
+        result[sectorData.n][snapIdx] = sectorData.sc;
+      }
     });
   });
-  return map;
+
+  return result;
 }
 
 /** Map sectors → related stocks from current snapshot's stk list */
@@ -635,7 +641,7 @@ export default function Sectors() {
                   ))}
                 </div>
                 {/* Heatmap rows */}
-                {sortedSectors.map((sector, si) => (
+                {sortedSectors.map((sector) => (
                   <div key={sector.n} className="flex items-center mb-[2px]">
                     <div className="w-16 shrink-0 pr-2 text-right text-xs text-[#94A3B8] truncate">
                       {sector.n}
@@ -645,12 +651,9 @@ export default function Sectors() {
                         const score = heatmapData[sector.n]?.[ti] ?? 0;
                         const opacity = getHeatOpacity(score);
                         return (
-                          <motion.div
+                          <div
                             key={t}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: si * 0.04 + ti * 0.002, duration: 0.3 }}
-                            className="flex-1 aspect-[2/3] rounded-sm relative group cursor-pointer"
+                            className="flex-1 aspect-[2/3] rounded-sm relative group cursor-pointer transition-opacity hover:opacity-80"
                             style={{ backgroundColor: `rgba(59, 130, 246, ${opacity})` }}
                             title={`${sector.n} ${t} 热度:${score}`}
                           >
@@ -658,7 +661,7 @@ export default function Sectors() {
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[#1E293B] rounded text-[10px] text-[#F1F5F9] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10 shadow-lg">
                               {sector.n} {t} · {score}
                             </div>
-                          </motion.div>
+                          </div>
                         );
                       })}
                     </div>

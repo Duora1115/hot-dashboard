@@ -201,14 +201,26 @@ function HeatScoreHistory({ stockCode }: { stockCode: string }) {
   const snapshots = useStore((s) => s.currentDayData?.snapshots ?? []);
   const heatData = useMemo(() => {
     return snapshots.map((snap, i) => {
-      const stock = snap.stk.find((s) => s.c === stockCode);
+      for (let j = 0; j < snap.stk.length; j++) {
+        if (snap.stk[j].c === stockCode) {
+          const stock = snap.stk[j];
+          return {
+            time: formatTime(snap.t),
+            index: i,
+            heat: stock.sc,
+            rank: j + 1,
+            bull: stock.bu,
+            bear: stock.be,
+          };
+        }
+      }
       return {
         time: formatTime(snap.t),
         index: i,
-        heat: stock?.sc ?? 0,
-        rank: stock ? snap.stk.indexOf(stock) + 1 : null,
-        bull: stock?.bu ?? 0,
-        bear: stock?.be ?? 0,
+        heat: 0,
+        rank: null,
+        bull: 0,
+        bear: 0,
       };
     });
   }, [stockCode, snapshots]);

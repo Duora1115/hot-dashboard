@@ -468,30 +468,30 @@ function SentimentTimelineChart({ snapshots, currentIndex }: { snapshots: Snapsh
 
 function ActionSignalsTimeline({ snapshots, currentIndex }: { snapshots: Snapshot[]; currentIndex: number }) {
   const data = useMemo(() => {
+    // Cache actionCategory results to avoid repeated lookups
+    const actionMap = new Map<string, 'buy' | 'sell' | 'hold' | 'risk'>();
+
     return snapshots.map((s, i) => {
-      const entry: Record<string, string | number> = {
+      const counts = { buy: 0, sell: 0, hold: 0, risk: 0 };
+
+      // Single pass over action entries, accumulating into category buckets
+      for (const [key, value] of Object.entries(s.act)) {
+        let category = actionMap.get(key);
+        if (!category) {
+          category = actionCategory(key);
+          actionMap.set(key, category);
+        }
+        counts[category] += value;
+      }
+
+      return {
         time: formatTime(s.t),
         index: i,
+        买入: counts.buy,
+        卖出: counts.sell,
+        持有: counts.hold,
+        风险: counts.risk,
       };
-      // Aggregate actions into categories
-      const buy = Object.entries(s.act)
-        .filter(([k]) => actionCategory(k) === 'buy')
-        .reduce((sum, [, v]) => sum + v, 0);
-      const sell = Object.entries(s.act)
-        .filter(([k]) => actionCategory(k) === 'sell')
-        .reduce((sum, [, v]) => sum + v, 0);
-      const hold = Object.entries(s.act)
-        .filter(([k]) => actionCategory(k) === 'hold')
-        .reduce((sum, [, v]) => sum + v, 0);
-      const risk = Object.entries(s.act)
-        .filter(([k]) => actionCategory(k) === 'risk')
-        .reduce((sum, [, v]) => sum + v, 0);
-
-      entry['买入'] = buy;
-      entry['卖出'] = sell;
-      entry['持有'] = hold;
-      entry['风险'] = risk;
-      return entry;
     });
   }, [snapshots]);
 
