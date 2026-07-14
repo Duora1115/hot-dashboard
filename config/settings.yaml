@@ -5,6 +5,12 @@ server:
   data_dir: "data"
   replay_dir: "data"
 
+# 缓存和数据保留策略
+cache:
+  max_hot_days: 14        # 内存中最多保留的天数
+  raw_lru_days: 3         # 原始数据 LRU 缓存天数
+  retention_days: 14      # 磁盘文件保留天数（超过则删除）
+
 # 云端同步（本地采集后推送到云端）
 cloud:
   enabled: true

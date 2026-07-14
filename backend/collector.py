@@ -10,6 +10,7 @@ import time
 import re
 import os
 import yaml
+import logging
 import threading
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -25,6 +26,8 @@ except ImportError:
     _OCR_AVAILABLE = False
 
 CST = timezone(timedelta(hours=8))
+
+logger = logging.getLogger(__name__)
 
 # ---- 图片 OCR ----
 _image_ocr_cache = {}  # message_id -> extracted_text
@@ -517,6 +520,13 @@ def collect_live(cfg=None, data_dir=None):
     except (ImportError, AttributeError):
         pass  # 独立运行 collector 时 store 不存在
 
+    # 清理过期文件
+    try:
+        retention = cfg.get("cache", {}).get("retention_days", 14)
+        cleanup_old_files(data_dir, retention_days=retention)
+    except Exception as e:
+        logger.warning(f"清理过期文件失败: {e}")
+
     return output
 
 
@@ -597,6 +607,13 @@ def collect_replay(date_str, cfg=None, data_dir=None):
         store.update_day(date_str)
     except (ImportError, AttributeError):
         pass
+
+    # 清理过期文件
+    try:
+        retention = cfg.get("cache", {}).get("retention_days", 14)
+        cleanup_old_files(data_dir, retention_days=retention)
+    except Exception as e:
+        logger.warning(f"清理过期文件失败: {e}")
 
     return day_data
 
@@ -694,6 +711,25 @@ def push_to_cloud(cfg, date_str, data_dir=None):
             _push(f"{base_url}/api/upload/day/{date_str}", day_data, f"day_{date_str}")
         else:
             print(f"  ☁️ day_{date_str}.json 不存在，跳过", flush=True)
+
+
+def cleanup_old_files(data_dir, retention_days=14):
+    """删除超过保留期的旧 day 文件。"""
+    from datetime import datetime, timedelta
+    cutoff = (datetime.now(CST) - timedelta(days=retention_days)).strftime("%Y-%m-%d")
+    removed = 0
+    for f in data_dir.glob("day_*.json"):
+        date_str = f.stem.replace("day_", "")
+        if date_str < cutoff:
+            try:
+                f.unlink()
+                removed += 1
+                logger.info(f"清理过期文件: {f.name}")
+            except Exception as e:
+                logger.warning(f"删除 {f.name} 失败: {e}")
+    if removed:
+        logger.info(f"共清理 {removed} 个过期文件")
+    return removed
 
 
 if __name__ == "__main__":
