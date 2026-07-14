@@ -102,16 +102,28 @@ def api_day(date_str: str):
 
 @app.get("/api/day/{date_str}/meta")
 def api_day_meta(date_str: str):
-    """获取日期的元信息（快照数量 + 时间列表），不加载完整数据。用于懒加载初始化。"""
+    """获取日期的元信息，不加载完整数据。"""
+    # 先检查文件是否存在（不触发完整加载）
+    path = data_dir / f"day_{date_str}.json"
+    if not path.exists():
+        raise HTTPException(404, f"日期 {date_str} 数据不存在")
+
+    # 如果已加载，直接用内存数据
     day = store.get_day(date_str)
     if day is None:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
-    raw_snaps = store.get_raw_snapshots(date_str)
+
+    # 时间列表从索引获取（不读原始数据）
+    times = []
+    for time_key, (d, idx) in sorted(store.index.time_index.items()):
+        if d == date_str:
+            times.append(time_key.split(" ")[1] if " " in time_key else time_key)
+
     return {
         "date": day["date"],
         "total": day["meta"]["message_count"],
         "count": day["meta"]["count"],
-        "times": [s["time"] for s in raw_snaps],
+        "times": times,
     }
 
 
@@ -130,29 +142,72 @@ def api_day_snapshots(date_str: str, start: int = 0, count: int = 0):
 
 @app.get("/api/stock-messages/{date_str}")
 def api_stock_messages(date_str: str, code: str, time: str = ""):
-    """按需获取指定股票的消息原文（延迟加载）"""
+    """按需获取指定股票的消息原文（用索引定位，不扫描全部快照）。"""
+    # 用索引定位包含该股票的快照
+    locations = store.index.get_stock_locations(code)
+    date_locs = [(d, i) for d, i in locations if d == date_str]
+
+    if not date_locs:
+        # 索引未命中，回退到原始数据扫描
+        raw_snaps = store.get_raw_snapshots(date_str)
+        if not raw_snaps:
+            raise HTTPException(404, f"日期 {date_str} 数据不存在")
+
+        target_time = time or ""
+        snap = None
+        for s in raw_snaps:
+            if target_time and s["time"] == target_time:
+                snap = s
+                break
+        if snap is None:
+            snap = raw_snaps[-1]
+
+        for t in snap.get("top10_stocks", []):
+            if t["code"] == code:
+                result = []
+                for g in t.get("group_details", []):
+                    result.append({
+                        "group": g["group"],
+                        "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
+                    })
+                return result
+        return []
+
+    # 索引命中 — 从 raw cache 获取需要的快照
     raw_snaps = store.get_raw_snapshots(date_str)
     if not raw_snaps:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
 
     target_time = time or ""
-    snap = None
-    for s in raw_snaps:
-        if target_time and s["time"] == target_time:
-            snap = s
-            break
-    if snap is None:
-        snap = raw_snaps[-1]
+    result = []
+    for _, snap_idx in date_locs:
+        if snap_idx >= len(raw_snaps):
+            continue
+        snap = raw_snaps[snap_idx]
+        if target_time and snap.get("time", "") != target_time:
+            continue
+        for t in snap.get("top10_stocks", []):
+            if t["code"] == code:
+                for g in t.get("group_details", []):
+                    result.append({
+                        "group": g["group"],
+                        "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
+                    })
+                return result
 
-    for t in snap.get("top10_stocks", []):
-        if t["code"] == code:
-            result = []
-            for g in t.get("group_details", []):
-                result.append({
-                    "group": g["group"],
-                    "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
-                })
-            return result
+    # 如果指定时间没匹配到，返回最后一个命中的
+    if target_time and not result:
+        last_idx = date_locs[-1][1]
+        if last_idx < len(raw_snaps):
+            snap = raw_snaps[last_idx]
+            for t in snap.get("top10_stocks", []):
+                if t["code"] == code:
+                    for g in t.get("group_details", []):
+                        result.append({
+                            "group": g["group"],
+                            "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
+                        })
+                    return result
     return []
 
 
@@ -177,12 +232,15 @@ def api_market_advance_decline():
 
 @app.get("/api/report/{date_str}")
 def api_report(date_str: str):
-    """生成晨报数据"""
+    """生成晨报数据（带派生缓存，TTL 30s 因为包含行情数据）。"""
+    cached = store.derived_cache.get("report", date_str)
+    if cached is not None:
+        return cached
+
     day_data = store.get_day(date_str)
     if day_data is None:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
 
-    # 并行获取行情数据（容错）
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     market_idx = []
@@ -201,11 +259,10 @@ def api_report(date_str: str):
                 else:
                     adv_dec = result
             except Exception:
-                pass  # 使用默认值
+                pass
 
     result = generate_report(date_str, day_data, market_idx, adv_dec)
 
-    # 合并日报数据（若存在）
     daily_report_file = data_dir / f"daily_report_{date_str}.json"
     if daily_report_file.exists():
         try:
@@ -214,6 +271,8 @@ def api_report(date_str: str):
         except Exception:
             pass
 
+    # 缓存 30 秒（因为行情数据 30 秒刷新）
+    store.derived_cache.set("report", date_str, result, ttl=30)
     return result
 
 
@@ -239,7 +298,12 @@ def api_get_daily_report(date_str: str):
 
 @app.get("/api/day/{date_str}/sentiment-timeline")
 def api_sentiment_timeline(date_str: str):
-    """获取情绪时间序列"""
+    """获取情绪时间序列（带派生缓存）。"""
+    # 检查缓存
+    cached = store.derived_cache.get("sentiment_tl", date_str)
+    if cached is not None:
+        return cached
+
     raw_snaps = store.get_raw_snapshots(date_str)
     if not raw_snaps:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
@@ -280,12 +344,18 @@ def api_sentiment_timeline(date_str: str):
                 "bullBar": bull_bar, "bearBar": bear_bar, "neutralBar": neutral_bar,
                 "overall": best.get("overall_sentiment", "观望为主"),
             })
+
+    store.derived_cache.set("sentiment_tl", date_str, result)
     return result
 
 
 @app.get("/api/day/{date_str}/extreme-stats")
 def api_extreme_stats(date_str: str):
-    """统计极值情绪次数（eh>3 和 el>3 的快照数）"""
+    """统计极值情绪次数（带派生缓存）。"""
+    cached = store.derived_cache.get("extreme", date_str)
+    if cached is not None:
+        return cached
+
     raw_snaps = store.get_raw_snapshots(date_str)
     if not raw_snaps:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
@@ -298,7 +368,10 @@ def api_extreme_stats(date_str: str):
             eh_count += 1
         if sd.get("extreme_low", 0) > 3:
             el_count += 1
-    return {"month_extreme_high": eh_count, "month_extreme_low": el_count}
+
+    result = {"month_extreme_high": eh_count, "month_extreme_low": el_count}
+    store.derived_cache.set("extreme", date_str, result)
+    return result
 
 
 @app.post("/api/collect")
