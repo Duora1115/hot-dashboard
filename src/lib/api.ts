@@ -15,7 +15,10 @@ import type {
 const API_BASE = '';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${url}`, options);
+  const res = await fetch(`${API_BASE}${url}`, {
+    cache: 'default',  // 让浏览器自动处理 Cache-Control 和 ETag/304
+    ...options,
+  });
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
