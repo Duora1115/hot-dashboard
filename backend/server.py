@@ -7,7 +7,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
@@ -40,7 +40,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-store = DataStore(data_dir)
+cache_cfg = cfg.get("cache", {})
+store = DataStore(
+    data_dir,
+    max_hot_days=cache_cfg.get("max_hot_days", 14),
+    raw_lru_days=cache_cfg.get("raw_lru_days", 3),
+)
 
 
 def _etag_for(date_str: str) -> str:
@@ -98,7 +103,8 @@ def api_status(request: Request):
         current_date = dates[-1]
 
     group_count = len(cfg.get("groups", []))
-    etag = f'"status-v{store.get_version("latest")}"'
+    today = date.today().isoformat()
+    etag = f'"status-v{store.get_version(today)}"'
     headers = {"ETag": etag, "Cache-Control": _CACHE_POLICIES["status"]}
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=headers)
@@ -115,7 +121,8 @@ def api_status(request: Request):
 def api_dates(request: Request):
     """列出所有可用日期 — 匹配前端 DateInfo 类型"""
     result = store.get_dates_info()
-    etag = f'"dates-{len(result)}"'
+    total_kb = sum(d.get("size_kb", 0) for d in result)
+    etag = f'"dates-{len(result)}-{int(total_kb)}"'
     headers = {"ETag": etag, "Cache-Control": _CACHE_POLICIES["dates"]}
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=headers)
@@ -368,6 +375,7 @@ def api_post_daily_report(date_str: str, body: dict = Body(...)):
     body["date"] = date_str
     with open(report_file, "w", encoding="utf-8") as f:
         json.dump(body, f, ensure_ascii=False, indent=2)
+    store.derived_cache.invalidate(date_str)
     return {"status": "ok", "date": date_str}
 
 

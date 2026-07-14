@@ -715,7 +715,6 @@ def push_to_cloud(cfg, date_str, data_dir=None):
 
 def cleanup_old_files(data_dir, retention_days=14):
     """删除超过保留期的旧 day 文件。"""
-    from datetime import datetime, timedelta
     cutoff = (datetime.now(CST) - timedelta(days=retention_days)).strftime("%Y-%m-%d")
     removed = 0
     for f in data_dir.glob("day_*.json"):
