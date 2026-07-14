@@ -9,9 +9,9 @@ import sys
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Body
 import yaml
@@ -42,6 +42,37 @@ app.add_middleware(
 
 store = DataStore(data_dir)
 
+
+def _etag_for(date_str: str) -> str:
+    version = store.get_version(date_str)
+    return f'"{date_str}-v{version}"'
+
+
+def _check_etag(request: Request, date_str: str) -> Response | None:
+    """If client's If-None-Match matches, return 304. Otherwise None."""
+    etag = _etag_for(date_str)
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+    return None
+
+
+# Cache-Control policies per endpoint type
+_CACHE_POLICIES = {
+    "status": "no-cache",
+    "dates": "max-age=60",
+    "latest": "no-cache",
+    "day": "max-age=300",
+    "meta": "max-age=300",
+    "snapshots": "max-age=300",
+    "sentiment_tl": "max-age=60",
+    "extreme": "max-age=60",
+    "report": "max-age=30",
+    "market": "max-age=30",
+    "stock_messages": "max-age=300",
+    "daily_report": "max-age=300",
+}
+
+
 @app.on_event("startup")
 def startup_event():
     store.startup()
@@ -50,7 +81,7 @@ def startup_event():
 # ---- API 路由 ----
 
 @app.get("/api/status")
-def api_status():
+def api_status(request: Request):
     """服务状态 — 匹配前端 ApiStatus 类型"""
     dates = store.get_dates()
     latest_raw = store.get_latest_raw()
@@ -67,41 +98,60 @@ def api_status():
         current_date = dates[-1]
 
     group_count = len(cfg.get("groups", []))
-    return {
+    etag = f'"status-v{store.get_version("latest")}"'
+    headers = {"ETag": etag, "Cache-Control": _CACHE_POLICIES["status"]}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return JSONResponse({
         "status": "ok",
         "current_date": current_date,
         "latest_time": latest_time,
         "group_count": group_count,
         "task_running": False,
-    }
+    }, headers=headers)
 
 
 @app.get("/api/dates")
-def api_dates():
+def api_dates(request: Request):
     """列出所有可用日期 — 匹配前端 DateInfo 类型"""
-    return store.get_dates_info()
+    result = store.get_dates_info()
+    etag = f'"dates-{len(result)}"'
+    headers = {"ETag": etag, "Cache-Control": _CACHE_POLICIES["dates"]}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return JSONResponse(result, headers=headers)
 
 
 @app.get("/api/latest")
-def api_latest():
+def api_latest(request: Request):
     """获取最新实时快照"""
     result = store.get_latest()
     if result is None:
         raise HTTPException(404, "暂无实时数据")
-    return result
+    etag = f'"latest-v{store.get_version("latest")}"'
+    headers = {"ETag": etag, "Cache-Control": _CACHE_POLICIES["latest"]}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return JSONResponse(result, headers=headers)
 
 
 @app.get("/api/day/{date_str}")
-def api_day(date_str: str):
+def api_day(date_str: str, request: Request):
     """获取指定日期的完整回放数据"""
+    not_modified = _check_etag(request, date_str)
+    if not_modified:
+        return not_modified
     result = store.get_day(date_str)
     if result is None:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
-    return result
+    return JSONResponse(result, headers={
+        "ETag": _etag_for(date_str),
+        "Cache-Control": _CACHE_POLICIES["day"],
+    })
 
 
 @app.get("/api/day/{date_str}/meta")
-def api_day_meta(date_str: str):
+def api_day_meta(date_str: str, request: Request):
     """获取日期的元信息，不加载完整数据。"""
     # 先检查文件是否存在（不触发完整加载）
     path = data_dir / f"day_{date_str}.json"
@@ -119,30 +169,43 @@ def api_day_meta(date_str: str):
         if d == date_str:
             times.append(time_key.split(" ")[1] if " " in time_key else time_key)
 
-    return {
+    return JSONResponse({
         "date": day["date"],
         "total": day["meta"]["message_count"],
         "count": day["meta"]["count"],
         "times": times,
-    }
+    }, headers={
+        "ETag": _etag_for(date_str),
+        "Cache-Control": _CACHE_POLICIES["meta"],
+    })
 
 
 @app.get("/api/day/{date_str}/snapshots")
-def api_day_snapshots(date_str: str, start: int = 0, count: int = 0):
+def api_day_snapshots(date_str: str, request: Request, start: int = 0, count: int = 0):
     """按需获取指定范围的快照数据（懒加载）。
 
     参数:
     - start: 起始快照索引（默认 0）
     - count: 获取数量（默认 0 = 全部，最大 100）
     """
+    not_modified = _check_etag(request, date_str)
+    if not_modified:
+        return not_modified
     if store.get_day(date_str) is None:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
-    return store.get_snapshots(date_str, start, count if count > 0 else None)
+    result = store.get_snapshots(date_str, start, count if count > 0 else None)
+    return JSONResponse(result, headers={
+        "ETag": _etag_for(date_str),
+        "Cache-Control": _CACHE_POLICIES["snapshots"],
+    })
 
 
 @app.get("/api/stock-messages/{date_str}")
-def api_stock_messages(date_str: str, code: str, time: str = ""):
+def api_stock_messages(date_str: str, request: Request, code: str, time: str = ""):
     """按需获取指定股票的消息原文（用索引定位，不扫描全部快照）。"""
+    not_modified = _check_etag(request, date_str)
+    if not_modified:
+        return not_modified
     # 用索引定位包含该股票的快照
     locations = store.index.get_stock_locations(code)
     date_locs = [(d, i) for d, i in locations if d == date_str]
@@ -170,8 +233,14 @@ def api_stock_messages(date_str: str, code: str, time: str = ""):
                         "group": g["group"],
                         "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
                     })
-                return result
-        return []
+                return JSONResponse(result, headers={
+                    "ETag": _etag_for(date_str),
+                    "Cache-Control": _CACHE_POLICIES["stock_messages"],
+                })
+        return JSONResponse([], headers={
+            "ETag": _etag_for(date_str),
+            "Cache-Control": _CACHE_POLICIES["stock_messages"],
+        })
 
     # 索引命中 — 从 raw cache 获取需要的快照
     raw_snaps = store.get_raw_snapshots(date_str)
@@ -193,7 +262,10 @@ def api_stock_messages(date_str: str, code: str, time: str = ""):
                         "group": g["group"],
                         "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
                     })
-                return result
+                    return JSONResponse(result, headers={
+                        "ETag": _etag_for(date_str),
+                        "Cache-Control": _CACHE_POLICIES["stock_messages"],
+                    })
 
     # 如果指定时间没匹配到，返回最后一个命中的
     if target_time and not result:
@@ -207,35 +279,45 @@ def api_stock_messages(date_str: str, code: str, time: str = ""):
                             "group": g["group"],
                             "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
                         })
-                    return result
-    return []
+                    return JSONResponse(result, headers={
+                        "ETag": _etag_for(date_str),
+                        "Cache-Control": _CACHE_POLICIES["stock_messages"],
+                    })
+    return JSONResponse([], headers={
+        "ETag": _etag_for(date_str),
+        "Cache-Control": _CACHE_POLICIES["stock_messages"],
+    })
 
 
 @app.get("/api/market/indices")
-def api_market_indices():
+def api_market_indices(request: Request):
     """获取大盘指数实时数据"""
     try:
-        return fetch_indices()
-    except Exception as e:
-        return []
+        result = fetch_indices()
+    except Exception:
+        result = []
+    return JSONResponse(result, headers={"Cache-Control": _CACHE_POLICIES["market"]})
 
 
 @app.get("/api/market/advance-decline")
-def api_market_advance_decline():
+def api_market_advance_decline(request: Request):
     """获取涨跌家数统计"""
     try:
         result = fetch_advance_decline()
-        return result
     except Exception:
-        return None
+        result = None
+    return JSONResponse(result, headers={"Cache-Control": _CACHE_POLICIES["market"]})
 
 
 @app.get("/api/report/{date_str}")
-def api_report(date_str: str):
+def api_report(date_str: str, request: Request):
     """生成晨报数据（带派生缓存，TTL 30s 因为包含行情数据）。"""
     cached = store.derived_cache.get("report", date_str)
     if cached is not None:
-        return cached
+        return JSONResponse(cached, headers={
+            "ETag": _etag_for(date_str),
+            "Cache-Control": _CACHE_POLICIES["report"],
+        })
 
     day_data = store.get_day(date_str)
     if day_data is None:
@@ -273,7 +355,10 @@ def api_report(date_str: str):
 
     # 缓存 30 秒（因为行情数据 30 秒刷新）
     store.derived_cache.set("report", date_str, result, ttl=30)
-    return result
+    return JSONResponse(result, headers={
+        "ETag": _etag_for(date_str),
+        "Cache-Control": _CACHE_POLICIES["report"],
+    })
 
 
 @app.post("/api/daily-report/{date_str}")
@@ -287,22 +372,32 @@ def api_post_daily_report(date_str: str, body: dict = Body(...)):
 
 
 @app.get("/api/daily-report/{date_str}")
-def api_get_daily_report(date_str: str):
+def api_get_daily_report(date_str: str, request: Request):
     """获取社群观点大日报数据"""
+    not_modified = _check_etag(request, date_str)
+    if not_modified:
+        return not_modified
     report_file = data_dir / f"daily_report_{date_str}.json"
     if not report_file.exists():
         raise HTTPException(404, f"日期 {date_str} 日报不存在")
     with open(report_file, encoding="utf-8") as f:
-        return json.load(f)
+        result = json.load(f)
+    return JSONResponse(result, headers={
+        "ETag": _etag_for(date_str),
+        "Cache-Control": _CACHE_POLICIES["daily_report"],
+    })
 
 
 @app.get("/api/day/{date_str}/sentiment-timeline")
-def api_sentiment_timeline(date_str: str):
+def api_sentiment_timeline(date_str: str, request: Request):
     """获取情绪时间序列（带派生缓存）。"""
     # 检查缓存
     cached = store.derived_cache.get("sentiment_tl", date_str)
     if cached is not None:
-        return cached
+        return JSONResponse(cached, headers={
+            "ETag": _etag_for(date_str),
+            "Cache-Control": _CACHE_POLICIES["sentiment_tl"],
+        })
 
     raw_snaps = store.get_raw_snapshots(date_str)
     if not raw_snaps:
@@ -346,15 +441,21 @@ def api_sentiment_timeline(date_str: str):
             })
 
     store.derived_cache.set("sentiment_tl", date_str, result)
-    return result
+    return JSONResponse(result, headers={
+        "ETag": _etag_for(date_str),
+        "Cache-Control": _CACHE_POLICIES["sentiment_tl"],
+    })
 
 
 @app.get("/api/day/{date_str}/extreme-stats")
-def api_extreme_stats(date_str: str):
+def api_extreme_stats(date_str: str, request: Request):
     """统计极值情绪次数（带派生缓存）。"""
     cached = store.derived_cache.get("extreme", date_str)
     if cached is not None:
-        return cached
+        return JSONResponse(cached, headers={
+            "ETag": _etag_for(date_str),
+            "Cache-Control": _CACHE_POLICIES["extreme"],
+        })
 
     raw_snaps = store.get_raw_snapshots(date_str)
     if not raw_snaps:
@@ -371,7 +472,10 @@ def api_extreme_stats(date_str: str):
 
     result = {"month_extreme_high": eh_count, "month_extreme_low": el_count}
     store.derived_cache.set("extreme", date_str, result)
-    return result
+    return JSONResponse(result, headers={
+        "ETag": _etag_for(date_str),
+        "Cache-Control": _CACHE_POLICIES["extreme"],
+    })
 
 
 @app.post("/api/collect")
