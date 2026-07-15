@@ -510,7 +510,6 @@ function GroupMessages({ groups }: { groups: Array<{ g: string; c: number; m: Ar
       <div className="divide-y divide-[#1E293B]">
         {groups.map((group, gi) => {
           const isOpen = openGroups.has(gi);
-          const displayMessages = group.m.slice(0, 5);
 
           return (
             <motion.div
@@ -551,7 +550,7 @@ function GroupMessages({ groups }: { groups: Array<{ g: string; c: number; m: Ar
                     className="overflow-hidden"
                   >
                     <div className="px-4 pb-3 space-y-0">
-                      {displayMessages.map((msg, mi) => (
+                      {group.m.map((msg, mi) => (
                         <motion.div
                           key={mi}
                           initial={{ opacity: 0, x: -10 }}
@@ -562,17 +561,11 @@ function GroupMessages({ groups }: { groups: Array<{ g: string; c: number; m: Ar
                           <span className="text-[11px] font-mono text-[#64748B] shrink-0 w-10 pt-0.5">
                             {msg.t}
                           </span>
-                          <p className="text-sm text-[#F1F5F9] leading-relaxed line-clamp-3">
+                          <p className="text-sm text-[#F1F5F9] leading-relaxed whitespace-pre-wrap break-words">
                             {msg.x}
                           </p>
                         </motion.div>
                       ))}
-
-                      {group.m.length > 5 && (
-                        <button className="mt-1 ml-[52px] text-xs text-[#3B82F6] hover:text-[#60A5FA] transition-colors">
-                          还有 {group.m.length - 5} 条消息...
-                        </button>
-                      )}
                     </div>
                   </motion.div>
                 )}
