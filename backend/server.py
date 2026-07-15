@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from fastapi import Body
 import yaml
 
@@ -39,6 +40,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# GZip 压缩 — JSON 数据可压缩 80-90%，大幅减少传输时间
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 cache_cfg = cfg.get("cache", {})
 store = DataStore(
