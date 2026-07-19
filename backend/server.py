@@ -5,6 +5,7 @@ FastAPI 服务端：提供数据 API + 托管前端页面
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from datetime import datetime, timezone, timedelta, date
@@ -29,6 +30,23 @@ from backend.data_store import DataStore
 CST = timezone(timedelta(hours=8))
 cfg = load_config()
 data_dir = PROJECT_ROOT / cfg["server"]["data_dir"]
+
+
+def _get_git_version() -> str:
+    """获取当前 git 短 commit hash，失败时返回 unknown"""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, cwd=str(PROJECT_ROOT), timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return "unknown"
+
+
+GIT_VERSION = _get_git_version()
 
 app = FastAPI(title="Hot Dashboard API", version="1.0.0")
 
@@ -118,6 +136,12 @@ def api_status(request: Request):
         "group_count": group_count,
         "task_running": False,
     }, headers=headers)
+
+
+@app.get("/api/version")
+def api_version():
+    """返回当前部署的代码版本（git commit hash），用于验证云端是否已更新"""
+    return {"version": GIT_VERSION}
 
 
 @app.get("/api/dates")

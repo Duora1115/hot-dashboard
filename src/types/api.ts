@@ -72,6 +72,10 @@ export interface ApiStatus {
   task_running: boolean;
 }
 
+export interface ApiVersion {
+  version: string;
+}
+
 export interface StockMessage {
   t: string;
   x: string;

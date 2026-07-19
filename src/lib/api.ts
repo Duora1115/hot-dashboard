@@ -1,5 +1,6 @@
 import type {
   ApiStatus,
+  ApiVersion,
   DateInfo,
   Snapshot,
   DayData,
@@ -28,6 +29,11 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 // GET /api/status
 export async function fetchStatus(): Promise<ApiStatus> {
   return fetchJson<ApiStatus>('/api/status');
+}
+
+// GET /api/version
+export async function fetchVersion(): Promise<ApiVersion> {
+  return fetchJson<ApiVersion>('/api/version');
 }
 
 // GET /api/dates
