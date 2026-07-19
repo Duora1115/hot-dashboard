@@ -94,10 +94,23 @@ def extract_image_text(message, data_dir=None):
 _stock_mapping = None
 
 def load_stock_mapping(data_dir=None):
-    """加载本地股票代码→标准名称映射表"""
+    """加载本地股票代码→标准名称映射表
+    优先查找 backend/stock_mapping.json（随代码部署），
+    回退到 data/stock_mapping.json（本地开发）。
+    """
     global _stock_mapping
     if _stock_mapping is not None:
         return _stock_mapping
+    # 1. 与模块同目录的 stock_mapping.json（部署路径）
+    backend_mapping = Path(__file__).parent / "stock_mapping.json"
+    if backend_mapping.exists():
+        try:
+            with open(backend_mapping, encoding="utf-8") as f:
+                _stock_mapping = json.load(f)
+            return _stock_mapping
+        except Exception:
+            pass
+    # 2. 回退到 data/stock_mapping.json（本地开发路径）
     if data_dir is None:
         data_dir = Path(__file__).parent.parent / "data"
     mapping_file = Path(data_dir) / "stock_mapping.json"

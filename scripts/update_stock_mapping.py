@@ -12,9 +12,8 @@ import time
 from pathlib import Path
 
 
-def update_mapping(data_dir=None):
-    if data_dir is None:
-        data_dir = Path(__file__).parent.parent / "data"
+def update_mapping():
+    out_path = Path(__file__).parent.parent / "backend" / "stock_mapping.json"
 
     mapping = {}
     page = 1
@@ -53,7 +52,6 @@ def update_mapping(data_dir=None):
         page += 1
         time.sleep(0.2)
 
-    out_path = Path(data_dir) / "stock_mapping.json"
     with open(out_path, 'w', encoding='utf-8') as f:
         json.dump(mapping, f, ensure_ascii=False)
 
