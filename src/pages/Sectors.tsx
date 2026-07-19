@@ -458,6 +458,14 @@ export default function Sectors() {
 
   return (
     <div className="space-y-6">
+      {/* 全量数据加载提示 */}
+      {!dayFullLoaded && snapshots.length <= 1 && (
+        <div className="flex items-center gap-2 text-xs text-[#64748B]">
+          <div className="w-4 h-4 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+          正在加载完整时间序列数据…
+        </div>
+      )}
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}

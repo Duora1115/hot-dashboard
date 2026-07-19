@@ -839,6 +839,14 @@ export default function Replay() {
       transition={{ duration: 0.3 }}
       className="pb-[80px]"
     >
+      {/* 全量数据加载提示 */}
+      {!dayFullLoaded && snapshots.length <= 1 && (
+        <div className="flex items-center gap-2 text-xs text-[#64748B] px-4 pt-2">
+          <div className="w-4 h-4 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+          正在加载完整时间序列数据…
+        </div>
+      )}
+
       {/* Mini KPI */}
       <MiniKPI snapshot={displaySnapshot} />
 

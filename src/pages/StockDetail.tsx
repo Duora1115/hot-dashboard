@@ -692,6 +692,7 @@ export default function StockDetail() {
   const currentSnapshot = useStore((s) => s.currentSnapshot);
   const dayFullLoaded = useStore((s) => s.dayFullLoaded);
   const loadDayFull = useStore((s) => s.loadDayFull);
+  const snapshots = useStore((s) => s.currentDayData?.snapshots ?? []);
 
   useEffect(() => {
     if (!dayFullLoaded) loadDayFull();
@@ -742,6 +743,14 @@ export default function StockDetail() {
       transition={{ duration: 0.3 }}
       className="space-y-4"
     >
+      {/* 全量数据加载提示 */}
+      {!dayFullLoaded && snapshots.length <= 1 && (
+        <div className="flex items-center gap-2 text-xs text-[#64748B]">
+          <div className="w-4 h-4 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+          正在加载完整时间序列数据…
+        </div>
+      )}
+
       {/* Stock Header */}
       <StockHeader stock={stock} />
 
