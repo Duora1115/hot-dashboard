@@ -34,7 +34,7 @@ export interface SectorItem {
   mc: number; // 提及次数
   gc: number; // 涉及群数
   txt: string; // 样本文本
-  gd: GroupDetail[];
+  gd?: GroupDetail[]; // 轻量响应中会被剥离，需判空
 }
 
 export interface Snapshot {

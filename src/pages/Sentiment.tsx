@@ -97,7 +97,7 @@ function buildGroupHeatmap(
     snapshots.map((snap) => {
       let msgCount = 0;
       for (const sec of snap.sec) {
-        for (const gd of sec.gd) {
+        for (const gd of sec.gd ?? []) {
           if (gd.g === groupName) {
             msgCount += gd.c;
           }
@@ -541,7 +541,7 @@ export default function Sentiment() {
     const set = new Set<string>();
     for (const snap of snapshots) {
       for (const sec of snap.sec) {
-        for (const gd of sec.gd) {
+        for (const gd of sec.gd ?? []) {
           set.add(gd.g);
         }
       }

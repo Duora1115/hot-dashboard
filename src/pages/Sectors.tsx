@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Layers,
@@ -338,7 +338,7 @@ function SectorDetailDrawer({
                   群消息摘要
                 </h3>
                 <div className="space-y-3">
-                  {sector.gd.map((group, gi) => (
+                  {(sector.gd ?? []).map((group, gi) => (
                     <motion.div
                       key={group.g}
                       initial={{ opacity: 0, y: 10 }}

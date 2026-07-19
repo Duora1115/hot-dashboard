@@ -764,7 +764,7 @@ export default function StockDetail() {
       </div>
 
       {/* Group Messages */}
-      <GroupMessages groups={stockSectors.flatMap((s) => s.gd)} />
+      <GroupMessages groups={stockSectors.flatMap((s) => s.gd ?? [])} />
 
       {/* Stock Comparison */}
       <StockComparison currentStock={stock} />

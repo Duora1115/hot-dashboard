@@ -150,7 +150,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   // Load full snapshots for a date (on demand, for replay/compare/detail pages)
   loadDayFull: async () => {
-    const { currentDayData, currentDate } = get();
+    const { currentDate } = get();
     if (!currentDate || get().dayFullLoaded) return;
     try {
       const fullData = await fetchDayFull(currentDate);
