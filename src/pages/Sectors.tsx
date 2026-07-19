@@ -380,6 +380,8 @@ function SectorDetailDrawer({
 export default function Sectors() {
   const currentSnapshot = useStore((s) => s.currentSnapshot);
   const snapshots = useStore((s) => s.currentDayData?.snapshots ?? []);
+  const dayFullLoaded = useStore((s) => s.dayFullLoaded);
+  const loadDayFull = useStore((s) => s.loadDayFull);
   const [sortKey, setSortKey] = useState<SortKey>('sc');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [viewMode, setViewMode] = useState<ViewMode>('rank');
@@ -387,6 +389,10 @@ export default function Sectors() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hoveredSector, setHoveredSector] = useState<string | null>(null);
   const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!dayFullLoaded) loadDayFull();
+  }, [dayFullLoaded, loadDayFull]);
 
   const sectors = currentSnapshot?.sec ?? [];
 

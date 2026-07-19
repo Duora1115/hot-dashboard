@@ -27,7 +27,7 @@ import {
   Legend,
 } from 'recharts';
 import { useStore } from '@/store/useStore';
-import { fetchDay } from '@/lib/api';
+import { fetchDayFull } from '@/lib/api';
 import type { DayData, Snapshot } from '@/types/api';
 
 /* ------------------------------------------------------------------ */
@@ -141,7 +141,7 @@ export default function Compare() {
             return;
           }
           try {
-            const day = await fetchDay(date);
+            const day = await fetchDayFull(date);
             results[date] = dayDataToCompare(day);
           } catch {
             // skip failed dates

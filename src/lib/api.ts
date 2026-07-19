@@ -51,6 +51,11 @@ export async function fetchDay(date: string): Promise<DayData> {
   return fetchJson<DayData>(`/api/day/${date}`);
 }
 
+// GET /api/day/{date}?full=1 — 获取全量快照（默认只返回最后一条）
+export async function fetchDayFull(date: string): Promise<DayData> {
+  return fetchJson<DayData>(`/api/day/${date}?full=1`);
+}
+
 // GET /api/day/{date}/meta
 export async function fetchDayMeta(date: string): Promise<DayData['meta']> {
   return fetchJson<DayData['meta']>(`/api/day/${date}/meta`);

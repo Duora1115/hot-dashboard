@@ -491,9 +491,15 @@ function SentimentInsights({ sd }: { sd: { bu: number; be: number; ne: number; e
 export default function Sentiment() {
   const currentSnapshot = useStore((s) => s.currentSnapshot);
   const snapshots = useStore((s) => s.currentDayData?.snapshots ?? []);
+  const dayFullLoaded = useStore((s) => s.dayFullLoaded);
+  const loadDayFull = useStore((s) => s.loadDayFull);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const currentDate = useStore((s) => s.currentDate);
   const [extremeStats, setExtremeStats] = useState({ month_extreme_high: 0, month_extreme_low: 0 });
+
+  useEffect(() => {
+    if (!dayFullLoaded) loadDayFull();
+  }, [dayFullLoaded, loadDayFull]);
 
   useEffect(() => {
     if (currentDate) {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Snapshot, DateInfo, ApiStatus, DayData } from '@/types/api';
-import { fetchStatus, fetchDates, fetchLatest, fetchDay } from '@/lib/api';
+import { fetchStatus, fetchDates, fetchLatest, fetchDay, fetchDayFull } from '@/lib/api';
 
 interface AppState {
   // Global data
@@ -11,6 +11,7 @@ interface AppState {
 
   // Day data (full snapshots for replay)
   currentDayData: DayData | null;
+  dayFullLoaded: boolean; // 是否已加载全量快照
 
   // Replay state
   replayMode: 'replay' | 'live';
@@ -43,6 +44,7 @@ interface AppState {
   // API actions
   init: () => Promise<void>;
   loadDate: (date: string) => Promise<void>;
+  loadDayFull: () => Promise<void>; // 按需加载全量快照
   refreshData: () => Promise<void>;
 }
 
@@ -53,6 +55,7 @@ export const useStore = create<AppState>((set, get) => ({
   latestSnapshot: null,
   apiStatus: null,
   currentDayData: null,
+  dayFullLoaded: false,
 
   replayMode: 'live',
   replayIndex: 0,
@@ -121,9 +124,9 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  // Load a specific date's full day data
+  // Load a specific date's day data (light: meta + last snapshot only)
   loadDate: async (date: string) => {
-    set({ loading: true, error: null, currentDate: date });
+    set({ loading: true, error: null, currentDate: date, dayFullLoaded: false });
     try {
       const dayData = await fetchDay(date);
       const lastSnapshot = dayData.snapshots[dayData.snapshots.length - 1] ?? null;
@@ -142,6 +145,21 @@ export const useStore = create<AppState>((set, get) => ({
         currentSnapshot: latestSnapshot,
         loading: false,
       });
+    }
+  },
+
+  // Load full snapshots for a date (on demand, for replay/compare/detail pages)
+  loadDayFull: async () => {
+    const { currentDayData, currentDate } = get();
+    if (!currentDate || get().dayFullLoaded) return;
+    try {
+      const fullData = await fetchDayFull(currentDate);
+      set({
+        currentDayData: fullData,
+        dayFullLoaded: true,
+      });
+    } catch (err) {
+      console.error('Failed to load full day data:', err);
     }
   },
 

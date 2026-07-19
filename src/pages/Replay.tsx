@@ -757,10 +757,16 @@ export default function Replay() {
     playSpeed,
     replayIndex,
     currentDayData,
+    dayFullLoaded,
     togglePlay,
     setPlaySpeed,
     setReplayIndex,
+    loadDayFull,
   } = useStore();
+
+  useEffect(() => {
+    if (!dayFullLoaded) loadDayFull();
+  }, [dayFullLoaded, loadDayFull]);
 
   const snapshots = currentDayData?.snapshots ?? [];
 

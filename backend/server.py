@@ -170,14 +170,17 @@ def api_latest(request: Request):
 
 
 @app.get("/api/day/{date_str}")
-def api_day(date_str: str, request: Request):
-    """获取指定日期的完整回放数据"""
+def api_day(date_str: str, request: Request, full: int = 0):
+    """获取指定日期的回放数据。默认只返回 meta + 最后一条快照；?full=1 返回全部。"""
     not_modified = _check_etag(request, date_str)
     if not_modified:
         return not_modified
     result = store.get_day(date_str)
     if result is None:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
+    if not full:
+        snaps = result.get("snapshots", [])
+        result = {**result, "snapshots": snaps[-1:] if snaps else []}
     return JSONResponse(result, headers={
         "ETag": _etag_for(date_str),
         "Cache-Control": _CACHE_POLICIES["day"],
@@ -325,21 +328,29 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
 
 @app.get("/api/market/indices")
 def api_market_indices(request: Request):
-    """获取大盘指数实时数据"""
+    """获取大盘指数实时数据（带 5min 缓存，避免频繁调用外部 API）"""
+    cached = store.derived_cache.get("market_indices", "latest")
+    if cached is not None:
+        return JSONResponse(cached, headers={"Cache-Control": _CACHE_POLICIES["market"]})
     try:
         result = fetch_indices()
     except Exception:
         result = []
+    store.derived_cache.set("market_indices", "latest", result, ttl=300)
     return JSONResponse(result, headers={"Cache-Control": _CACHE_POLICIES["market"]})
 
 
 @app.get("/api/market/advance-decline")
 def api_market_advance_decline(request: Request):
-    """获取涨跌家数统计"""
+    """获取涨跌家数统计（带 5min 缓存）"""
+    cached = store.derived_cache.get("market_advance_decline", "latest")
+    if cached is not None:
+        return JSONResponse(cached, headers={"Cache-Control": _CACHE_POLICIES["market"]})
     try:
         result = fetch_advance_decline()
     except Exception:
         result = None
+    store.derived_cache.set("market_advance_decline", "latest", result, ttl=300)
     return JSONResponse(result, headers={"Cache-Control": _CACHE_POLICIES["market"]})
 
 

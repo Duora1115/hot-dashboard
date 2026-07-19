@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -690,6 +690,12 @@ export default function StockDetail() {
   const navigate = useNavigate();
   const latestSnapshot = useStore((s) => s.latestSnapshot);
   const currentSnapshot = useStore((s) => s.currentSnapshot);
+  const dayFullLoaded = useStore((s) => s.dayFullLoaded);
+  const loadDayFull = useStore((s) => s.loadDayFull);
+
+  useEffect(() => {
+    if (!dayFullLoaded) loadDayFull();
+  }, [dayFullLoaded, loadDayFull]);
 
   // Find the stock from the current or latest snapshot
   const stock = useMemo(() => {
