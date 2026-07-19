@@ -169,23 +169,31 @@ def api_latest(request: Request):
     return JSONResponse(result, headers=headers)
 
 
+def _strip_gd(snaps):
+    """去掉快照列表中所有 sec.gd（占体积 98%），返回新列表，不修改原始缓存。"""
+    return [
+        {**s, "sec": [{k: v for k, v in sec.items() if k != "gd"} for sec in s.get("sec", [])]}
+        for s in snaps
+    ]
+
+
 @app.get("/api/day/{date_str}")
 def api_day(date_str: str, request: Request, full: int = 0):
-    """获取指定日期的回放数据。默认只返回 meta + 最后一条快照（去掉 gd 消息明细）；?full=1 返回全部。"""
+    """获取指定日期的回放数据。默认只返回 meta + 最后一条快照；?full=1 返回全部。均去掉 gd 消息明细。"""
     not_modified = _check_etag(request, date_str)
     if not_modified:
         return not_modified
     result = store.get_day(date_str)
     if result is None:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
+    snaps = result.get("snapshots", [])
     if not full:
-        snaps = result.get("snapshots", [])
         last = snaps[-1] if snaps else None
         if last:
-            # 浅拷贝 + 去掉 sec.gd（占快照体积 98%），避免修改内存缓存
-            last = {k: v for k, v in last.items()}
-            last["sec"] = [{k: v for k, v in sec.items() if k != "gd"} for sec in last.get("sec", [])]
+            last = {**last, "sec": [{k: v for k, v in sec.items() if k != "gd"} for sec in last.get("sec", [])]}
         result = {**result, "snapshots": [last] if last else []}
+    else:
+        result = {**result, "snapshots": _strip_gd(snaps)}
     return JSONResponse(result, headers={
         "ETag": _etag_for(date_str),
         "Cache-Control": _CACHE_POLICIES["day"],
@@ -361,7 +369,7 @@ def api_market_advance_decline(request: Request):
 
 @app.get("/api/report/{date_str}")
 def api_report(date_str: str, request: Request):
-    """生成晨报数据（带派生缓存，TTL 30s 因为包含行情数据）。"""
+    """生成晨报数据（带派生缓存，TTL 5min）。"""
     cached = store.derived_cache.get("report", date_str)
     if cached is not None:
         return JSONResponse(cached, headers={
@@ -403,8 +411,8 @@ def api_report(date_str: str, request: Request):
         except Exception:
             pass
 
-    # 缓存 30 秒（因为行情数据 30 秒刷新）
-    store.derived_cache.set("report", date_str, result, ttl=30)
+    # 缓存 5 分钟（报告基于静态日数据 + 行情，变化缓慢）
+    store.derived_cache.set("report", date_str, result, ttl=300)
     return JSONResponse(result, headers={
         "ETag": _etag_for(date_str),
         "Cache-Control": _CACHE_POLICIES["report"],
