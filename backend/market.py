@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 _TIMEOUT = 3  # 秒（降低超时时间，快速失败）
-_CACHE_TTL = 30  # 30 秒缓存（平衡数据新鲜度和性能）
+_CACHE_TTL = 120  # 120 秒缓存（大盘指数 5 分钟刷新一次，无需频繁调用）
 
 # 新浪指数代码映射
 _INDEX_SYMBOLS = {

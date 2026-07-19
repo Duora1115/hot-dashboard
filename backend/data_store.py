@@ -38,17 +38,15 @@ def _compress_snapshot(s):
         })
     top8 = []
     for t in s.get("top8_sectors", []):
-        gd = []
-        for g in t.get("group_details", []):
-            gd.append({
-                "g": g["group"], "c": g["count"],
-                "m": [{"t": m["time"].split(" ")[1], "x": m["text"]} for m in g["messages"]]
-            })
+        gd = [
+            {"g": g["group"], "c": g["count"],
+             "m": [{"t": m["time"].split(" ")[1], "x": m["text"]} for m in g["messages"]]}
+            for g in t.get("group_details", [])
+        ]
         top8.append({
             "n": t["name"], "h": t["score"], "sc": t["score"],
             "m": t["mention_count"], "mc": t["mention_count"],
             "g": t["group_count"], "gc": t["group_count"],
-            # 板块关联的股票名也用映射表校正
             "s": [resolve_stock_name(st["code"], st.get("name", ""))
                   for st in s.get("top10_stocks", []) if t["name"] in st.get("sectors", [])],
             "txt": (t.get("sample_text", ""))[:60],

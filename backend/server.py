@@ -171,7 +171,7 @@ def api_latest(request: Request):
 
 @app.get("/api/day/{date_str}")
 def api_day(date_str: str, request: Request, full: int = 0):
-    """获取指定日期的回放数据。默认只返回 meta + 最后一条快照；?full=1 返回全部。"""
+    """获取指定日期的回放数据。默认只返回 meta + 最后一条快照（去掉 gd 消息明细）；?full=1 返回全部。"""
     not_modified = _check_etag(request, date_str)
     if not_modified:
         return not_modified
@@ -180,7 +180,12 @@ def api_day(date_str: str, request: Request, full: int = 0):
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
     if not full:
         snaps = result.get("snapshots", [])
-        result = {**result, "snapshots": snaps[-1:] if snaps else []}
+        last = snaps[-1] if snaps else None
+        if last:
+            # 浅拷贝 + 去掉 sec.gd（占快照体积 98%），避免修改内存缓存
+            last = {k: v for k, v in last.items()}
+            last["sec"] = [{k: v for k, v in sec.items() if k != "gd"} for sec in last.get("sec", [])]
+        result = {**result, "snapshots": [last] if last else []}
     return JSONResponse(result, headers={
         "ETag": _etag_for(date_str),
         "Cache-Control": _CACHE_POLICIES["day"],
