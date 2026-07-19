@@ -802,13 +802,31 @@ function MobileBottomNav({ activeTab, onTabChange }: { activeTab: string; onTabC
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('stocks');
   const currentSnapshot = useStore((s) => s.currentSnapshot);
+  const loading = useStore((s) => s.loading);
+  const error = useStore((s) => s.error);
 
   if (!currentSnapshot) {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <img src="/loading-spinner.svg" alt="Loading" className="w-12 h-12 mx-auto mb-4 animate-spin" />
+            <p className="text-[#64748B]">加载中...</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="text-center">
-          <img src="/loading-spinner.svg" alt="Loading" className="w-12 h-12 mx-auto mb-4 animate-spin" />
-          <p className="text-[#64748B]">加载中...</p>
+        <div className="text-center space-y-2">
+          <p className="text-[#64748B] text-lg">暂无数据</p>
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <button
+            onClick={() => useStore.getState().init()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+          >
+            重新加载
+          </button>
         </div>
       </div>
     );

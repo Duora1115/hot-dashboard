@@ -127,16 +127,19 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const dayData = await fetchDay(date);
       const lastSnapshot = dayData.snapshots[dayData.snapshots.length - 1] ?? null;
+      const { latestSnapshot } = get();
       set({
         currentDayData: dayData,
-        currentSnapshot: lastSnapshot,
+        currentSnapshot: lastSnapshot ?? latestSnapshot,
         replayIndex: dayData.snapshots.length - 1,
         loading: false,
       });
     } catch (err) {
       console.error('Failed to load date:', err);
+      const { latestSnapshot } = get();
       set({
         error: err instanceof Error ? err.message : 'Failed to load date',
+        currentSnapshot: latestSnapshot,
         loading: false,
       });
     }

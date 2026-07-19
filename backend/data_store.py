@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from backend.index import IndexRegistry
 from backend.cache import RawDataLRU, DerivedCache
+from backend.collector import resolve_stock_name
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +25,11 @@ def _compress_snapshot(s):
     """压缩单个快照（线程安全，无共享状态）"""
     top10 = []
     for t in s.get("top10_stocks", []):
+        code = t["code"]
+        # 始终用映射表校正名称，修正历史数据中的错误名称
+        name = resolve_stock_name(code, t.get("name", ""))
         top10.append({
-            "c": t["code"], "n": t.get("name", ""), "h": t["score"], "sc": t["score"],
+            "c": code, "n": name, "h": t["score"], "sc": t["score"],
             "mc": t["mention_count"], "gc": t["group_count"],
             "ac": t["action_count"], "bu": t["bull"], "be": t["bear"],
             "ft": t.get("first_time", "").split(" ")[1] if t.get("first_time") else "",
@@ -44,7 +48,9 @@ def _compress_snapshot(s):
             "n": t["name"], "h": t["score"], "sc": t["score"],
             "m": t["mention_count"], "mc": t["mention_count"],
             "g": t["group_count"], "gc": t["group_count"],
-            "s": [st["name"] for st in s.get("top10_stocks", []) if t["name"] in st.get("sectors", [])],
+            # 板块关联的股票名也用映射表校正
+            "s": [resolve_stock_name(st["code"], st.get("name", ""))
+                  for st in s.get("top10_stocks", []) if t["name"] in st.get("sectors", [])],
             "txt": (t.get("sample_text", ""))[:60],
             "gd": gd
         })
