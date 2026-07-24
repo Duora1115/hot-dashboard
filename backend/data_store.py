@@ -2,10 +2,9 @@
 """
 DataStore — 4 层数据架构：
   存储层（压缩快照内存）+ 索引层 + 原始数据 LRU + 派生数据缓存
-启动时只加载最近 N 天，其余懒加载。
+启动时只做磁盘元信息扫描；按需/惰性加载单日；内存中不保留 sec[].gd 消息明细。
 """
 
-import json
 import logging
 import time
 from pathlib import Path
@@ -14,44 +13,60 @@ from concurrent.futures import ThreadPoolExecutor
 
 from backend.index import IndexRegistry
 from backend.cache import RawDataLRU, DerivedCache
-from backend.collector import resolve_stock_name
+from backend.collector import load_stock_mapping
+from backend.jsonio import load_path
 
 logger = logging.getLogger(__name__)
 
 CST = timezone(timedelta(hours=8))
 
 
-def _compress_snapshot(s):
-    """压缩单个快照（线程安全，无共享状态）"""
+def _compress_snapshot(s, name_map):
+    """Compress a raw snapshot into the compact frontend-facing shape.
+
+    ``name_map`` is the pre-loaded stock code → canonical name dict, so we skip
+    hundreds of thousands of function calls on hot startup / lazy-load paths.
+
+    Note: this deliberately drops sector ``group_details`` (the ``gd`` field);
+    those hold >90% of the byte-weight and are only needed by two endpoints
+    which now read them from the raw LRU cache on demand.
+    """
     top10 = []
     for t in s.get("top10_stocks", []):
         code = t["code"]
-        # 始终用映射表校正名称，修正历史数据中的错误名称
-        name = resolve_stock_name(code, t.get("name", ""))
+        raw_name = t.get("name", "")
+        name = name_map.get(code) or (raw_name if raw_name else code)
+        first_time = t.get("first_time", "")
+        last_time = t.get("last_time", "")
+        sectors = t.get("sectors", [])
         top10.append({
             "c": code, "n": name, "h": t["score"], "sc": t["score"],
             "mc": t["mention_count"], "gc": t["group_count"],
             "ac": t["action_count"], "bu": t["bull"], "be": t["bear"],
-            "ft": t.get("first_time", "").split(" ")[1] if t.get("first_time") else "",
-            "lt": t.get("last_time", "").split(" ")[1] if t.get("last_time") else "",
-            "sec": t.get("sectors", []), "s": t.get("sectors", []),
+            "ft": first_time.split(" ", 1)[1] if " " in first_time else "",
+            "lt": last_time.split(" ", 1)[1] if " " in last_time else "",
+            "sec": sectors, "s": sectors,
         })
+
+    top10_stocks_raw = s.get("top10_stocks", [])
     top8 = []
     for t in s.get("top8_sectors", []):
-        gd = [
-            {"g": g["group"], "c": g["count"],
-             "m": [{"t": m["time"].split(" ")[1], "x": m["text"]} for m in g["messages"]]}
-            for g in t.get("group_details", [])
+        name = t["name"]
+        # Pre-compute the "stocks in this sector" list from the top10 stocks.
+        stocks_in_sector = [
+            name_map.get(st["code"]) or (st.get("name", "") or st["code"])
+            for st in top10_stocks_raw
+            if name in st.get("sectors", [])
         ]
         top8.append({
-            "n": t["name"], "h": t["score"], "sc": t["score"],
+            "n": name, "h": t["score"], "sc": t["score"],
             "m": t["mention_count"], "mc": t["mention_count"],
             "g": t["group_count"], "gc": t["group_count"],
-            "s": [resolve_stock_name(st["code"], st.get("name", ""))
-                  for st in s.get("top10_stocks", []) if t["name"] in st.get("sectors", [])],
+            "s": stocks_in_sector,
             "txt": (t.get("sample_text", ""))[:60],
-            "gd": gd
+            # NOTE: gd removed on purpose — served on-demand from raw LRU.
         })
+
     sd = s.get("sentiment_detail", {})
     return {
         "t": s["time"], "msg": s["total_messages"], "grp": s["active_groups"],
@@ -59,18 +74,23 @@ def _compress_snapshot(s):
         "sd": {"bu": sd.get("bull", 0), "be": sd.get("bear", 0), "ne": sd.get("neutral", 0),
                "eh": sd.get("extreme_high", 0), "el": sd.get("extreme_low", 0)},
         "act": s.get("action_summary", {}),
-        "stk": top10, "sec": top8
+        "stk": top10, "sec": top8,
     }
 
 
 class DataStore:
-    def __init__(self, data_dir: Path, max_hot_days: int = 14, raw_lru_days: int = 3):
+    def __init__(self, data_dir: Path, max_hot_days: int = 14, raw_lru_days: int = 3,
+                 eager_load_days: int | None = None):
         self.data_dir = data_dir
         self.max_hot_days = max_hot_days
+        # Number of days to pre-load at startup. ``None`` means "no eager
+        # preload"; only the latest day is loaded, everything else is lazy.
+        # This makes cold starts on tiny remote boxes usable.
+        self.eager_load_days = eager_load_days if eager_load_days is not None else 1
         self._days: dict[str, dict] = {}
         self._latest: dict | None = None
         self._dates: list[str] = []
-        self._dates_info: dict[str, int] = {}
+        self._dates_info: dict[str, float] = {}
         self._last_access: dict[str, int] = {}
         self._access_counter: int = 0
 
@@ -80,32 +100,44 @@ class DataStore:
         self.derived_cache = DerivedCache()
 
     def startup(self):
-        """启动：只加载最近 max_hot_days 天，构建索引。"""
+        """Metadata-only scan + eager-load a small window. Everything else lazy."""
         t0 = time.time()
         day_files = sorted(self.data_dir.glob("day_*.json")) if self.data_dir.exists() else []
 
-        # 计算 size_info 和日期列表（仅扫描文件，不加载）
         for path in day_files:
             date_str = path.stem.replace("day_", "")
             self._dates_info[date_str] = round(path.stat().st_size / 1024, 1)
 
         all_dates = sorted(self._dates_info.keys())
-        recent_dates = all_dates[-self.max_hot_days:] if len(all_dates) > self.max_hot_days else all_dates
 
-        # 并行加载最近 N 天
+        # Only pre-load the last N days (default 1). Historical dates page in
+        # lazily on first access.
+        n = max(0, self.eager_load_days)
+        recent_dates = all_dates[-n:] if n and len(all_dates) > n else (all_dates if n else [])
+
+        # Warm the stock-name mapping once so every subsequent _load_day avoids
+        # a first-touch penalty.
+        name_map = load_stock_mapping() or {}
+
+        recent_paths = [
+            self.data_dir / f"day_{d}.json"
+            for d in recent_dates
+            if (self.data_dir / f"day_{d}.json").exists()
+        ]
+
         def _load_one(path: Path):
             date_str = path.stem.replace("day_", "")
-            if date_str not in recent_dates:
-                return
             try:
-                self._load_day(date_str, path)
+                self._load_day(date_str, path, name_map=name_map)
             except Exception as e:
                 logger.warning(f"预加载 {date_str} 失败: {e}")
 
-        with ThreadPoolExecutor(max_workers=min(8, len(recent_dates) or 1)) as pool:
-            pool.map(_load_one, day_files)
+        if recent_paths:
+            workers = min(4, len(recent_paths))
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                list(pool.map(_load_one, recent_paths))
 
-        # 构建索引
+        # Build index for the loaded days.
         for date_str in list(self._days.keys()):
             try:
                 self.index.build_for_day(date_str, self._days[date_str])
@@ -114,7 +146,6 @@ class DataStore:
 
         self._dates = sorted(self._days.keys())
 
-        # 加载 latest
         try:
             self.update_latest()
         except Exception as e:
@@ -122,21 +153,22 @@ class DataStore:
 
         elapsed = time.time() - t0
         logger.info(
-            f"✅ 预加载完成: {len(self._days)} 天数据 (共 {len(all_dates)} 天), "
-            f"耗时 {elapsed:.1f}s"
+            f"✅ 启动完成: 索引 {len(all_dates)} 天，预加载 {len(self._days)} 天，"
+            f"耗时 {elapsed:.2f}s"
         )
 
-    def _load_day(self, date_str: str, path: Path):
-        """加载并压缩一天的数据到内存。"""
-        with open(path, encoding="utf-8") as f:
-            raw = json.load(f)
+    def _load_day(self, date_str: str, path: Path, name_map: dict | None = None):
+        """Load and compress one day into memory."""
+        raw = load_path(path)
 
         total = raw.get("total_msgs", 0)
         snapshots = raw.get("snapshots", [])
         if not total and snapshots:
             total = snapshots[-1].get("total_messages", 0)
 
-        compressed_snaps = [_compress_snapshot(s) for s in snapshots]
+        if name_map is None:
+            name_map = load_stock_mapping() or {}
+        compressed_snaps = [_compress_snapshot(s, name_map) for s in snapshots]
         meta = {
             "start": snapshots[0]["time"] if snapshots else "",
             "end": snapshots[-1]["time"] if snapshots else "",
@@ -149,7 +181,6 @@ class DataStore:
         self._last_access[date_str] = self._access_counter
 
     def _evict_if_needed(self):
-        """当内存天数超过 max_hot_days 时，淘汰最近最少使用的。"""
         while len(self._days) > self.max_hot_days:
             lru_date = min(self._last_access, key=self._last_access.get)
             del self._days[lru_date]
@@ -162,7 +193,6 @@ class DataStore:
             logger.debug(f"内存淘汰: {lru_date}")
 
     def update_day(self, date_str: str):
-        """增量更新某天（collector/upload 写完后调用）。"""
         path = self.data_dir / f"day_{date_str}.json"
         if not path.exists():
             return
@@ -170,7 +200,7 @@ class DataStore:
             self._load_day(date_str, path)
             self.index.build_for_day(date_str, self._days[date_str])
             self.derived_cache.invalidate(date_str)
-            self.raw_cache.evict(date_str)  # raw 缓存也失效，下次从磁盘重读
+            self.raw_cache.evict(date_str)
             if date_str not in self._dates:
                 self._dates = sorted(self._days.keys())
             self._dates_info[date_str] = round(path.stat().st_size / 1024, 1)
@@ -179,50 +209,43 @@ class DataStore:
             logger.warning(f"更新 {date_str} 失败: {e}")
 
     def update_latest(self):
-        """重新加载 latest.json。"""
         latest_path = self.data_dir / "latest.json"
         if not latest_path.exists():
             self._latest = None
             return
-        with open(latest_path, encoding="utf-8") as f:
-            raw = json.load(f)
-        self._latest = _compress_snapshot(raw)
+        raw = load_path(latest_path)
+        name_map = load_stock_mapping() or {}
+        self._latest = _compress_snapshot(raw, name_map)
         today = datetime.now(CST).strftime("%Y-%m-%d")
         self.derived_cache.invalidate(today)
 
     def get_latest_raw(self) -> dict | None:
-        """按需从磁盘读取 latest.json 原始数据。"""
         latest_path = self.data_dir / "latest.json"
         if not latest_path.exists():
             return None
         try:
-            with open(latest_path, encoding="utf-8") as f:
-                return json.load(f)
+            return load_path(latest_path)
         except Exception as e:
             logger.warning(f"读取 latest.json 失败: {e}")
             return None
 
     def get_dates(self) -> list[str]:
-        """返回所有可用日期（包括未加载到内存的）。"""
-        all_dates = sorted(self._dates_info.keys())
-        return all_dates
+        return sorted(self._dates_info.keys())
 
     def get_dates_info(self) -> list[dict]:
-        result = []
-        for date_str in reversed(sorted(self._dates_info.keys())):
-            result.append({"date": date_str, "size_kb": self._dates_info.get(date_str, 0)})
-        return result
+        return [
+            {"date": d, "size_kb": self._dates_info.get(d, 0)}
+            for d in sorted(self._dates_info.keys(), reverse=True)
+        ]
 
     def get_latest(self) -> dict | None:
         return self._latest
 
     def get_day(self, date_str: str) -> dict | None:
-        """获取压缩日数据，不在内存时懒加载。"""
         if date_str in self._days:
             self._access_counter += 1
             self._last_access[date_str] = self._access_counter
             return self._days[date_str]
-        # 懒加载
         path = self.data_dir / f"day_{date_str}.json"
         if not path.exists():
             return None
@@ -236,7 +259,6 @@ class DataStore:
             return None
 
     def get_snapshot(self, date_str: str, snap_idx: int) -> dict | None:
-        """获取单个压缩快照。"""
         day = self.get_day(date_str)
         if not day:
             return None
@@ -256,17 +278,15 @@ class DataStore:
         return snaps[start:start + count]
 
     def get_raw_snapshots(self, date_str: str) -> list[dict]:
-        """获取原始快照（通过 LRU 缓存，避免每次读磁盘）。"""
+        """Return raw snapshots (with gd). Cached via LRU."""
         cached = self.raw_cache.get(date_str)
         if cached is not None:
             return cached.get("snapshots", [])
-        # 从磁盘读取
         path = self.data_dir / f"day_{date_str}.json"
         if not path.exists():
             return []
         try:
-            with open(path, encoding="utf-8") as f:
-                raw = json.load(f)
+            raw = load_path(path)
             self.raw_cache.put(date_str, raw)
             return raw.get("snapshots", [])
         except Exception as e:
@@ -274,5 +294,4 @@ class DataStore:
             return []
 
     def get_version(self, date_str: str) -> int:
-        """获取某天的数据版本号（用于 ETag）。"""
         return self.derived_cache.get_version(date_str)

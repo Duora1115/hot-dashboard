@@ -2,3 +2,5 @@ fastapi>=0.115.0
 uvicorn>=0.30.0
 pyyaml>=6.0
 watchdog>=4.0.0
+# orjson: 3-8x faster JSON serialization; falls back to stdlib if unavailable.
+orjson>=3.10.0

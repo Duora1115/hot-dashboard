@@ -165,100 +165,133 @@ class AnalysisGenerator:
 _generator = AnalysisGenerator()
 
 
+def _sector_with_gd(compressed_sec: dict, raw_sec: dict | None) -> dict:
+    """Attach raw group_details onto a compressed sector dict for analysis text.
+
+    The compressed shape has no ``gd`` (dropped to save memory). When we have
+    the raw counterpart we merge on the fly, falling back to an empty ``gd``
+    list otherwise so callers stay uniform.
+    """
+    if not raw_sec:
+        return {**compressed_sec, "gd": []}
+    gd = [
+        {"g": g.get("group", ""),
+         "c": g.get("count", 0),
+         "m": [{"t": (msg.get("time", "").split(" ", 1)[1] if " " in msg.get("time", "") else msg.get("time", "")),
+                "x": msg.get("text", "")} for msg in g.get("messages", [])[:5]]}
+        for g in raw_sec.get("group_details", [])
+    ]
+    return {**compressed_sec, "gd": gd}
+
+
+def _time_to_min(t: str) -> int | None:
+    """Parse "HH:MM" or "YYYY-MM-DD HH:MM" into minutes since midnight."""
+    if not t:
+        return None
+    time_part = t.split(" ", 1)[1] if " " in t else t
+    try:
+        hh, mm = time_part.split(":", 1)
+        return int(hh) * 60 + int(mm[:2])
+    except (ValueError, IndexError):
+        return None
+
+
 def _get_key_time_snapshots(snapshots: list[dict], key_times: list[str]) -> list[dict]:
-    """在快照序列中找最接近关键时间点的快照"""
+    """For each key time pick the closest snapshot. O(N) instead of O(N * K)."""
     if not snapshots:
         return []
+    # Pre-compute snap minute offsets once.
+    snap_mins = [(_time_to_min(s.get("t", "")), s) for s in snapshots]
+    snap_mins = [(m, s) for m, s in snap_mins if m is not None]
     result = []
     for kt in key_times:
-        best = None
+        km = _time_to_min(kt)
+        if km is None or not snap_mins:
+            continue
+        # Linear scan is fine; K << N and this avoids sort overhead.
+        best_snap = None
         best_diff = float("inf")
-        for snap in snapshots:
-            t = snap.get("t", "")
-            time_part = t.split(" ")[1] if " " in t else t
-            # 计算时间差（分钟）
-            try:
-                snap_min = int(time_part.split(":")[0]) * 60 + int(time_part.split(":")[1])
-                key_min = int(kt.split(":")[0]) * 60 + int(kt.split(":")[1])
-                diff = abs(snap_min - key_min)
-                if diff < best_diff:
-                    best_diff = diff
-                    best = snap
-            except (ValueError, IndexError):
-                continue
-        if best:
-            result.append(best)
+        for m, s in snap_mins:
+            diff = abs(m - km)
+            if diff < best_diff:
+                best_diff = diff
+                best_snap = s
+        if best_snap is not None:
+            result.append(best_snap)
     return result
 
 
-def _extract_news(snapshots: list[dict]) -> list[dict]:
-    """从群消息摘要中提取新闻条目"""
-    news = []
-    seen_texts = set()
-    keywords = {
-        "policy": ["政策", "监管", "央行", "证监会", "国务院", "发改委"],
-        "macro": ["GDP", "PMI", "经济", "通胀", "利率", "汇率", "数据"],
-        "company": ["公告", "业绩", "分红", "增发", "回购", "重组", "中标"],
-    }
+_NEWS_KEYWORDS = {
+    "policy": ("政策", "监管", "央行", "证监会", "国务院", "发改委"),
+    "macro": ("GDP", "PMI", "经济", "通胀", "利率", "汇率", "数据"),
+    "company": ("公告", "业绩", "分红", "增发", "回购", "重组", "中标"),
+}
 
-    for snap in snapshots:
-        time_part = snap.get("t", "").split(" ")[1] if " " in snap.get("t", "") else ""
-        sentiment = snap.get("sent", "观望为主")
-        for sec in snap.get("sec", []):
-            for gd in sec.get("gd", []):
-                for m in gd.get("m", []):
-                    text = m.get("x", "")
+
+def _extract_news_from_raw(raw_snapshots: list[dict], sentiment_by_time: dict[str, str]) -> list[dict]:
+    """Pull up to 10 news-worthy items from raw snapshots' ``group_details``.
+
+    Runs against the on-disk / raw-LRU shape (``top8_sectors[].group_details[].messages``).
+    Early-exits on 10 hits.
+    """
+    news: list[dict] = []
+    seen_prefixes: set[str] = set()
+
+    for snap in raw_snapshots:
+        snap_time = snap.get("time", "")
+        time_part = snap_time.split(" ", 1)[1] if " " in snap_time else ""
+        sentiment = sentiment_by_time.get(snap_time) or snap.get("overall_sentiment", "观望为主")
+        if sentiment == "偏多":
+            impact = "positive"
+        elif sentiment == "偏空":
+            impact = "negative"
+        else:
+            impact = "neutral"
+
+        for sec in snap.get("top8_sectors", []):
+            for gd in sec.get("group_details", []):
+                group_name = gd.get("group", "")
+                for m in gd.get("messages", []):
+                    text = m.get("text", "")
                     if not text or len(text) < 8:
                         continue
-                    # 去重
-                    short = text[:20]
-                    if short in seen_texts:
+                    prefix = text[:20]
+                    if prefix in seen_prefixes:
                         continue
-                    seen_texts.add(short)
+                    seen_prefixes.add(prefix)
 
-                    # 分类
                     category = "industry"
-                    for cat, kws in keywords.items():
+                    for cat, kws in _NEWS_KEYWORDS.items():
                         if any(kw in text for kw in kws):
                             category = cat
                             break
 
-                    # 影响判定
-                    if sentiment == "偏多":
-                        impact = "positive"
-                    elif sentiment == "偏空":
-                        impact = "negative"
-                    else:
-                        impact = "neutral"
-
+                    msg_time = m.get("time", "")
+                    msg_time_part = msg_time.split(" ", 1)[1] if " " in msg_time else time_part
                     news.append({
                         "id": f"n{len(news)+1}",
                         "category": category,
                         "title": text[:40],
                         "summary": text[:80],
                         "impact": impact,
-                        "source": gd.get("g", ""),
-                        "time": m.get("t", time_part),
+                        "source": group_name,
+                        "time": msg_time_part,
                         "isImportant": len(text) > 30,
                     })
                     if len(news) >= 10:
-                        break
-                if len(news) >= 10:
-                    break
-            if len(news) >= 10:
-                break
-        if len(news) >= 10:
-            break
+                        return news
     return news
 
 
 def generate_report(date_str: str, day_data: dict, market_indices: list[dict] | None = None,
-                    advance_decline: dict | None = None) -> dict:
-    """生成完整晨报数据。
-    date_str: 日期字符串
-    day_data: /api/day/{date} 的原始返回（含 meta + snapshots）
-    market_indices: fetch_indices() 的返回值（可为 None）
-    advance_decline: fetch_advance_decline() 的返回值（可为 None）
+                    advance_decline: dict | None = None,
+                    raw_snapshots: list[dict] | None = None) -> dict:
+    """Build the morning report dict.
+
+    ``day_data`` is the compressed in-memory copy (no ``gd``).
+    ``raw_snapshots`` is the un-compressed data (with ``gd``) served from the
+    raw LRU; only needed for news extraction and sector-analysis detail. When
+    absent, both features degrade gracefully.
     """
     snapshots = day_data.get("snapshots", [])
     if not snapshots:
@@ -320,48 +353,60 @@ def generate_report(date_str: str, day_data: dict, market_indices: list[dict] | 
         "summary": f"今日消息总量{total_vol:,}条，高峰时段{peak['time']}（{peak['volume']:,}条/小时）。",
     }
 
+    # --- Pre-compute per-snapshot sector/stock name maps once so heat history
+    #     and lookups are O(snapshots) instead of O(sectors × snapshots).
+    first_sector_scores = {s["n"]: s.get("sc", 0) for s in first_snap.get("sec", [])}
+    first_stock_scores = {s["c"]: s.get("sc", 0) for s in first_snap.get("stk", [])}
+    snap_sector_scores: list[dict[str, int]] = [
+        {sec["n"]: sec.get("sc", 0) for sec in snap.get("sec", [])} for snap in snapshots
+    ]
+
+    # If callers passed raw snapshots (with ``gd``) build a name → last-snap-sector
+    # index; used by sector-analysis text (needs group details).
+    raw_last_sectors_by_name: dict[str, dict] = {}
+    if raw_snapshots:
+        for sec in raw_snapshots[-1].get("top8_sectors", []):
+            raw_last_sectors_by_name[sec.get("name", "")] = sec
+
     # --- hotSectors ---
     hot_sectors = []
+    last_stocks = last_snap.get("stk", [])
     for sector in last_snap.get("sec", []):
         name = sector["n"]
-        # trend
-        first_sec = next((s for s in first_snap.get("sec", []) if s["n"] == name), None)
-        first_sc = first_sec["sc"] if first_sec else 0
+        first_sc = first_sector_scores.get(name, 0)
         last_sc = sector["sc"]
         if first_sc > 0:
             trend = "up" if last_sc > first_sc * 1.1 else "down" if last_sc < first_sc * 0.9 else "flat"
         else:
             trend = "up"
         trend_desc = {"up": "热度上升", "down": "热度下降", "flat": "热度持平"}[trend]
-        # heatHistory
-        heat_history = []
-        for snap in snapshots:
-            sec = next((s for s in snap.get("sec", []) if s["n"] == name), None)
-            heat_history.append(sec["sc"] if sec else 0)
-        # topStocks
-        top_stocks = []
-        for stock in last_snap.get("stk", []):
-            if name in stock.get("sec", []):
-                top_stocks.append({"name": stock["n"], "code": stock["c"], "heat": stock["sc"]})
-        analysis = _generator.generate_sector_analysis(sector, snapshots)
+        heat_history = [s.get(name, 0) for s in snap_sector_scores]
+        top_stocks = [
+            {"name": stock["n"], "code": stock["c"], "heat": stock["sc"]}
+            for stock in last_stocks
+            if name in stock.get("sec", [])
+        ][:5]
+        analysis = _generator.generate_sector_analysis(
+            _sector_with_gd(sector, raw_last_sectors_by_name.get(name)),
+            None,
+        )
         hot_sectors.append({
             "name": name, "heatScore": last_sc, "mentionCount": sector.get("mc", 0),
             "groupCount": sector.get("gc", 0), "trend": trend, "trendDesc": trend_desc,
-            "analysis": analysis, "topStocks": top_stocks[:5], "heatHistory": heat_history,
+            "analysis": analysis, "topStocks": top_stocks, "heatHistory": heat_history,
         })
 
     # --- hotStocks ---
     hot_stocks = []
-    for rank, stock in enumerate(last_snap.get("stk", []), 1):
-        first_stk = next((s for s in first_snap.get("stk", []) if s["c"] == stock["c"]), None)
-        first_sc = first_stk["sc"] if first_stk else 0
+    for rank, stock in enumerate(last_stocks, 1):
+        first_sc = first_stock_scores.get(stock["c"], 0)
         last_sc = stock["sc"]
         if first_sc > 0:
             trend = "up" if last_sc > first_sc * 1.1 else "down" if last_sc < first_sc * 0.9 else "flat"
         else:
             trend = "up"
         secs = stock.get("sec", [])
-        comment = _generator.generate_stock_comment(stock, snapshots)
+        comment = _generator.generate_stock_comment(stock, None)
         hot_stocks.append({
             "rank": rank, "name": stock["n"], "code": stock["c"],
             "heatScore": last_sc, "bullCount": stock.get("bu", 0),
@@ -420,8 +465,12 @@ def generate_report(date_str: str, day_data: dict, market_indices: list[dict] | 
             "overall": snap.get("sent", "观望为主"),
         })
 
-    # --- newsItems ---
-    news_items = _extract_news(snapshots)
+    # --- newsItems (from raw data if available; otherwise empty) ---
+    if raw_snapshots:
+        sentiment_by_time = {s.get("time", ""): s.get("overall_sentiment", "") for s in raw_snapshots}
+        news_items = _extract_news_from_raw(raw_snapshots, sentiment_by_time)
+    else:
+        news_items = []
 
     return {
         "date": date_str,

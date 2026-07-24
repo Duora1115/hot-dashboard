@@ -7,9 +7,10 @@ server:
 
 # 缓存和数据保留策略
 cache:
-  max_hot_days: 14        # 内存中最多保留的天数
-  raw_lru_days: 3         # 原始数据 LRU 缓存天数
+  max_hot_days: 14        # 内存中最多保留的压缩快照天数（LRU 上限）
+  raw_lru_days: 3         # 原始数据（含 group_details 消息明细）LRU 缓存天数
   retention_days: 14      # 磁盘文件保留天数（超过则删除）
+  eager_load_days: 1      # 启动时预加载的最近天数；其余按需懒加载，适合低配远端
 
 # 云端同步（本地采集后推送到云端）
 cloud:

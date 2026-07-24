@@ -91,44 +91,47 @@ def extract_image_text(message, data_dir=None):
 
 
 # ---- 股票名称映射（本地权威对照表） ----
-_stock_mapping = None
+_stock_mapping: dict | None = None
+
 
 def load_stock_mapping(data_dir=None):
-    """加载本地股票代码→标准名称映射表
-    优先查找 backend/stock_mapping.json（随代码部署），
-    回退到 data/stock_mapping.json（本地开发）。
+    """Load the code → canonical name mapping. Cached after first call.
+
+    Look-up order:
+      1. ``backend/stock_mapping.json`` (ships with code)
+      2. ``data/stock_mapping.json`` (local dev)
     """
     global _stock_mapping
     if _stock_mapping is not None:
         return _stock_mapping
-    # 1. 与模块同目录的 stock_mapping.json（部署路径）
-    backend_mapping = Path(__file__).parent / "stock_mapping.json"
-    if backend_mapping.exists():
-        try:
-            with open(backend_mapping, encoding="utf-8") as f:
-                _stock_mapping = json.load(f)
-            return _stock_mapping
-        except Exception:
-            pass
-    # 2. 回退到 data/stock_mapping.json（本地开发路径）
+    candidates = [Path(__file__).parent / "stock_mapping.json"]
     if data_dir is None:
         data_dir = Path(__file__).parent.parent / "data"
-    mapping_file = Path(data_dir) / "stock_mapping.json"
-    if mapping_file.exists():
+    candidates.append(Path(data_dir) / "stock_mapping.json")
+    for path in candidates:
+        if not path.exists():
+            continue
         try:
-            with open(mapping_file, encoding="utf-8") as f:
-                _stock_mapping = json.load(f)
+            # Use fast reader if available; falls back to stdlib.
+            try:
+                from backend.jsonio import load_path as _load
+                _stock_mapping = _load(path)
+            except ImportError:
+                with open(path, encoding="utf-8") as f:
+                    _stock_mapping = json.load(f)
             return _stock_mapping
         except Exception:
-            pass
+            continue
     _stock_mapping = {}
     return _stock_mapping
 
+
 def resolve_stock_name(code, fallback_name=""):
-    """优先用本地映射表校正名称，fallback 为消息中提取的名称"""
-    mapping = load_stock_mapping()
-    if code in mapping:
-        return mapping[code]
+    """Look up the canonical stock name; fall back to whatever the message carried."""
+    mapping = _stock_mapping if _stock_mapping is not None else load_stock_mapping()
+    name = mapping.get(code)
+    if name:
+        return name
     return fallback_name if fallback_name else code
 
 # ---- 消息缓存 ----
@@ -142,8 +145,8 @@ def load_cache(data_dir):
     with _cache_lock:
         if p.exists():
             try:
-                with open(p, encoding="utf-8") as f:
-                    return json.load(f)
+                from backend.jsonio import load_path as _load
+                return _load(p)
             except Exception:
                 pass
         return {}
@@ -152,8 +155,8 @@ def save_cache(data_dir, cache):
     p = _cache_path(data_dir)
     with _cache_lock:
         try:
-            with open(p, "w", encoding="utf-8") as f:
-                json.dump(cache, f, ensure_ascii=False)
+            from backend.jsonio import dump_path as _dump
+            _dump(cache, p)
         except Exception:
             pass
 
@@ -509,21 +512,18 @@ def collect_live(cfg=None, data_dir=None):
     }
 
     data_dir.mkdir(parents=True, exist_ok=True)
-    with open(data_dir / "latest.json", "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, indent=2, default=str)
+    from backend.jsonio import load_path as _load, dump_path as _dump
+    _dump(output, data_dir / "latest.json", indent=True)
 
-    # 同时追加到日期累积文件
+    # Append the new snapshot to today's rolling day file.
     day_file = data_dir / f"day_{date_str}.json"
     if day_file.exists():
-        with open(day_file, encoding="utf-8") as f:
-            day_data = json.load(f)
+        day_data = _load(day_file)
         day_data["snapshots"].append(snapshot)
     else:
         day_data = {"date": date_str, "total_msgs": total, "snapshots": [snapshot]}
-    # 用最新快照的实际消息数更新 total_msgs，保证一致
     day_data["total_msgs"] = snapshot.get("total_messages", day_data.get("total_msgs", 0))
-    with open(day_file, "w", encoding="utf-8") as f:
-        json.dump(day_data, f, ensure_ascii=False, indent=2, default=str)
+    _dump(day_data, day_file, indent=True)
 
     # 新增：更新 DataStore
     try:
@@ -610,8 +610,8 @@ def collect_replay(date_str, cfg=None, data_dir=None):
     day_data = {"date": date_str, "total_msgs": total, "snapshots": snapshots}
     data_dir.mkdir(parents=True, exist_ok=True)
     out_path = data_dir / f"day_{date_str}.json"
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(day_data, f, ensure_ascii=False, indent=2, default=str)
+    from backend.jsonio import dump_path as _dump
+    _dump(day_data, out_path, indent=True)
     print(f"\n💾 回放数据: {out_path}", flush=True)
 
     # 新增：更新 DataStore
@@ -705,13 +705,13 @@ def push_to_cloud(cfg, date_str, data_dir=None):
             print(f"  ☁️ {label} → 失败: {e}", flush=True)
             return False
 
+    from backend.jsonio import load_path as _load
+
     # 推送 latest
     if push_mode in ("both", "latest"):
         latest_file = data_dir / "latest.json"
         if latest_file.exists():
-            with open(latest_file, encoding="utf-8") as f:
-                latest_data = json.load(f)
-            _push(f"{base_url}/api/upload/latest", latest_data, "latest")
+            _push(f"{base_url}/api/upload/latest", _load(latest_file), "latest")
         else:
             print(f"  ☁️ latest.json 不存在，跳过", flush=True)
 
@@ -719,9 +719,7 @@ def push_to_cloud(cfg, date_str, data_dir=None):
     if push_mode in ("both", "day"):
         day_file = data_dir / f"day_{date_str}.json"
         if day_file.exists():
-            with open(day_file, encoding="utf-8") as f:
-                day_data = json.load(f)
-            _push(f"{base_url}/api/upload/day/{date_str}", day_data, f"day_{date_str}")
+            _push(f"{base_url}/api/upload/day/{date_str}", _load(day_file), f"day_{date_str}")
         else:
             print(f"  ☁️ day_{date_str}.json 不存在，跳过", flush=True)
 

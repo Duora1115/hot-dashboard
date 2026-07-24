@@ -3,7 +3,6 @@
 FastAPI 服务端：提供数据 API + 托管前端页面
 """
 
-import json
 import os
 import subprocess
 import sys
@@ -12,11 +11,10 @@ from datetime import datetime, timezone, timedelta, date
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from fastapi import Body
-import yaml
 
 # 确保项目根目录在 path 中
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -26,6 +24,11 @@ from backend.collector import load_config, collect_live, collect_replay
 from backend.market import fetch_indices, fetch_advance_decline
 from backend.report import generate_report
 from backend.data_store import DataStore
+from backend.responses import ORJSONResponse
+from backend.jsonio import load_path, dump_path
+
+# Alias so the rest of the file can stay unchanged.
+JSONResponse = ORJSONResponse
 
 CST = timezone(timedelta(hours=8))
 cfg = load_config()
@@ -48,7 +51,11 @@ def _get_git_version() -> str:
 
 GIT_VERSION = _get_git_version()
 
-app = FastAPI(title="Hot Dashboard API", version="1.0.0")
+app = FastAPI(
+    title="Hot Dashboard API",
+    version="1.0.0",
+    default_response_class=ORJSONResponse,
+)
 
 # CORS 支持（允许前端跨域访问 API）
 app.add_middleware(
@@ -58,14 +65,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# GZip 压缩 — JSON 数据可压缩 80-90%，大幅减少传输时间
-app.add_middleware(GZipMiddleware, minimum_size=500)
+# GZip 压缩 — JSON 响应体一般能压 5-10 倍。compresslevel=6 是 CPU/带宽权衡的甜蜜点，
+# 低配远端机器上比默认的 9 快 3-4×，压缩率只差约 2-3%.
+app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
 
 cache_cfg = cfg.get("cache", {})
 store = DataStore(
     data_dir,
     max_hot_days=cache_cfg.get("max_hot_days", 14),
     raw_lru_days=cache_cfg.get("raw_lru_days", 3),
+    # Default to lazy loading (only latest day eagerly loaded on startup).
+    # Bump this in settings.yaml if the box has memory to spare.
+    eager_load_days=cache_cfg.get("eager_load_days", 1),
 )
 
 
@@ -108,17 +119,19 @@ def startup_event():
 
 @app.get("/api/status")
 def api_status(request: Request):
-    """服务状态 — 匹配前端 ApiStatus 类型"""
+    """Service status. Avoid reading raw latest.json from disk on every hit —
+    the in-memory compressed copy already carries the ``t`` field."""
     dates = store.get_dates()
-    latest_raw = store.get_latest_raw()
     latest_time = None
     current_date = None
 
     latest_path = data_dir / "latest.json"
+    latest_compressed = store.get_latest()
     if latest_path.exists():
         latest_time = datetime.fromtimestamp(latest_path.stat().st_mtime, tz=CST).strftime("%Y-%m-%d %H:%M")
-        if latest_raw:
-            current_date = latest_raw.get("date") or latest_raw.get("time", "")[:10]
+        if latest_compressed:
+            t = latest_compressed.get("t", "")
+            current_date = t[:10] if t else None
 
     if not current_date and dates:
         current_date = dates[-1]
@@ -169,17 +182,14 @@ def api_latest(request: Request):
     return JSONResponse(result, headers=headers)
 
 
-def _strip_gd(snaps):
-    """去掉快照列表中所有 sec.gd（占体积 98%），返回新列表，不修改原始缓存。"""
-    return [
-        {**s, "sec": [{k: v for k, v in sec.items() if k != "gd"} for sec in s.get("sec", [])]}
-        for s in snaps
-    ]
-
-
 @app.get("/api/day/{date_str}")
 def api_day(date_str: str, request: Request, full: int = 0):
-    """获取指定日期的回放数据。默认只返回 meta + 最后一条快照；?full=1 返回全部。均去掉 gd 消息明细。"""
+    """Return one day's replay data.
+
+    ``full=0`` returns meta + only the last snapshot (small payload).
+    ``full=1`` returns every snapshot. Since the in-memory store already
+    strips ``gd`` at compression time we do zero extra work here.
+    """
     not_modified = _check_etag(request, date_str)
     if not_modified:
         return not_modified
@@ -189,11 +199,7 @@ def api_day(date_str: str, request: Request, full: int = 0):
     snaps = result.get("snapshots", [])
     if not full:
         last = snaps[-1] if snaps else None
-        if last:
-            last = {**last, "sec": [{k: v for k, v in sec.items() if k != "gd"} for sec in last.get("sec", [])]}
         result = {**result, "snapshots": [last] if last else []}
-    else:
-        result = {**result, "snapshots": _strip_gd(snaps)}
     return JSONResponse(result, headers={
         "ETag": _etag_for(date_str),
         "Cache-Control": _CACHE_POLICIES["day"],
@@ -401,13 +407,15 @@ def api_report(date_str: str, request: Request):
             except Exception:
                 pass
 
-    result = generate_report(date_str, day_data, market_idx, adv_dec)
+    # Raw snapshots (with gd) are needed for news extraction + sector analysis.
+    # They come from the raw LRU cache; a miss triggers a single disk read.
+    raw_snaps = store.get_raw_snapshots(date_str)
+    result = generate_report(date_str, day_data, market_idx, adv_dec, raw_snapshots=raw_snaps)
 
     daily_report_file = data_dir / f"daily_report_{date_str}.json"
     if daily_report_file.exists():
         try:
-            with open(daily_report_file, encoding="utf-8") as f:
-                result["dailyReport"] = json.load(f)
+            result["dailyReport"] = load_path(daily_report_file)
         except Exception:
             pass
 
@@ -424,8 +432,7 @@ def api_post_daily_report(date_str: str, body: dict = Body(...)):
     """提交社群观点大日报数据"""
     report_file = data_dir / f"daily_report_{date_str}.json"
     body["date"] = date_str
-    with open(report_file, "w", encoding="utf-8") as f:
-        json.dump(body, f, ensure_ascii=False, indent=2)
+    dump_path(body, report_file, indent=True)
     store.derived_cache.invalidate(date_str)
     return {"status": "ok", "date": date_str}
 
@@ -439,8 +446,7 @@ def api_get_daily_report(date_str: str, request: Request):
     report_file = data_dir / f"daily_report_{date_str}.json"
     if not report_file.exists():
         raise HTTPException(404, f"日期 {date_str} 日报不存在")
-    with open(report_file, encoding="utf-8") as f:
-        result = json.load(f)
+    result = load_path(report_file)
     return JSONResponse(result, headers={
         "ETag": _etag_for(date_str),
         "Cache-Control": _CACHE_POLICIES["daily_report"],
@@ -578,8 +584,7 @@ def api_upload(data: dict = Body(...)):
         raise HTTPException(400, "缺少 data 字段")
 
     target = data_dir / filename
-    with open(target, "w", encoding="utf-8") as f:
-        json.dump(content, f, ensure_ascii=False)
+    dump_path(content, target)
 
     # 更新 store
     if filename == "latest.json":
@@ -595,8 +600,7 @@ def api_upload(data: dict = Body(...)):
 def api_upload_latest(data: dict = Body(...)):
     """快捷上传 latest.json。直接把请求体作为 latest.json 内容保存。"""
     target = data_dir / "latest.json"
-    with open(target, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
+    dump_path(data, target)
     store.update_latest()
     return {"status": "ok", "filename": "latest.json", "size_kb": round(target.stat().st_size / 1024, 1)}
 
@@ -607,8 +611,7 @@ def api_upload_day(date_str: str, data: dict = Body(...)):
     if not __import__("re").match(r"^\d{4}-\d{2}-\d{2}$", date_str):
         raise HTTPException(400, "日期格式必须为 YYYY-MM-DD")
     target = data_dir / f"day_{date_str}.json"
-    with open(target, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
+    dump_path(data, target)
     store.update_day(date_str)
     return {"status": "ok", "filename": f"day_{date_str}.json", "size_kb": round(target.stat().st_size / 1024, 1)}
 
@@ -616,9 +619,26 @@ def api_upload_day(date_str: str, data: dict = Body(...)):
 # ---- 前端托管 ----
 dist_dir = PROJECT_ROOT / "frontend" / "dist"
 
-# 托管 Vite 构建产物的静态资源
+# 托管 Vite 构建产物的静态资源。Vite 会给每个 chunk 打内容 hash，因此
+# 可以放心用长缓存 —— 内容变了 URL 就变了。
+
+
+class _ImmutableStaticFiles(StaticFiles):
+    """Serve hash-named vite chunks with `immutable` long-cache headers."""
+
+    async def get_response(self, path, scope):  # type: ignore[override]
+        response = await super().get_response(path, scope)
+        # 1 year, immutable — safe because vite emits content-hashed names.
+        response.headers.setdefault("cache-control", "public, max-age=31536000, immutable")
+        return response
+
+
 if dist_dir.exists():
-    app.mount("/assets", StaticFiles(directory=str(dist_dir / "assets")), name="static-assets")
+    app.mount(
+        "/assets",
+        _ImmutableStaticFiles(directory=str(dist_dir / "assets")),
+        name="static-assets",
+    )
 
 
 @app.exception_handler(404)
