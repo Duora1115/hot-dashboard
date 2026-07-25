@@ -236,13 +236,13 @@ export default function Report() {
           >
             <h3 className="text-sm font-semibold text-[#3B82F6] mb-3">1. 市场核心共识</h3>
             <div className="space-y-3">
-              {data.dailyReport.coreReview.marketConsensus?.map((item, i) => (
+              {data.dailyReport?.coreReview?.marketConsensus?.map((item, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <span className="text-[#3B82F6] font-bold text-sm mt-0.5 shrink-0">•</span>
                   <div className="flex-1">
                     <p className="text-sm text-[#F1F5F9] leading-relaxed">{item.text}</p>
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                      {item.groupIds.map((gid) => (
+                      {item.groupIds?.map((gid) => (
                         <span key={gid} className="px-1.5 py-0.5 rounded text-[10px] bg-[#3B82F6]/15 text-[#3B82F6] font-medium">
                           {gid}
                         </span>
