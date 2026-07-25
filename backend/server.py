@@ -318,6 +318,10 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
                         "group": g["group"],
                         "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
                     })
+                    return JSONResponse(result, headers={
+                        "ETag": _etag_for(date_str),
+                        "Cache-Control": _CACHE_POLICIES["stock_messages"],
+                    })
 
     # 如果指定时间没匹配到，返回最后一个命中的
     if target_time and not result:
@@ -331,9 +335,11 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
                             "group": g["group"],
                             "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
                         })
-                    break
-
-    return JSONResponse(result, headers={
+                    return JSONResponse(result, headers={
+                        "ETag": _etag_for(date_str),
+                        "Cache-Control": _CACHE_POLICIES["stock_messages"],
+                    })
+    return JSONResponse([], headers={
         "ETag": _etag_for(date_str),
         "Cache-Control": _CACHE_POLICIES["stock_messages"],
     })

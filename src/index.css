@@ -75,12 +75,6 @@
     /* ---- Vibrancy (glass) ---- */
     --vibrancy-bg: 20 20 22;        /* usage: rgb(var(--vibrancy-bg) / 0.72) */
 
-    /* ---- Card gradient (dark mode: navy blue) ---- */
-    --card-gradient-from: 30 41 59;  /* rgba(30,41,59,0.8) */
-    --card-gradient-to: 15 23 42;    /* rgba(15,23,42,0.95) */
-    --card-gradient-from-opacity: 0.8;
-    --card-gradient-to-opacity: 0.95;
-
     /* ---- Grain overlay opacity (dark: subtle premium) ---- */
     --grain-opacity: 0.055;
     --grain-blend: overlay;
@@ -147,12 +141,6 @@
     --hairline: 0 0 0;              /* black overlay on light */
     --hover-bg: 0 0 0;
     --vibrancy-bg: 255 255 255;
-
-    /* Card gradient (light mode: subtle off-white) */
-    --card-gradient-from: 249 249 251;  /* rgba(249,249,251,0.6) */
-    --card-gradient-to: 255 255 255;    /* rgba(255,255,255,0.8) */
-    --card-gradient-from-opacity: 0.6;
-    --card-gradient-to-opacity: 0.8;
 
     /* No grain in light mode — Apple's light UI is clean pixels. */
     --grain-opacity: 0;
@@ -266,15 +254,6 @@
   .hairline-t  { border-top: 1px solid rgb(var(--hairline) / 0.08); }
   .hairline-l  { border-left: 1px solid rgb(var(--hairline) / 0.08); }
   .hairline-r  { border-right: 1px solid rgb(var(--hairline) / 0.08); }
-
-  /* Card gradient — theme-aware */
-  .card-gradient {
-    background: linear-gradient(
-      to bottom,
-      rgba(var(--card-gradient-from), var(--card-gradient-from-opacity)),
-      rgba(var(--card-gradient-to), var(--card-gradient-to-opacity))
-    );
-  }
 
   /* Focus ring */
   .focus-ring { outline: none; }

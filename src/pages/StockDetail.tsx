@@ -553,12 +553,12 @@ function GroupMessages({ groups }: { groups: Array<{ g: string; c: number; m: Ar
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: mi * 0.03 }}
-                          className="flex items-start gap-3 py-2.5 border-l-2 border-hairline/10 hover:border-brand-blue hover:bg-surface-2/50 pl-3 transition-colors rounded-r-md min-w-0"
+                          className="flex items-start gap-3 py-2.5 border-l-2 border-hairline/10 hover:border-brand-blue hover:bg-surface-2/50 pl-3 transition-colors rounded-r-md"
                         >
                           <span className="text-[11px] font-mono text-ink-tertiary shrink-0 w-10 pt-0.5">
                             {msg.t}
                           </span>
-                          <p className="text-sm text-ink-primary leading-relaxed whitespace-pre-wrap break-words min-w-0">
+                          <p className="text-sm text-ink-primary leading-relaxed whitespace-pre-wrap break-words">
                             {msg.x}
                           </p>
                         </motion.div>
