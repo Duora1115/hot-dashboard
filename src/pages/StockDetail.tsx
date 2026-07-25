@@ -26,6 +26,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useStore } from '@/store/useStore';
+import { fetchStockMessages } from '@/lib/api';
 import type { StockItem } from '@/types/api';
 
 /* ------------------------------------------------------------------ */
@@ -682,6 +683,30 @@ function StockComparison({ currentStock }: { currentStock: StockItem }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Group messages: on-demand fetch + in-memory cache                  */
+/* ------------------------------------------------------------------ */
+
+type GroupShape = { g: string; c: number; m: Array<{ t: string; x: string }> };
+
+// Module-level cache keyed by `${date}|${code}` so navigating away and back
+// doesn't refetch. Stays small (one entry per stock the user actually opens).
+const _groupMessagesCache = new Map<string, GroupShape[]>();
+
+async function loadGroupMessages(date: string, code: string): Promise<GroupShape[]> {
+  const key = `${date}|${code}`;
+  const cached = _groupMessagesCache.get(key);
+  if (cached) return cached;
+  const raw = await fetchStockMessages(date, code);
+  const shaped: GroupShape[] = raw.map((g) => ({
+    g: g.group,
+    c: g.messages.length,
+    m: g.messages.map((m) => ({ t: m.time, x: m.text })),
+  }));
+  _groupMessagesCache.set(key, shaped);
+  return shaped;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main Stock Detail Page                                             */
 /* ------------------------------------------------------------------ */
 
@@ -690,13 +715,46 @@ export default function StockDetail() {
   const navigate = useNavigate();
   const latestSnapshot = useStore((s) => s.latestSnapshot);
   const currentSnapshot = useStore((s) => s.currentSnapshot);
+  const currentDate = useStore((s) => s.currentDate);
   const dayFullLoaded = useStore((s) => s.dayFullLoaded);
   const loadDayFull = useStore((s) => s.loadDayFull);
   const snapshots = useStore((s) => s.currentDayData?.snapshots ?? []);
 
+  const [groups, setGroups] = useState<GroupShape[]>([]);
+  const [gmLoading, setGmLoading] = useState(false);
+  const [gmError, setGmError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!dayFullLoaded) loadDayFull();
   }, [dayFullLoaded, loadDayFull]);
+
+  // Fetch group messages on demand. The compressed snapshot no longer carries
+  // the `gd` field (>90% of payload), so we hit /api/stock-messages instead.
+  useEffect(() => {
+    if (!code || !currentDate) {
+      setGroups([]);
+      return;
+    }
+    let cancelled = false;
+    setGmLoading(true);
+    setGmError(null);
+    loadGroupMessages(currentDate, code)
+      .then((result) => {
+        if (!cancelled) setGroups(result);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setGmError(err instanceof Error ? err.message : String(err));
+          setGroups([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setGmLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [code, currentDate]);
 
   // Find the stock from the current or latest snapshot
   const stock = useMemo(() => {
@@ -704,13 +762,6 @@ export default function StockDetail() {
     const snap = currentSnapshot ?? latestSnapshot;
     return snap?.stk.find((s) => s.c === code) ?? null;
   }, [code, currentSnapshot, latestSnapshot]);
-
-  // Find sector data for this stock
-  const stockSectors = useMemo(() => {
-    if (!stock) return [];
-    const snap = currentSnapshot ?? latestSnapshot;
-    return snap?.sec.filter((s) => stock.sec.includes(s.n)) ?? [];
-  }, [stock, currentSnapshot, latestSnapshot]);
 
   if (!code || !stock) {
     return (
@@ -764,7 +815,29 @@ export default function StockDetail() {
       </div>
 
       {/* Group Messages */}
-      <GroupMessages groups={stockSectors.flatMap((s) => s.gd ?? [])} />
+      {gmLoading ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-8"
+        >
+          <div className="flex items-center justify-center gap-2 text-[#64748B] text-sm">
+            <div className="w-4 h-4 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+            正在加载群消息…
+          </div>
+        </motion.div>
+      ) : gmError ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-8 text-center"
+        >
+          <MessageCircle size={32} className="text-[#475569] mx-auto mb-3" />
+          <p className="text-[#64748B] text-sm">群消息加载失败：{gmError}</p>
+        </motion.div>
+      ) : (
+        <GroupMessages groups={groups} />
+      )}
 
       {/* Stock Comparison */}
       <StockComparison currentStock={stock} />

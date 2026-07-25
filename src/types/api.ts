@@ -76,17 +76,18 @@ export interface ApiVersion {
   version: string;
 }
 
-export interface StockMessage {
-  t: string;
-  x: string;
-  g: string;
+export interface StockMessageItem {
+  time: string;
+  text: string;
 }
 
-export interface StockMessagesResponse {
-  code: string;
-  name: string;
-  messages: StockMessage[];
+export interface StockGroupMessages {
+  group: string;
+  messages: StockMessageItem[];
 }
+
+// GET /api/stock-messages/{date}?code=... — backend returns a plain array.
+export type StockMessagesResponse = StockGroupMessages[];
 
 /* ---- Report (晨报) 相关类型 ---- */
 
