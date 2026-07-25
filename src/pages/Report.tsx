@@ -42,6 +42,16 @@ import { fetchReport } from '@/lib/api';
 import type { ReportData, HotStockDetail, NewsItem, SentimentTimelineItem } from '@/types/api';
 import { useStore } from '@/store/useStore';
 
+const EMPTY_REPORT: ReportData = {
+  date: '', marketIndices: [], advanceDecline: null,
+  volumeData: { totalVolume: 0, prevVolume: 0, changePercent: 0, hourlyData: [], peakHour: '--', peakVolume: 0, summary: '' },
+  hotSectors: [], hotStocks: [], newsItems: [],
+  sentimentData: { overall: '--', overallLabel: 'neutral', bullPercent: 0, bearPercent: 0, neutralPercent: 0, extremeEuphoria: 0, extremePessimism: 0, drivers: [], alert: null },
+  technicalData: { observations: [], supportLevels: [], resistanceLevels: [], patterns: [], indicatorSummaries: [], signals: [] },
+  actionRecommendations: { strategy: 'moderate', score: 0, sectorRotations: [], riskWarnings: [], watchPoints: [], detailed: [] },
+  sentimentTimeline: [], overviewText: '', dailyReport: null,
+};
+
 /* ------------------------------------------------------------------ */
 /*  Animation config                                                   */
 /* ------------------------------------------------------------------ */
@@ -59,7 +69,7 @@ const staggerChild = {
 /*  Section wrapper with scroll-triggered animation                  */
 /* ------------------------------------------------------------------ */
 
-function SectionWrapper({ children, id, className = '' }: { children: React.ReactNode; id: string; className?: string }) {
+function SectionWrapper({ children, id, className = '', loading: isLoading, skeletonHeight = '120px' }: { children: React.ReactNode; id: string; className?: string; loading?: boolean; skeletonHeight?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: '-80px' });
   return (
@@ -71,7 +81,20 @@ function SectionWrapper({ children, id, className = '' }: { children: React.Reac
       variants={staggerContainer}
       className={className}
     >
-      {children}
+      {isLoading ? (
+        <motion.div
+          variants={staggerChild}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-5 md:p-6"
+        >
+          <div className="space-y-3">
+            <div className="h-4 bg-[#1E293B] rounded animate-pulse" style={{ width: '90%' }} />
+            <div className="h-4 bg-[#1E293B] rounded animate-pulse" style={{ width: '70%' }} />
+            <div className="h-4 bg-[#1E293B] rounded animate-pulse" style={{ width: '80%', height: skeletonHeight }} />
+          </div>
+        </motion.div>
+      ) : children}
     </motion.section>
   );
 }
@@ -154,12 +177,13 @@ export default function Report() {
   }, []);
 
   const currentDate = useStore((s) => s.currentDate);
-  const [data, setData] = useState<ReportData | null>(null);
+  const [data, setData] = useState<ReportData>(EMPTY_REPORT);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentDate) return;
+    setData(EMPTY_REPORT);
     setLoading(true);
     setError(null);
     fetchReport(currentDate)
@@ -167,20 +191,7 @@ export default function Report() {
       .catch((e) => { setError(e.message); setLoading(false); });
   }, [currentDate]);
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-[#1A2332] rounded w-1/3" />
-          <div className="h-32 bg-[#1A2332] rounded" />
-          <div className="h-64 bg-[#1A2332] rounded" />
-          <div className="h-48 bg-[#1A2332] rounded" />
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !data || !data.advanceDecline) {
+  if (error) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -206,8 +217,8 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  DAILY REPORT: Core Review                                    */}
       {/* ============================================================ */}
-      {data.dailyReport?.coreReview && (
-        <SectionWrapper id="review">
+      {(loading || data.dailyReport?.coreReview) && (
+        <SectionWrapper id="review" loading={loading} skeletonHeight="200px">
           <SectionTitle icon={Eye} title="核心复盘与交叉验证" />
 
           {/* Daily Report Title */}
@@ -309,8 +320,8 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  DAILY REPORT: Group Views                                    */}
       {/* ============================================================ */}
-      {data.dailyReport?.groupViews && (
-        <SectionWrapper id="groups">
+      {(loading || data.dailyReport?.groupViews) && (
+        <SectionWrapper id="groups" loading={loading} skeletonHeight="150px">
           <SectionTitle icon={MessageSquare} title="各社群独立观点精华" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             {data.dailyReport?.groupViews?.map((gv) => (
@@ -355,7 +366,7 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  SECTION 1: Market Overview                                  */}
       {/* ============================================================ */}
-      <SectionWrapper id="overview">
+      <SectionWrapper id="overview" loading={loading} skeletonHeight="80px">
         <SectionTitle icon={FileText} title="市场综述" />
         <motion.div
           variants={staggerChild}
@@ -379,7 +390,7 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  SECTION 2: Market Index Analysis                            */}
       {/* ============================================================ */}
-      <SectionWrapper id="market">
+      <SectionWrapper id="market" loading={loading} skeletonHeight="200px">
         <SectionTitle icon={BarChart3} title="大盘分析" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Sentiment Gauge */}
@@ -436,7 +447,8 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  SECTION 3: Advance / Decline Statistics                     */}
       {/* ============================================================ */}
-      <SectionWrapper id="statistics">
+      <SectionWrapper id="statistics" loading={loading} skeletonHeight="60px">
+        {data.advanceDecline && <>
         <SectionTitle icon={Activity} title="涨跌统计" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <StatCard label="上涨家数" value={data.advanceDecline.rising} color="#00E396" suffix="家" />
@@ -474,12 +486,13 @@ export default function Report() {
             <span className="text-[#FF4560]">跌 {data.advanceDecline.falling} 家</span>
           </div>
         </motion.div>
+        </>}
       </SectionWrapper>
 
       {/* ============================================================ */}
       {/*  SECTION 4: Volume Analysis                                  */}
       {/* ============================================================ */}
-      <SectionWrapper id="volume">
+      <SectionWrapper id="volume" loading={loading} skeletonHeight="160px">
         <SectionTitle icon={Droplets} title="量能分析" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           <motion.div
@@ -543,7 +556,7 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  SECTION 5: Hot Sector Deep Dive                             */}
       {/* ============================================================ */}
-      <SectionWrapper id="sectors">
+      <SectionWrapper id="sectors" loading={loading} skeletonHeight="150px">
         <SectionTitle icon={Flame} title="热点板块深度分析" />
         <div className="space-y-4">
           {data.hotSectors.map((sector) => (
@@ -605,7 +618,7 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  SECTION 6: Hot Stocks Review                                */}
       {/* ============================================================ */}
-      <SectionWrapper id="stocks">
+      <SectionWrapper id="stocks" loading={loading} skeletonHeight="200px">
         <SectionTitle icon={Trophy} title="热门个股点评" />
         <motion.div variants={staggerChild} className="bg-[#111827] border border-[#1E293B] rounded-[14px] overflow-hidden">
           <div className="overflow-x-auto">
@@ -635,7 +648,7 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  SECTION 7: News Summary                                     */}
       {/* ============================================================ */}
-      <SectionWrapper id="news">
+      <SectionWrapper id="news" loading={loading} skeletonHeight="100px">
         <SectionTitle icon={MessageSquare} title="消息面汇总" />
         <div className="space-y-3">
           {/* Important news first */}
@@ -656,7 +669,7 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  SECTION 8: Sentiment Analysis                               */}
       {/* ============================================================ */}
-      <SectionWrapper id="sentiment">
+      <SectionWrapper id="sentiment" loading={loading} skeletonHeight="180px">
         <SectionTitle icon={Activity} title="情绪面分析" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Donut Chart */}
@@ -746,7 +759,7 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  SECTION 9: Technical Analysis                               */}
       {/* ============================================================ */}
-      <SectionWrapper id="technical">
+      <SectionWrapper id="technical" loading={loading} skeletonHeight="150px">
         <SectionTitle icon={Compass} title="技术面研判" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Technical Signals */}
@@ -868,7 +881,7 @@ export default function Report() {
       {/* ============================================================ */}
       {/*  SECTION 10: Action Recommendations                          */}
       {/* ============================================================ */}
-      <SectionWrapper id="advice">
+      <SectionWrapper id="advice" loading={loading} skeletonHeight="100px">
         <SectionTitle icon={Lightbulb} title="操作建议" />
 
         {/* Strategy Score Card */}
