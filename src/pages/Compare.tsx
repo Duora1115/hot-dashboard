@@ -29,6 +29,7 @@ import {
 import { useStore } from '@/store/useStore';
 import { fetchDayFull } from '@/lib/api';
 import type { DayData, Snapshot } from '@/types/api';
+import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
 /* ------------------------------------------------------------------ */
 /*  Transform DayData → CompareDayData                                 */
@@ -93,7 +94,7 @@ function dayDataToCompare(day: DayData): CompareDayData {
 /*  Color palette for different dates                                  */
 /* ------------------------------------------------------------------ */
 
-const dateColors = ['#3B82F6', '#8B5CF6', '#06B6D4', '#F59E0B', '#EF4444'];
+const dateColors = ['#0A84FF', '#BF5AF2', '#64D2FF', '#FF9F0A', '#FF6961'];
 
 function getDateColor(index: number) {
   return dateColors[index % dateColors.length];
@@ -174,12 +175,12 @@ export default function Compare() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-4 md:p-5"
+        className="bg-surface-1 border border-hairline/10 rounded-[14px] p-4 md:p-5"
       >
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="flex items-center gap-2 shrink-0">
-            <GitCompare size={20} className="text-[#3B82F6]" />
-            <h1 className="text-lg md:text-xl font-semibold text-[#F1F5F9]">多日期对比</h1>
+            <GitCompare size={20} className="text-brand-blue" />
+            <h1 className="text-lg md:text-xl font-semibold text-ink-primary">多日期对比</h1>
           </div>
 
           {/* Date Selector */}
@@ -216,7 +217,7 @@ export default function Compare() {
               <div className="relative">
                 <button
                   onClick={() => setDateSelectorOpen(!dateSelectorOpen)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-[#64748B] hover:text-[#F1F5F9] hover:bg-[#1A2332] transition-colors border border-dashed border-[#334155]"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm text-ink-tertiary hover:text-ink-primary hover:bg-surface-2 transition-colors border border-dashed border-hairline/20"
                 >
                   <Plus size={13} />
                   添加日期
@@ -230,13 +231,13 @@ export default function Compare() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -5, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 mt-1 z-50 bg-[#1A2332] border border-[#334155] rounded-[10px] shadow-xl overflow-hidden min-w-[160px]"
+                        className="absolute top-full left-0 mt-1 z-50 bg-surface-2 border border-hairline/20 rounded-[10px] shadow-xl overflow-hidden min-w-[160px]"
                       >
                         {selectableDates.map((d) => (
                           <button
                             key={d.date}
                             onClick={() => addDate(d.date)}
-                            className="w-full text-left px-4 py-2.5 text-sm text-[#94A3B8] hover:bg-[#1E293B] hover:text-[#F1F5F9] transition-colors flex items-center justify-between"
+                            className="w-full text-left px-4 py-2.5 text-sm text-ink-secondary hover:bg-surface-3 hover:text-ink-primary transition-colors flex items-center justify-between"
                           >
                             {d.date}
                             <Plus size={14} />
@@ -260,18 +261,18 @@ export default function Compare() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="bg-[#1A2332] rounded-[14px] p-4"
+          className="bg-surface-2 rounded-[14px] p-4"
         >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {selectedDays.map((day, i) => (
               <div key={day.date} className="text-center">
-                <div className="text-xs text-[#64748B] mb-1">{day.date}</div>
+                <div className="text-xs text-ink-tertiary mb-1">{day.date}</div>
                 <div className="flex items-center justify-center gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-[#F1F5F9]">{day.totalMessages.toLocaleString()}</div>
-                    <div className="text-[10px] text-[#64748B]">消息</div>
+                    <div className="text-sm font-semibold text-ink-primary">{day.totalMessages.toLocaleString()}</div>
+                    <div className="text-[10px] text-ink-tertiary">消息</div>
                   </div>
-                  <div className="w-px h-6 bg-[#334155]" />
+                  <div className="w-px h-6 bg-hairline/20" />
                   <div>
                     <div
                       className="text-sm font-semibold"
@@ -279,7 +280,7 @@ export default function Compare() {
                     >
                       {day.sentiment}
                     </div>
-                    <div className="text-[10px] text-[#64748B]">情绪</div>
+                    <div className="text-[10px] text-ink-tertiary">情绪</div>
                   </div>
                 </div>
               </div>
@@ -297,7 +298,7 @@ export default function Compare() {
         transition={{ delay: 0.25 }}
       >
         <SectionTitle icon={BarChart3} title="股票热度对比" />
-        <div className="bg-[#111827] border border-[#1E293B] rounded-[14px] overflow-hidden">
+        <div className="bg-surface-1 border border-hairline/10 rounded-[14px] overflow-hidden">
           <StockCompareTable days={selectedDays} />
         </div>
       </motion.div>
@@ -311,7 +312,7 @@ export default function Compare() {
         transition={{ delay: 0.3 }}
       >
         <SectionTitle icon={Layers} title="板块热度对比" />
-        <div className="bg-[#111827] border border-[#1E293B] rounded-[14px] overflow-hidden">
+        <div className="bg-surface-1 border border-hairline/10 rounded-[14px] overflow-hidden">
           <SectorCompareTable days={selectedDays} />
         </div>
       </motion.div>
@@ -325,7 +326,7 @@ export default function Compare() {
         transition={{ delay: 0.35 }}
       >
         <SectionTitle icon={Activity} title="情绪演化对比" />
-        <div className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-5 md:p-6">
+        <div className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5 md:p-6">
           <SentimentCompareChart days={selectedDays} />
         </div>
       </motion.div>
@@ -351,7 +352,7 @@ export default function Compare() {
         transition={{ delay: 0.45 }}
       >
         <SectionTitle icon={Zap} title="操作信号对比" />
-        <div className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-5 md:p-6">
+        <div className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5 md:p-6">
           <ActionSignalCompare days={selectedDays} />
         </div>
       </motion.div>
@@ -366,9 +367,9 @@ export default function Compare() {
 function SectionTitle({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <div className="w-1 h-5 bg-[#3B82F6] rounded-full" />
-      <Icon size={18} className="text-[#3B82F6]" />
-      <h2 className="text-lg md:text-xl font-semibold text-[#F1F5F9] tracking-tight">{title}</h2>
+      <div className="w-1 h-5 bg-brand-blue rounded-full" />
+      <Icon size={18} className="text-brand-blue" />
+      <h2 className="text-lg md:text-xl font-semibold text-ink-primary tracking-tight">{title}</h2>
     </div>
   );
 }
@@ -415,14 +416,14 @@ function StockCompareTable({ days }: { days: CompareDayData[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-[#1A2332] text-[#64748B] text-xs">
-            <th className="text-left px-4 py-3 font-medium sticky left-0 bg-[#1A2332] z-10">股票</th>
+          <tr className="bg-surface-2 text-ink-tertiary text-xs">
+            <th className="text-left px-4 py-3 font-medium sticky left-0 bg-surface-2 z-10">股票</th>
             {days.map((day, i) => (
               <th key={day.date} className="text-center px-4 py-3 font-medium min-w-[100px]" style={{ color: getDateColor(i) }}>
                 {day.date.slice(5)}
               </th>
             ))}
-            <th className="text-center px-4 py-3 font-medium text-[#64748B]">持续性</th>
+            <th className="text-center px-4 py-3 font-medium text-ink-tertiary">持续性</th>
           </tr>
         </thead>
         <tbody>
@@ -433,16 +434,16 @@ function StockCompareTable({ days }: { days: CompareDayData[] }) {
               <tr
                 key={stock.code}
                 onClick={() => navigate(`/stock/${stock.code}`)}
-                className={`border-t border-[#1E293B] hover:bg-[#1E293B]/50 transition-colors cursor-pointer ${
-                  isPersistent ? 'bg-[#00E396]/[0.02]' : ''
+                className={`border-t border-hairline/10 hover:bg-surface-3/50 transition-colors cursor-pointer ${
+                  isPersistent ? 'bg-brand-green/[0.02]' : ''
                 }`}
               >
                 <td className="px-4 py-3 sticky left-0 bg-inherit z-10">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-[#F1F5F9]">{stock.name}</span>
-                    <span className="text-[11px] text-[#475569]">{stock.code}</span>
+                    <span className="font-medium text-ink-primary">{stock.name}</span>
+                    <span className="text-[11px] text-ink-quaternary">{stock.code}</span>
                     {isPersistent && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#00E396]/10 text-[#00E396]">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-brand-green/10 text-brand-green">
                         持续
                       </span>
                     )}
@@ -452,13 +453,13 @@ function StockCompareTable({ days }: { days: CompareDayData[] }) {
                   <td key={i} className="px-4 py-3 text-center">
                     {rank !== null ? (
                       <div className="flex flex-col items-center">
-                        <span className="text-xs font-medium text-[#F1F5F9]">#{rank}</span>
+                        <span className="text-xs font-medium text-ink-primary">#{rank}</span>
                         <span className="text-[10px]" style={{ color: getDateColor(i) }}>
                           {stock.heats[i]}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-[#334155]">—</span>
+                      <span className="text-ink-quaternary">—</span>
                     )}
                   </td>
                 ))}
@@ -468,7 +469,7 @@ function StockCompareTable({ days }: { days: CompareDayData[] }) {
                       {stock.ranks.map((rank, i) => (
                         <div
                           key={i}
-                          className={`w-2 h-2 rounded-full ${rank !== null ? '' : 'bg-[#334155]'}`}
+                          className={`w-2 h-2 rounded-full ${rank !== null ? '' : 'bg-hairline/20'}`}
                           style={rank !== null ? { backgroundColor: getDateColor(i) } : {}}
                         />
                       ))}
@@ -519,14 +520,14 @@ function SectorCompareTable({ days }: { days: CompareDayData[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-[#1A2332] text-[#64748B] text-xs">
-            <th className="text-left px-4 py-3 font-medium sticky left-0 bg-[#1A2332] z-10">板块</th>
+          <tr className="bg-surface-2 text-ink-tertiary text-xs">
+            <th className="text-left px-4 py-3 font-medium sticky left-0 bg-surface-2 z-10">板块</th>
             {days.map((day, i) => (
               <th key={day.date} className="text-center px-4 py-3 font-medium min-w-[100px]" style={{ color: getDateColor(i) }}>
                 {day.date.slice(5)}
               </th>
             ))}
-            <th className="text-center px-4 py-3 font-medium text-[#64748B]">持续性</th>
+            <th className="text-center px-4 py-3 font-medium text-ink-tertiary">持续性</th>
           </tr>
         </thead>
         <tbody>
@@ -536,15 +537,15 @@ function SectorCompareTable({ days }: { days: CompareDayData[] }) {
             return (
               <tr
                 key={sector.name}
-                className={`border-t border-[#1E293B] hover:bg-[#1E293B]/50 transition-colors ${
-                  isPersistent ? 'bg-[#00E396]/[0.02]' : ''
+                className={`border-t border-hairline/10 hover:bg-surface-3/50 transition-colors ${
+                  isPersistent ? 'bg-brand-green/[0.02]' : ''
                 }`}
               >
                 <td className="px-4 py-3 sticky left-0 bg-inherit z-10">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-[#F1F5F9]">{sector.name}</span>
+                    <span className="font-medium text-ink-primary">{sector.name}</span>
                     {isPersistent && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#00E396]/10 text-[#00E396]">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-brand-green/10 text-brand-green">
                         持续
                       </span>
                     )}
@@ -554,13 +555,13 @@ function SectorCompareTable({ days }: { days: CompareDayData[] }) {
                   <td key={i} className="px-4 py-3 text-center">
                     {rank !== null ? (
                       <div className="flex flex-col items-center">
-                        <span className="text-xs font-medium text-[#F1F5F9]">#{rank}</span>
+                        <span className="text-xs font-medium text-ink-primary">#{rank}</span>
                         <span className="text-[10px]" style={{ color: getDateColor(i) }}>
                           {sector.heats[i]}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-[#334155]">—</span>
+                      <span className="text-ink-quaternary">—</span>
                     )}
                   </td>
                 ))}
@@ -570,7 +571,7 @@ function SectorCompareTable({ days }: { days: CompareDayData[] }) {
                       {sector.ranks.map((rank, i) => (
                         <div
                           key={i}
-                          className={`w-2 h-2 rounded-full ${rank !== null ? '' : 'bg-[#334155]'}`}
+                          className={`w-2 h-2 rounded-full ${rank !== null ? '' : 'bg-hairline/20'}`}
                           style={rank !== null ? { backgroundColor: getDateColor(i) } : {}}
                         />
                       ))}
@@ -613,12 +614,12 @@ function SentimentCompareChart({ days }: { days: CompareDayData[] }) {
       <div className="h-[280px] md:h-[320px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-            <XAxis dataKey="time" stroke="#475569" fontSize={11} tickLine={false} axisLine={false} />
-            <YAxis domain={[0, 100]} stroke="#475569" fontSize={11} tickLine={false} axisLine={false} width={35} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#28282E" />
+            <XAxis dataKey="time" stroke="#5A5A64" fontSize={11} tickLine={false} axisLine={false} />
+            <YAxis domain={[0, 100]} stroke="#5A5A64" fontSize={11} tickLine={false} axisLine={false} width={35} />
             <Tooltip
-              contentStyle={{ backgroundColor: '#1A2332', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px' }}
-              labelStyle={{ color: '#94A3B8' }}
+              contentStyle={chartTooltipStyle}
+              labelStyle={chartTooltipLabelStyle}
             />
             <Legend
               wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
@@ -658,20 +659,20 @@ function SentimentCompareChart({ days }: { days: CompareDayData[] }) {
       </div>
 
       {/* Legend helper */}
-      <div className="flex flex-wrap items-center justify-center gap-4 mt-3 pt-3 border-t border-[#1E293B]">
+      <div className="flex flex-wrap items-center justify-center gap-4 mt-3 pt-3 border-t border-hairline/10">
         {days.map((day, i) => (
           <div key={day.date} className="flex items-center gap-2 text-xs">
             <div className="w-3 h-0.5 rounded" style={{ backgroundColor: getDateColor(i) }} />
-            <span className="text-[#94A3B8]">{day.date}</span>
+            <span className="text-ink-secondary">{day.date}</span>
           </div>
         ))}
-        <div className="flex items-center gap-3 text-[10px] text-[#475569]">
+        <div className="flex items-center gap-3 text-[10px] text-ink-quaternary">
           <span className="flex items-center gap-1">
-            <span className="w-4 h-0.5 bg-[#64748B] rounded" />
+            <span className="w-4 h-0.5 bg-ink-tertiary rounded" />
             实线=看多
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-4 h-0.5 bg-[#64748B] rounded" style={{ background: 'repeating-linear-gradient(90deg, #64748B 0, #64748B 3px, transparent 3px, transparent 6px)' }} />
+            <span className="w-4 h-0.5 bg-ink-tertiary rounded" style={{ background: 'repeating-linear-gradient(90deg, currentColor 0, currentColor 3px, transparent 3px, transparent 6px)' }} />
             虚线=看空
           </span>
         </div>
@@ -684,7 +685,7 @@ function SentimentCompareChart({ days }: { days: CompareDayData[] }) {
 function SectorPersistenceAnalysis({ days }: { days: CompareDayData[] }) {
   if (days.length < 2) {
     return (
-      <div className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-8 text-center text-sm text-[#64748B]">
+      <div className="bg-surface-1 border border-hairline/10 rounded-[14px] p-8 text-center text-sm text-ink-tertiary">
         请选择至少两个日期进行对比分析
       </div>
     );
@@ -724,12 +725,12 @@ function SectorPersistenceAnalysis({ days }: { days: CompareDayData[] }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-5 border-t-[3px] border-t-[#EF4444]"
+        className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5 border-t-[3px] border-t-[#FF6961]"
       >
         <div className="flex items-center gap-2 mb-4">
-          <Flame size={16} className="text-[#EF4444]" />
-          <h3 className="text-sm font-semibold text-[#F1F5F9]">持续热门</h3>
-          <span className="text-xs text-[#64748B] ml-auto">{persistent.length}个</span>
+          <Flame size={16} className="text-brand-heat" />
+          <h3 className="text-sm font-semibold text-ink-primary">持续热门</h3>
+          <span className="text-xs text-ink-tertiary ml-auto">{persistent.length}个</span>
         </div>
         <div className="space-y-3">
           <AnimatePresence>
@@ -738,15 +739,15 @@ function SectorPersistenceAnalysis({ days }: { days: CompareDayData[] }) {
                 key={sector.name}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex items-center justify-between p-2.5 rounded-lg bg-[#1A2332]"
+                className="flex items-center justify-between p-2.5 rounded-lg bg-surface-2"
               >
-                <span className="text-sm text-[#F1F5F9]">{sector.name}</span>
-                <span className="text-xs text-[#EF4444] font-medium">热度 {sector.heat}</span>
+                <span className="text-sm text-ink-primary">{sector.name}</span>
+                <span className="text-xs text-brand-heat font-medium">热度 {sector.heat}</span>
               </motion.div>
             ))}
           </AnimatePresence>
           {persistent.length === 0 && (
-            <p className="text-xs text-[#475569] text-center py-4">无持续热门板块</p>
+            <p className="text-xs text-ink-quaternary text-center py-4">无持续热门板块</p>
           )}
         </div>
       </motion.div>
@@ -756,12 +757,12 @@ function SectorPersistenceAnalysis({ days }: { days: CompareDayData[] }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-5 border-t-[3px] border-t-[#00E396]"
+        className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5 border-t-[3px] border-t-[#30D158]"
       >
         <div className="flex items-center gap-2 mb-4">
-          <TrendingUp size={16} className="text-[#00E396]" />
-          <h3 className="text-sm font-semibold text-[#F1F5F9]">新晋热门</h3>
-          <span className="text-xs text-[#64748B] ml-auto">{emerging.length}个</span>
+          <TrendingUp size={16} className="text-brand-green" />
+          <h3 className="text-sm font-semibold text-ink-primary">新晋热门</h3>
+          <span className="text-xs text-ink-tertiary ml-auto">{emerging.length}个</span>
         </div>
         <div className="space-y-3">
           <AnimatePresence>
@@ -770,15 +771,15 @@ function SectorPersistenceAnalysis({ days }: { days: CompareDayData[] }) {
                 key={sector.name}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex items-center justify-between p-2.5 rounded-lg bg-[#1A2332]"
+                className="flex items-center justify-between p-2.5 rounded-lg bg-surface-2"
               >
-                <span className="text-sm text-[#F1F5F9]">{sector.name}</span>
-                <span className="text-xs text-[#00E396] font-medium">热度 {sector.heat}</span>
+                <span className="text-sm text-ink-primary">{sector.name}</span>
+                <span className="text-xs text-brand-green font-medium">热度 {sector.heat}</span>
               </motion.div>
             ))}
           </AnimatePresence>
           {emerging.length === 0 && (
-            <p className="text-xs text-[#475569] text-center py-4">无新晋热门板块</p>
+            <p className="text-xs text-ink-quaternary text-center py-4">无新晋热门板块</p>
           )}
         </div>
       </motion.div>
@@ -788,12 +789,12 @@ function SectorPersistenceAnalysis({ days }: { days: CompareDayData[] }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-5 border-t-[3px] border-t-[#475569]"
+        className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5 border-t-[3px] border-t-[#5A5A64]"
       >
         <div className="flex items-center gap-2 mb-4">
-          <TrendingDown size={16} className="text-[#475569]" />
-          <h3 className="text-sm font-semibold text-[#F1F5F9]">热度消退</h3>
-          <span className="text-xs text-[#64748B] ml-auto">{faded.length}个</span>
+          <TrendingDown size={16} className="text-ink-quaternary" />
+          <h3 className="text-sm font-semibold text-ink-primary">热度消退</h3>
+          <span className="text-xs text-ink-tertiary ml-auto">{faded.length}个</span>
         </div>
         <div className="space-y-3">
           <AnimatePresence>
@@ -802,15 +803,15 @@ function SectorPersistenceAnalysis({ days }: { days: CompareDayData[] }) {
                 key={sector.name}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex items-center justify-between p-2.5 rounded-lg bg-[#1A2332]"
+                className="flex items-center justify-between p-2.5 rounded-lg bg-surface-2"
               >
-                <span className="text-sm text-[#475569]">{sector.name}</span>
-                <span className="text-xs text-[#475569]">跌出Top5</span>
+                <span className="text-sm text-ink-quaternary">{sector.name}</span>
+                <span className="text-xs text-ink-quaternary">跌出Top5</span>
               </motion.div>
             ))}
           </AnimatePresence>
           {faded.length === 0 && (
-            <p className="text-xs text-[#475569] text-center py-4">无消退板块</p>
+            <p className="text-xs text-ink-quaternary text-center py-4">无消退板块</p>
           )}
         </div>
       </motion.div>
@@ -838,12 +839,12 @@ function ActionSignalCompare({ days }: { days: CompareDayData[] }) {
       <div className="h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} barCategoryGap="20%">
-            <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
-            <XAxis dataKey="action" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} />
-            <YAxis stroke="#475569" fontSize={11} tickLine={false} axisLine={false} width={35} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#28282E" vertical={false} />
+            <XAxis dataKey="action" stroke="#5A5A64" fontSize={12} tickLine={false} axisLine={false} />
+            <YAxis stroke="#5A5A64" fontSize={11} tickLine={false} axisLine={false} width={35} />
             <Tooltip
-              contentStyle={{ backgroundColor: '#1A2332', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px' }}
-              labelStyle={{ color: '#94A3B8' }}
+              contentStyle={chartTooltipStyle}
+              labelStyle={chartTooltipLabelStyle}
             />
             <Legend
               wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
@@ -863,7 +864,7 @@ function ActionSignalCompare({ days }: { days: CompareDayData[] }) {
 
       {/* Action tendency summary */}
       {days.length >= 2 && (
-        <div className="mt-4 pt-4 border-t border-[#1E293B] grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="mt-4 pt-4 border-t border-hairline/10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           {days.map((day, i) => {
             const buyCount = day.actionCounts['买入'] ?? 0;
             const sellCount = day.actionCounts['卖出'] ?? 0;
@@ -874,13 +875,13 @@ function ActionSignalCompare({ days }: { days: CompareDayData[] }) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 + i * 0.1 }}
-                className="flex items-center gap-3 p-3 rounded-lg bg-[#1A2332]"
+                className="flex items-center gap-3 p-3 rounded-lg bg-surface-2"
               >
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: getDateColor(i) }} />
                 <div>
-                  <div className="text-xs text-[#64748B]">{day.date}</div>
-                  <div className="text-sm text-[#F1F5F9]">
-                    买/卖比: <span className="font-semibold text-[#3B82F6]">{ratio}</span>
+                  <div className="text-xs text-ink-tertiary">{day.date}</div>
+                  <div className="text-sm text-ink-primary">
+                    买/卖比: <span className="font-semibold text-brand-blue">{ratio}</span>
                   </div>
                 </div>
               </motion.div>

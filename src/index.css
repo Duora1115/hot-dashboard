@@ -4,36 +4,155 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==================================================================
+   Theme tokens
+   ------------------------------------------------------------------
+   :root   → dark (default; also applied when .dark is on <html>)
+   .light  → auto-applied 07:00–19:00 Beijing time via inline script
+   ================================================================== */
+
 @layer base {
-  :root {
-    --background: 222 47% 5%;
-    --foreground: 210 40% 96%;
-    --card: 222 47% 7%;
-    --card-foreground: 210 40% 96%;
-    --popover: 222 47% 7%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 217 91% 60%;
+  :root, .dark {
+    /* ---- shadcn semantic tokens ---- */
+    --background: 240 7% 4%;
+    --foreground: 240 10% 96%;
+    --card: 240 6% 8%;
+    --card-foreground: 240 10% 96%;
+    --popover: 240 6% 9%;
+    --popover-foreground: 240 10% 96%;
+    --primary: 212 100% 52%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 16% 57%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 96%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
-    --radius: 0.625rem;
-    --sidebar-background: 222 47% 7%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 217 91% 60%;
+    --secondary: 240 4% 14%;
+    --secondary-foreground: 240 10% 96%;
+    --muted: 240 4% 14%;
+    --muted-foreground: 240 5% 66%;
+    --accent: 240 4% 14%;
+    --accent-foreground: 240 10% 96%;
+    --destructive: 4 100% 61%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5% 17%;
+    --input: 240 5% 17%;
+    --ring: 212 100% 52%;
+    --radius: 0.75rem;
+    --sidebar-background: 240 6% 8%;
+    --sidebar-foreground: 240 10% 96%;
+    --sidebar-primary: 212 100% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 240 4% 14%;
+    --sidebar-accent-foreground: 240 10% 96%;
+    --sidebar-border: 240 5% 17%;
+    --sidebar-ring: 212 100% 52%;
+
+    /* ---- Surface ladder (elevation) ---- */
+    --surface-0: 240 7% 4%;         /* page          #0A0A0D */
+    --surface-1: 240 6% 8%;         /* card          #141416 */
+    --surface-2: 240 8% 12%;        /* elevated      #1D1D22 */
+    --surface-3: 240 10% 17%;       /* deep surface  #28282E */
+
+    /* ---- Text ladder ---- */
+    --text-primary: 240 10% 96%;    /* #F4F4F7 */
+    --text-secondary: 240 5% 66%;   /* #A5A5AC */
+    --text-tertiary: 240 4% 46%;    /* #737379 */
+    --text-quaternary: 240 4% 36%;  /* #5A5A61 */
+
+    /* ---- Brand palette (Apple systemColor dark) ---- */
+    --brand-blue: 10 132 255;       /* systemBlue      */
+    --brand-green: 48 209 88;       /* systemGreen     */
+    --brand-red: 255 69 58;         /* systemRed       */
+    --brand-yellow: 255 214 10;     /* systemYellow    */
+    --brand-purple: 191 90 242;     /* systemPurple    */
+    --brand-cyan: 100 210 255;      /* systemTeal      */
+    --brand-orange: 255 159 10;     /* systemOrange    */
+    --brand-heat: 255 105 97;       /* softer red      */
+    --brand-primary: 10 132 255;    /* alias for blue  */
+
+    /* ---- Hairline (white overlay on dark) ---- */
+    --hairline: 255 255 255;        /* usage: rgb(var(--hairline) / 0.06) */
+
+    /* ---- Hover / pressed backgrounds ---- */
+    --hover-bg: 255 255 255;        /* usage: rgb(var(--hover-bg) / 0.06) */
+
+    /* ---- Vibrancy (glass) ---- */
+    --vibrancy-bg: 20 20 22;        /* usage: rgb(var(--vibrancy-bg) / 0.72) */
+
+    /* ---- Grain overlay opacity (dark: subtle premium) ---- */
+    --grain-opacity: 0.055;
+    --grain-blend: overlay;
+
+    /* Alias — used by ::selection */
+    --brand-accent: var(--brand-blue);
+
+    color-scheme: dark;
+  }
+
+  /* ============================================================
+     LIGHT — Apple systemColor light. Auto-applied 07–19 Beijing.
+     ============================================================ */
+  .light {
+    --background: 240 20% 98%;      /* #F9F9FB — off-white */
+    --foreground: 240 10% 10%;      /* #1A1A1E */
+    --card: 0 0% 100%;              /* pure white */
+    --card-foreground: 240 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+    --primary: 211 100% 50%;        /* #007AFF */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 15% 95%;
+    --secondary-foreground: 240 10% 10%;
+    --muted: 240 15% 95%;
+    --muted-foreground: 240 4% 40%;
+    --accent: 240 15% 95%;
+    --accent-foreground: 240 10% 10%;
+    --destructive: 4 100% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 211 100% 50%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 10% 10%;
+    --sidebar-primary: 211 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 15% 95%;
+    --sidebar-accent-foreground: 240 10% 10%;
+    --sidebar-border: 240 6% 90%;
+    --sidebar-ring: 211 100% 50%;
+
+    --surface-0: 240 20% 98%;       /* page       #F9F9FB */
+    --surface-1: 0 0% 100%;         /* card       #FFFFFF */
+    --surface-2: 240 20% 96%;       /* elevated   #F2F2F5 */
+    --surface-3: 240 15% 92%;       /* deep       #E7E7EC */
+
+    --text-primary: 240 10% 10%;    /* #1A1A1E */
+    --text-secondary: 240 4% 40%;   /* #616166 */
+    --text-tertiary: 240 4% 55%;    /* #86868C */
+    --text-quaternary: 240 6% 72%;  /* #B4B4BB */
+
+    /* Apple systemColor light — slightly higher chroma than dark variants. */
+    --brand-blue: 0 122 255;
+    --brand-green: 52 199 89;
+    --brand-red: 255 59 48;
+    --brand-yellow: 255 149 0;      /* light-mode "yellow" is really amber for legibility */
+    --brand-purple: 175 82 222;
+    --brand-cyan: 90 200 250;
+    --brand-orange: 255 149 0;
+    --brand-heat: 255 59 48;
+    --brand-primary: 0 122 255;
+
+    --hairline: 0 0 0;              /* black overlay on light */
+    --hover-bg: 0 0 0;
+    --vibrancy-bg: 255 255 255;
+
+    /* No grain in light mode — Apple's light UI is clean pixels. */
+    --grain-opacity: 0;
+    --grain-blend: normal;
+
+    --brand-accent: var(--brand-blue);
+
+    color-scheme: light;
+  }
+
+  html {
+    letter-spacing: -0.011em;
   }
 
   * {
@@ -41,35 +160,104 @@
   }
 
   body {
-    background-color: #0B0E14;
-    color: #F1F5F9;
+    @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    transition: background-color 0.4s cubic-bezier(0.32, 0.72, 0, 1), color 0.4s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  /* Scrollbar styling */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  h1, h2, h3, h4 {
+    letter-spacing: -0.022em;
   }
 
-  ::-webkit-scrollbar-track {
-    background: #0B0E14;
+  ::selection {
+    background-color: rgb(var(--brand-accent) / 0.28);
+    color: hsl(var(--text-primary));
+  }
+  ::-moz-selection {
+    background-color: rgb(var(--brand-accent) / 0.28);
+    color: hsl(var(--text-primary));
   }
 
+  /* Scrollbar — theme-aware via CSS var */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: rgb(var(--hairline) / 0.14);
     border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
-
   ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: rgb(var(--hairline) / 0.24);
+    background-clip: padding-box;
   }
-
-  /* Firefox scrollbar */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #334155 #0B0E14;
+    scrollbar-color: rgb(var(--hairline) / 0.14) transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Tabular + lining numerals */
+  .font-num {
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: 'tnum' 1, 'lnum' 1, 'ss01' 1;
+  }
+
+  /* Grain overlay — auto-disabled in light mode via --grain-opacity: 0 */
+  .noise-overlay::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    background-size: 240px 240px;
+    background-repeat: repeat;
+    opacity: var(--grain-opacity);
+    mix-blend-mode: var(--grain-blend);
+    transition: opacity 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .reading-progress-bar {
+    transform-origin: 0% 50%;
+    will-change: transform;
+  }
+
+  /* Apple vibrancy — auto-swaps via --vibrancy-bg */
+  .vibrancy {
+    background-color: rgb(var(--vibrancy-bg) / 0.72);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+  }
+  .vibrancy-strong {
+    background-color: rgb(var(--vibrancy-bg) / 0.85);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+  }
+
+  /* Hairline — theme-aware overlay border */
+  .hairline    { border: 1px solid rgb(var(--hairline) / 0.08); }
+  .hairline-b  { border-bottom: 1px solid rgb(var(--hairline) / 0.08); }
+  .hairline-t  { border-top: 1px solid rgb(var(--hairline) / 0.08); }
+  .hairline-l  { border-left: 1px solid rgb(var(--hairline) / 0.08); }
+  .hairline-r  { border-right: 1px solid rgb(var(--hairline) / 0.08); }
+
+  /* Focus ring */
+  .focus-ring { outline: none; }
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px rgb(var(--brand-accent) / 0.5);
   }
 }

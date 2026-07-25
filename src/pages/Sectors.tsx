@@ -28,6 +28,7 @@ import {
 } from 'recharts';
 import { useStore } from '@/store/useStore';
 import type { SectorItem, Snapshot } from '@/types/api';
+import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
 /* ------------------------------------------------------------------ */
 /*  Derived data helpers                                                */
@@ -120,11 +121,11 @@ type ViewMode = 'rank' | 'rotation';
 
 function getTrendInfo(current: number, previous: number) {
   const change = (current - previous) / previous;
-  if (change > 0.3) return { icon: '▲▲', label: 'strong up', color: 'text-[#00E396]' };
-  if (change > 0.1) return { icon: '▲', label: 'up', color: 'text-[#00E396]' };
-  if (change > -0.1) return { icon: '▶', label: 'flat', color: 'text-[#FBBF24]' };
-  if (change > -0.3) return { icon: '▼', label: 'down', color: 'text-[#FF4560]' };
-  return { icon: '▼▼', label: 'strong down', color: 'text-[#FF4560]' };
+  if (change > 0.3) return { icon: '▲▲', label: 'strong up', color: 'text-brand-green' };
+  if (change > 0.1) return { icon: '▲', label: 'up', color: 'text-brand-green' };
+  if (change > -0.1) return { icon: '▶', label: 'flat', color: 'text-brand-yellow' };
+  if (change > -0.3) return { icon: '▼', label: 'down', color: 'text-brand-red' };
+  return { icon: '▼▼', label: 'strong down', color: 'text-brand-red' };
 }
 
 function getHeatOpacity(score: number) {
@@ -143,27 +144,27 @@ function getHeatOpacity(score: number) {
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) {
     return (
-      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-[#0B0E14] bg-gradient-to-br from-[#FFD700] to-[#FFA500] shrink-0">
+      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-[#0A0A0C] bg-gradient-to-br from-[#FFD700] to-[#FFA500] shrink-0">
         1
       </div>
     );
   }
   if (rank === 2) {
     return (
-      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-[#0B0E14] bg-gradient-to-br from-[#C0C0C0] to-[#A0A0A0] shrink-0">
+      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-[#0A0A0C] bg-gradient-to-br from-[#C0C0C0] to-[#A0A0A0] shrink-0">
         2
       </div>
     );
   }
   if (rank === 3) {
     return (
-      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-[#0B0E14] bg-gradient-to-br from-[#CD7F32] to-[#B87333] shrink-0">
+      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-[#0A0A0C] bg-gradient-to-br from-[#CD7F32] to-[#B87333] shrink-0">
         3
       </div>
     );
   }
   return (
-    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-[#64748B] bg-[#1A2332] shrink-0">
+    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-ink-tertiary bg-surface-2 shrink-0">
       {rank}
     </div>
   );
@@ -213,17 +214,17 @@ function SectorDetailDrawer({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 bottom-0 w-full sm:w-[450px] bg-[#111827] border-l border-[#1E293B] z-50 overflow-y-auto"
+            className="fixed right-0 top-0 bottom-0 w-full sm:w-[450px] bg-surface-1 border-l border-hairline/10 z-50 overflow-y-auto"
           >
             {/* Header */}
-            <div className="sticky top-0 bg-[#111827]/95 backdrop-blur-sm border-b border-[#1E293B] px-5 py-4 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-surface-1/95 backdrop-blur-sm border-b border-hairline/10 px-5 py-4 flex items-center justify-between z-10">
               <div className="flex items-center gap-3">
-                <Layers size={20} className="text-[#3B82F6]" />
-                <h2 className="text-lg font-semibold text-[#F1F5F9]">{sector.n}</h2>
+                <Layers size={20} className="text-brand-blue" />
+                <h2 className="text-lg font-semibold text-ink-primary">{sector.n}</h2>
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-md text-[#64748B] hover:text-[#F1F5F9] hover:bg-[#1A2332] transition-colors"
+                className="p-1.5 rounded-md text-ink-tertiary hover:text-ink-primary hover:bg-surface-2 transition-colors"
               >
                 <X size={20} />
               </button>
@@ -232,30 +233,30 @@ function SectorDetailDrawer({
             <div className="px-5 py-4 space-y-6">
               {/* Stats */}
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-[#1A2332] rounded-xl p-3 text-center">
-                  <div className="text-xs text-[#64748B] mb-1">热度</div>
-                  <div className="text-lg font-bold text-[#3B82F6]">{sector.sc}</div>
+                <div className="bg-surface-2 rounded-xl p-3 text-center">
+                  <div className="text-xs text-ink-tertiary mb-1">热度</div>
+                  <div className="text-lg font-bold text-brand-blue">{sector.sc}</div>
                 </div>
-                <div className="bg-[#1A2332] rounded-xl p-3 text-center">
-                  <div className="text-xs text-[#64748B] mb-1">提及</div>
-                  <div className="text-lg font-bold text-[#F1F5F9]">{sector.mc}</div>
+                <div className="bg-surface-2 rounded-xl p-3 text-center">
+                  <div className="text-xs text-ink-tertiary mb-1">提及</div>
+                  <div className="text-lg font-bold text-ink-primary">{sector.mc}</div>
                 </div>
-                <div className="bg-[#1A2332] rounded-xl p-3 text-center">
-                  <div className="text-xs text-[#64748B] mb-1">群数</div>
-                  <div className="text-lg font-bold text-[#94A3B8]">{sector.gc}</div>
+                <div className="bg-surface-2 rounded-xl p-3 text-center">
+                  <div className="text-xs text-ink-tertiary mb-1">群数</div>
+                  <div className="text-lg font-bold text-ink-secondary">{sector.gc}</div>
                 </div>
               </div>
 
               {/* Heat bar */}
               <div>
-                <div className="flex justify-between text-xs text-[#64748B] mb-2">
+                <div className="flex justify-between text-xs text-ink-tertiary mb-2">
                   <span>热度得分</span>
                   <span>{sector.sc}/200</span>
                 </div>
-                <div className="w-full h-2 rounded-full bg-[#1E293B] overflow-hidden">
+                <div className="w-full h-2 rounded-full bg-surface-3 overflow-hidden">
                   <motion.div
                     className={
-                      sector.sc >= 100 ? 'bg-[#EF4444]' : sector.sc >= 60 ? 'bg-[#F59E0B]' : 'bg-[#10B981]'
+                      sector.sc >= 100 ? 'bg-brand-heat' : sector.sc >= 60 ? 'bg-brand-orange' : 'bg-brand-green'
                     }
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.min(100, (sector.sc / 200) * 100)}%` }}
@@ -267,7 +268,7 @@ function SectorDetailDrawer({
 
               {/* Mini trend chart */}
               <div>
-                <h3 className="text-sm font-medium text-[#94A3B8] mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-medium text-ink-secondary mb-3 flex items-center gap-2">
                   <BarChart3 size={14} />
                   热度趋势
                 </h3>
@@ -276,14 +277,14 @@ function SectorDetailDrawer({
                     <AreaChart data={sectorTrend}>
                       <defs>
                         <linearGradient id="sectorTrendGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.5} />
-                          <stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
+                          <stop offset="0%" stopColor="#0A84FF" stopOpacity={0.5} />
+                          <stop offset="100%" stopColor="#0A84FF" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <Area
                         type="monotone"
                         dataKey="score"
-                        stroke="#3B82F6"
+                        stroke="#0A84FF"
                         fill="url(#sectorTrendGrad)"
                         strokeWidth={2}
                         animationDuration={800}
@@ -295,7 +296,7 @@ function SectorDetailDrawer({
 
               {/* Related stocks */}
               <div>
-                <h3 className="text-sm font-medium text-[#94A3B8] mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-medium text-ink-secondary mb-3 flex items-center gap-2">
                   <Flame size={14} />
                   关联热门个股
                 </h3>
@@ -306,21 +307,21 @@ function SectorDetailDrawer({
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.1 + i * 0.05 }}
-                      className="flex items-center gap-3 bg-[#1A2332] rounded-lg p-3 hover:bg-[#1E293B] transition-colors cursor-pointer"
+                      className="flex items-center gap-3 bg-surface-2 rounded-lg p-3 hover:bg-surface-3 transition-colors cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-[#F1F5F9] truncate">{stock.name}</div>
-                        <div className="text-xs text-[#64748B]">{stock.code}</div>
+                        <div className="text-sm font-medium text-ink-primary truncate">{stock.name}</div>
+                        <div className="text-xs text-ink-tertiary">{stock.code}</div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-sm font-semibold text-[#3B82F6]">{stock.sc}</div>
-                        <div className="text-xs text-[#64748B]">{stock.mc}次</div>
+                        <div className="text-sm font-semibold text-brand-blue">{stock.sc}</div>
+                        <div className="text-xs text-ink-tertiary">{stock.mc}次</div>
                       </div>
                       <div className="w-16 shrink-0">
-                        <div className="w-full h-1.5 rounded-full bg-[#1E293B] overflow-hidden">
+                        <div className="w-full h-1.5 rounded-full bg-surface-3 overflow-hidden">
                           <div
                             className={
-                              stock.sc >= 80 ? 'bg-[#EF4444]' : stock.sc >= 50 ? 'bg-[#F59E0B]' : 'bg-[#10B981]'
+                              stock.sc >= 80 ? 'bg-brand-heat' : stock.sc >= 50 ? 'bg-brand-orange' : 'bg-brand-green'
                             }
                             style={{ width: `${Math.min(100, stock.sc)}%`, height: '100%', borderRadius: '9999px' }}
                           />
@@ -333,7 +334,7 @@ function SectorDetailDrawer({
 
               {/* Group messages */}
               <div>
-                <h3 className="text-sm font-medium text-[#94A3B8] mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-medium text-ink-secondary mb-3 flex items-center gap-2">
                   <MessagesSquare size={14} />
                   群消息摘要
                 </h3>
@@ -344,20 +345,20 @@ function SectorDetailDrawer({
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2 + gi * 0.08 }}
-                      className="bg-[#1A2332] rounded-lg p-3"
+                      className="bg-surface-2 rounded-lg p-3"
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <Users size={12} className="text-[#64748B]" />
-                          <span className="text-xs font-medium text-[#F1F5F9]">{group.g}</span>
+                          <Users size={12} className="text-ink-tertiary" />
+                          <span className="text-xs font-medium text-ink-primary">{group.g}</span>
                         </div>
-                        <span className="text-xs text-[#64748B]">{group.c}条消息</span>
+                        <span className="text-xs text-ink-tertiary">{group.c}条消息</span>
                       </div>
                       <div className="space-y-1.5">
                         {group.m.map((msg, mi) => (
                           <div key={mi} className="flex gap-2 text-xs">
-                            <span className="text-[#475569] shrink-0">{msg.t}</span>
-                            <span className="text-[#94A3B8]">{msg.x}</span>
+                            <span className="text-ink-quaternary shrink-0">{msg.t}</span>
+                            <span className="text-ink-secondary">{msg.x}</span>
                           </div>
                         ))}
                       </div>
@@ -417,7 +418,7 @@ export default function Sectors() {
 
   const rotation = useMemo(() => buildRotationData(snapshots, sectors), [snapshots, sectors]);
 
-  const trendColors = ['#3B82F6', '#8B5CF6', '#00E396', '#FBBF24', '#06B6D4'];
+  const trendColors = ['#0A84FF', '#BF5AF2', '#30D158', '#FFD60A', '#64D2FF'];
 
   /* Sort sectors */
   const sortedSectors = useMemo(() => {
@@ -460,8 +461,8 @@ export default function Sectors() {
     <div className="space-y-6">
       {/* 全量数据加载提示 */}
       {!dayFullLoaded && snapshots.length <= 1 && (
-        <div className="flex items-center gap-2 text-xs text-[#64748B]">
-          <div className="w-4 h-4 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+        <div className="flex items-center gap-2 text-xs text-ink-tertiary">
+          <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
           正在加载完整时间序列数据…
         </div>
       )}
@@ -471,21 +472,21 @@ export default function Sectors() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#1E293B]"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-hairline/10"
       >
         <div className="flex items-center gap-3">
-          <Layers size={22} className="text-[#3B82F6]" />
-          <h1 className="text-2xl font-semibold text-[#F1F5F9] tracking-tight">板块轮动</h1>
+          <Layers size={22} className="text-brand-blue" />
+          <h1 className="text-2xl font-semibold text-ink-primary tracking-tight">板块轮动</h1>
         </div>
         <div className="flex items-center gap-3">
           {/* View toggle */}
-          <div className="flex bg-[#1A2332] rounded-lg p-0.5">
+          <div className="flex bg-surface-2 rounded-lg p-0.5">
             <button
               onClick={() => setViewMode('rank')}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 viewMode === 'rank'
-                  ? 'bg-[#1E293B] text-[#F1F5F9]'
-                  : 'text-[#64748B] hover:text-[#94A3B8]'
+                  ? 'bg-surface-3 text-ink-primary'
+                  : 'text-ink-tertiary hover:text-ink-secondary'
               }`}
             >
               排行
@@ -494,8 +495,8 @@ export default function Sectors() {
               onClick={() => setViewMode('rotation')}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 viewMode === 'rotation'
-                  ? 'bg-[#1E293B] text-[#F1F5F9]'
-                  : 'text-[#64748B] hover:text-[#94A3B8]'
+                  ? 'bg-surface-3 text-ink-primary'
+                  : 'text-ink-tertiary hover:text-ink-secondary'
               }`}
             >
               轮动
@@ -503,7 +504,7 @@ export default function Sectors() {
           </div>
           <button
             onClick={handleRefresh}
-            className="p-2 rounded-lg bg-[#1A2332] text-[#64748B] hover:text-[#F1F5F9] hover:bg-[#1E293B] transition-colors"
+            className="p-2 rounded-lg bg-surface-2 text-ink-tertiary hover:text-ink-primary hover:bg-surface-3 transition-colors"
           >
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
           </button>
@@ -517,51 +518,51 @@ export default function Sectors() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="bg-[#111827] rounded-xl border border-[#1E293B] overflow-hidden"
+            className="bg-surface-1 rounded-xl border border-hairline/10 overflow-hidden"
           >
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[#1E293B]">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-[#64748B] w-14">排名</th>
+                  <tr className="border-b border-hairline/10">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-ink-tertiary w-14">排名</th>
                     <th
-                      className="px-4 py-3 text-left text-xs font-medium text-[#64748B] cursor-pointer hover:text-[#94A3B8] transition-colors"
+                      className="px-4 py-3 text-left text-xs font-medium text-ink-tertiary cursor-pointer hover:text-ink-secondary transition-colors"
                       onClick={() => handleSort('n')}
                     >
                       板块
                       {sortKey === 'n' && (
-                        <span className="ml-1 text-[#3B82F6]">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        <span className="ml-1 text-brand-blue">{sortDir === 'asc' ? '↑' : '↓'}</span>
                       )}
                     </th>
                     <th
-                      className="px-4 py-3 text-right text-xs font-medium text-[#64748B] cursor-pointer hover:text-[#94A3B8] transition-colors"
+                      className="px-4 py-3 text-right text-xs font-medium text-ink-tertiary cursor-pointer hover:text-ink-secondary transition-colors"
                       onClick={() => handleSort('sc')}
                     >
                       热度
                       {sortKey === 'sc' && (
-                        <span className="ml-1 text-[#3B82F6]">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        <span className="ml-1 text-brand-blue">{sortDir === 'asc' ? '↑' : '↓'}</span>
                       )}
                     </th>
                     <th
-                      className="px-4 py-3 text-right text-xs font-medium text-[#64748B] cursor-pointer hover:text-[#94A3B8] transition-colors"
+                      className="px-4 py-3 text-right text-xs font-medium text-ink-tertiary cursor-pointer hover:text-ink-secondary transition-colors"
                       onClick={() => handleSort('mc')}
                     >
                       提及
                       {sortKey === 'mc' && (
-                        <span className="ml-1 text-[#3B82F6]">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        <span className="ml-1 text-brand-blue">{sortDir === 'asc' ? '↑' : '↓'}</span>
                       )}
                     </th>
                     <th
-                      className="px-4 py-3 text-right text-xs font-medium text-[#64748B] cursor-pointer hover:text-[#94A3B8] transition-colors"
+                      className="px-4 py-3 text-right text-xs font-medium text-ink-tertiary cursor-pointer hover:text-ink-secondary transition-colors"
                       onClick={() => handleSort('gc')}
                     >
                       群数
                       {sortKey === 'gc' && (
-                        <span className="ml-1 text-[#3B82F6]">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                        <span className="ml-1 text-brand-blue">{sortDir === 'asc' ? '↑' : '↓'}</span>
                       )}
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-[#64748B]">趋势</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-[#64748B]">个股</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-ink-tertiary">趋势</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-ink-tertiary">个股</th>
                     <th className="px-4 py-3 w-12" />
                   </tr>
                 </thead>
@@ -584,12 +585,12 @@ export default function Sectors() {
                         onClick={() => setSelectedSector(sector)}
                         onMouseEnter={() => setHoveredSector(sector.n)}
                         onMouseLeave={() => setHoveredSector(null)}
-                        className={`border-b border-[#1E293B]/50 cursor-pointer transition-all duration-200 group ${
+                        className={`border-b border-hairline/50 cursor-pointer transition-all duration-200 group ${
                           hoveredSector === sector.n
-                            ? 'bg-[#1E293B] translate-x-1'
+                            ? 'bg-surface-3 translate-x-1'
                             : hoveredSector
                             ? 'opacity-60'
-                            : 'bg-[#111827] hover:bg-[#1A2332]'
+                            : 'bg-surface-1 hover:bg-surface-2'
                         } ${isTop3 ? 'relative' : ''}`}
                         style={
                           isTop3
@@ -609,20 +610,20 @@ export default function Sectors() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-[#F1F5F9]">{sector.n}</span>
+                            <span className="text-sm font-semibold text-ink-primary">{sector.n}</span>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <span className="text-sm font-bold text-[#3B82F6]">{sector.sc}</span>
+                          <span className="text-sm font-bold text-brand-blue">{sector.sc}</span>
                         </td>
-                        <td className="px-4 py-3 text-right text-sm text-[#94A3B8]">{sector.mc}</td>
-                        <td className="px-4 py-3 text-right text-sm text-[#94A3B8]">{sector.gc}</td>
+                        <td className="px-4 py-3 text-right text-sm text-ink-secondary">{sector.mc}</td>
+                        <td className="px-4 py-3 text-right text-sm text-ink-secondary">{sector.gc}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`text-xs ${trend.color} font-medium`}>{trend.icon}</span>
                         </td>
-                        <td className="px-4 py-3 text-right text-sm text-[#94A3B8]">{stockCount}</td>
+                        <td className="px-4 py-3 text-right text-sm text-ink-secondary">{stockCount}</td>
                         <td className="px-4 py-3">
-                          <ChevronRight size={16} className="text-[#475569] group-hover:text-[#94A3B8] transition-colors" />
+                          <ChevronRight size={16} className="text-ink-quaternary group-hover:text-ink-secondary transition-colors" />
                         </td>
                       </motion.tr>
                     );
@@ -637,9 +638,9 @@ export default function Sectors() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="bg-[#111827] rounded-xl border border-[#1E293B] p-4 md:p-5"
+            className="bg-surface-1 rounded-xl border border-hairline/10 p-4 md:p-5"
           >
-            <h2 className="text-lg font-semibold text-[#F1F5F9] mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-ink-primary mb-4 flex items-center gap-2">
               <GridIcon />
               板块热力图
             </h2>
@@ -649,7 +650,7 @@ export default function Sectors() {
                 <div className="flex items-center mb-1">
                   <div className="w-16 shrink-0" />
                   {timeSlots.map((t) => (
-                    <div key={t} className="flex-1 text-center text-[10px] text-[#475569] font-mono">
+                    <div key={t} className="flex-1 text-center text-[10px] text-ink-quaternary font-mono">
                       {t}
                     </div>
                   ))}
@@ -657,7 +658,7 @@ export default function Sectors() {
                 {/* Heatmap rows */}
                 {sortedSectors.map((sector) => (
                   <div key={sector.n} className="flex items-center mb-[2px]">
-                    <div className="w-16 shrink-0 pr-2 text-right text-xs text-[#94A3B8] truncate">
+                    <div className="w-16 shrink-0 pr-2 text-right text-xs text-ink-secondary truncate">
                       {sector.n}
                     </div>
                     <div className="flex-1 flex gap-[2px]">
@@ -672,7 +673,7 @@ export default function Sectors() {
                             title={`${sector.n} ${t} 热度:${score}`}
                           >
                             {/* Tooltip */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[#1E293B] rounded text-[10px] text-[#F1F5F9] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10 shadow-lg">
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-surface-3 rounded text-[10px] text-ink-primary whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10 shadow-lg">
                               {sector.n} {t} · {score}
                             </div>
                           </div>
@@ -690,35 +691,30 @@ export default function Sectors() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.3 }}
-            className="bg-[#111827] rounded-xl border border-[#1E293B] p-4 md:p-5"
+            className="bg-surface-1 rounded-xl border border-hairline/10 p-4 md:p-5"
           >
-            <h2 className="text-lg font-semibold text-[#F1F5F9] mb-4 flex items-center gap-2">
-              <TrendingUp size={18} className="text-[#3B82F6]" />
+            <h2 className="text-lg font-semibold text-ink-primary mb-4 flex items-center gap-2">
+              <TrendingUp size={18} className="text-brand-blue" />
               板块热度趋势对比
             </h2>
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#28282E" />
                   <XAxis
                     dataKey="time"
-                    tick={{ fill: '#475569', fontSize: 11 }}
-                    axisLine={{ stroke: '#1E293B' }}
+                    tick={{ fill: '#5A5A64', fontSize: 11 }}
+                    axisLine={{ stroke: '#28282E' }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: '#475569', fontSize: 11 }}
-                    axisLine={{ stroke: '#1E293B' }}
+                    tick={{ fill: '#5A5A64', fontSize: 11 }}
+                    axisLine={{ stroke: '#28282E' }}
                     tickLine={false}
                   />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#1E293B',
-                      border: '1px solid #334155',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                    }}
-                    labelStyle={{ color: '#F1F5F9' }}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={chartTooltipLabelStyle}
                   />
                   {topSectors.map((s, i) => (
                     <Line
@@ -748,8 +744,8 @@ export default function Sectors() {
                   onClick={() => toggleLine(s.n)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all ${
                     hiddenLines.has(s.n)
-                      ? 'bg-[#1A2332] text-[#475569] opacity-50'
-                      : 'bg-[#1A2332] text-[#94A3B8]'
+                      ? 'bg-surface-2 text-ink-quaternary opacity-50'
+                      : 'bg-surface-2 text-ink-secondary'
                   }`}
                 >
                   <span
@@ -768,16 +764,16 @@ export default function Sectors() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="bg-[#111827] rounded-xl border border-[#1E293B] p-4 md:p-5"
+          className="bg-surface-1 rounded-xl border border-hairline/10 p-4 md:p-5"
         >
-          <h2 className="text-lg font-semibold text-[#F1F5F9] mb-6 flex items-center gap-2">
-            <RefreshCw size={18} className="text-[#8B5CF6]" />
+          <h2 className="text-lg font-semibold text-ink-primary mb-6 flex items-center gap-2">
+            <RefreshCw size={18} className="text-brand-purple" />
             板块轮动流向
           </h2>
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-4">
             {rotation.periods.map((period, pi) => (
               <div key={period} className="flex-1">
-                <div className="text-center text-sm font-medium text-[#94A3B8] mb-4 whitespace-pre-line">
+                <div className="text-center text-sm font-medium text-ink-secondary mb-4 whitespace-pre-line">
                   {period}
                 </div>
                 <div className="space-y-2">
@@ -795,27 +791,27 @@ export default function Sectors() {
                           transition={{ delay: pi * 0.15 + si * 0.05 }}
                           className="flex items-center gap-2"
                         >
-                          <div className="w-14 text-xs text-[#94A3B8] text-right shrink-0">{s.name}</div>
-                          <div className="flex-1 h-6 bg-[#1A2332] rounded-md overflow-hidden relative">
+                          <div className="w-14 text-xs text-ink-secondary text-right shrink-0">{s.name}</div>
+                          <div className="flex-1 h-6 bg-surface-2 rounded-md overflow-hidden relative">
                             <motion.div
                               className={`h-full rounded-md ${
-                                isUp ? 'bg-[#00E396]/30' : isDown ? 'bg-[#FF4560]/30' : 'bg-[#FBBF24]/20'
+                                isUp ? 'bg-brand-green/30' : isDown ? 'bg-brand-red/30' : 'bg-brand-yellow/20'
                               }`}
                               initial={{ width: 0 }}
                               animate={{ width: `${barWidth}%` }}
                               transition={{ type: 'spring', stiffness: 200, damping: 20, delay: pi * 0.15 + si * 0.05 }}
                             />
-                            <span className="absolute inset-0 flex items-center px-2 text-[10px] font-medium text-[#F1F5F9]">
+                            <span className="absolute inset-0 flex items-center px-2 text-[10px] font-medium text-ink-primary">
                               {s.values[pi]}
                             </span>
                           </div>
                           <div className="w-5 shrink-0">
                             {isUp ? (
-                              <ArrowUpRight size={14} className="text-[#00E396]" />
+                              <ArrowUpRight size={14} className="text-brand-green" />
                             ) : isDown ? (
-                              <ArrowDownRight size={14} className="text-[#FF4560]" />
+                              <ArrowDownRight size={14} className="text-brand-red" />
                             ) : (
-                              <Minus size={14} className="text-[#FBBF24]" />
+                              <Minus size={14} className="text-brand-yellow" />
                             )}
                           </div>
                         </motion.div>
@@ -824,7 +820,7 @@ export default function Sectors() {
                 </div>
                 {pi < rotation.periods.length - 1 && (
                   <div className="hidden lg:flex justify-center my-4">
-                    <ArrowRight size={20} className="text-[#475569]" />
+                    <ArrowRight size={20} className="text-ink-quaternary" />
                   </div>
                 )}
               </div>
@@ -848,7 +844,7 @@ export default function Sectors() {
 /* Grid icon for heatmap */
 function GridIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="7" height="7" />
       <rect x="14" y="3" width="7" height="7" />
       <rect x="3" y="14" width="7" height="7" />

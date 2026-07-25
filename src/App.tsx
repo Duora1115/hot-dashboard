@@ -16,7 +16,7 @@ const Compare = lazy(() => import('@/pages/Compare'));
 
 function RouteFallback() {
   return (
-    <div className="flex items-center justify-center h-64 text-[#64748B] text-sm">
+    <div className="flex items-center justify-center h-64 text-ink-tertiary text-sm">
       加载中…
     </div>
   );

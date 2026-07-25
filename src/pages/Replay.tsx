@@ -30,6 +30,7 @@ import {
 } from 'recharts';
 import { useStore } from '@/store/useStore';
 import type { Snapshot, StockItem, SectorItem } from '@/types/api';
+import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -38,9 +39,9 @@ import type { Snapshot, StockItem, SectorItem } from '@/types/api';
 const formatTime = (t: string) => t.split(' ')[1] ?? t;
 
 const getHeatColor = (sc: number) => {
-  if (sc >= 80) return '#EF4444';
-  if (sc >= 60) return '#F59E0B';
-  return '#10B981';
+  if (sc >= 80) return '#FF6961';
+  if (sc >= 60) return '#FF9F0A';
+  return '#30D158';
 };
 
 const actionCategory = (label: string) => {
@@ -66,62 +67,62 @@ function MiniKPI({ snapshot }: { snapshot: Snapshot }) {
       initial={{ y: -10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.9] as [number, number, number, number] }}
-      className="flex items-center justify-between px-3 py-2 bg-[#111827] border-b border-[#1E293B] rounded-t-[14px]"
+      className="flex items-center justify-between px-3 py-2 bg-surface-1 border-b border-hairline/10 rounded-t-[14px]"
     >
       <div className="flex items-center gap-3 md:gap-5 overflow-x-auto">
         {/* Messages */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <MessageSquare size={14} className="text-[#64748B]" />
-          <span className="text-[#F1F5F9] text-sm font-medium tabular-nums">
+          <MessageSquare size={14} className="text-ink-tertiary" />
+          <span className="text-ink-primary text-sm font-medium tabular-nums">
             {snapshot.msg.toLocaleString()}
           </span>
-          <span className="text-[#64748B] text-xs hidden sm:inline">msg</span>
+          <span className="text-ink-tertiary text-xs hidden sm:inline">msg</span>
         </div>
 
         {/* Groups */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <Users size={14} className="text-[#64748B]" />
-          <span className="text-[#06B6D4] text-sm font-medium tabular-nums">
+          <Users size={14} className="text-ink-tertiary" />
+          <span className="text-brand-cyan text-sm font-medium tabular-nums">
             {snapshot.grp}
           </span>
-          <span className="text-[#64748B] text-xs hidden sm:inline">grps</span>
+          <span className="text-ink-tertiary text-xs hidden sm:inline">grps</span>
         </div>
 
         {/* Stocks */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <BarChart3 size={14} className="text-[#64748B]" />
-          <span className="text-[#F1F5F9] text-sm font-medium tabular-nums">
+          <BarChart3 size={14} className="text-ink-tertiary" />
+          <span className="text-ink-primary text-sm font-medium tabular-nums">
             {snapshot.stk.length}
           </span>
-          <span className="text-[#64748B] text-xs hidden sm:inline">stocks</span>
+          <span className="text-ink-tertiary text-xs hidden sm:inline">stocks</span>
         </div>
 
         {/* Sectors */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <Layers size={14} className="text-[#64748B]" />
-          <span className="text-[#F1F5F9] text-sm font-medium tabular-nums">
+          <Layers size={14} className="text-ink-tertiary" />
+          <span className="text-ink-primary text-sm font-medium tabular-nums">
             {snapshot.sec.length}
           </span>
-          <span className="text-[#64748B] text-xs hidden sm:inline">sectors</span>
+          <span className="text-ink-tertiary text-xs hidden sm:inline">sectors</span>
         </div>
 
         {/* Mini sentiment bar */}
         <div className="hidden md:flex items-center gap-2 shrink-0">
-          <div className="flex w-[120px] h-[6px] rounded-full overflow-hidden bg-[#1A2332]">
+          <div className="flex w-[120px] h-[6px] rounded-full overflow-hidden bg-surface-2">
             <motion.div
-              className="h-full bg-[#00E396]"
+              className="h-full bg-brand-green"
               initial={{ width: 0 }}
               animate={{ width: `${bullPct}%` }}
               transition={{ type: 'spring', stiffness: 200, damping: 25 }}
             />
             <motion.div
-              className="h-full bg-[#FBBF24]"
+              className="h-full bg-brand-yellow"
               initial={{ width: 0 }}
               animate={{ width: `${neuPct}%` }}
               transition={{ type: 'spring', stiffness: 200, damping: 25 }}
             />
             <motion.div
-              className="h-full bg-[#FF4560]"
+              className="h-full bg-brand-red"
               initial={{ width: 0 }}
               animate={{ width: `${bearPct}%` }}
               transition={{ type: 'spring', stiffness: 200, damping: 25 }}
@@ -132,8 +133,8 @@ function MiniKPI({ snapshot }: { snapshot: Snapshot }) {
 
       {/* Time */}
       <div className="flex items-center gap-1.5 shrink-0 ml-3">
-        <Clock size={14} className="text-[#06B6D4]" />
-        <span className="text-[#06B6D4] text-sm font-mono font-semibold tabular-nums">
+        <Clock size={14} className="text-brand-cyan" />
+        <span className="text-brand-cyan text-sm font-mono font-semibold tabular-nums">
           {formatTime(snapshot.t)}
         </span>
       </div>
@@ -167,10 +168,10 @@ function StockRankingTimeline({ snapshots, currentIndex }: { snapshots: Snapshot
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, delay: 0.1 }}
-      className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-4 overflow-hidden"
+      className="bg-surface-1 border border-hairline/10 rounded-[14px] p-4 overflow-hidden"
     >
-      <h3 className="text-[#F1F5F9] font-semibold text-base mb-3 flex items-center gap-2">
-        <BarChart3 size={18} className="text-[#3B82F6]" />
+      <h3 className="text-ink-primary font-semibold text-base mb-3 flex items-center gap-2">
+        <BarChart3 size={18} className="text-brand-blue" />
         股票排名变化
       </h3>
 
@@ -192,7 +193,7 @@ function StockRankingTimeline({ snapshots, currentIndex }: { snapshots: Snapshot
               {/* Rank number */}
               <span
                 className={`w-6 text-center text-xs font-mono shrink-0 ${
-                  rank < 3 ? 'text-[#FBBF24] font-bold' : 'text-[#64748B]'
+                  rank < 3 ? 'text-brand-yellow font-bold' : 'text-ink-tertiary'
                 }`}
               >
                 {rank + 1}
@@ -202,11 +203,11 @@ function StockRankingTimeline({ snapshots, currentIndex }: { snapshots: Snapshot
               <div className="flex-1 flex gap-0.5 h-7">
                 {slots.map(({ stock, snapshotIdx }, si) => {
                   const isCurrent = snapshotIdx === currentIndex;
-                  if (!stock) return <div key={si} className="flex-1 rounded-sm bg-[#1A2332]/50" />;
+                  if (!stock) return <div key={si} className="flex-1 rounded-sm bg-surface-2/50" />;
                   return (
                     <motion.div
                       key={`${si}-${stock.c}`}
-                      className={`flex-1 rounded-sm flex items-center justify-center cursor-pointer overflow-hidden ${isCurrent ? 'ring-1 ring-[#06B6D4]' : ''}`}
+                      className={`flex-1 rounded-sm flex items-center justify-center cursor-pointer overflow-hidden ${isCurrent ? 'ring-1 ring-brand-cyan' : ''}`}
                       style={{ backgroundColor: getHeatColor(stock.sc) + (isCurrent ? '' : '40') }}
                       whileHover={{ scale: 1.15, zIndex: 10 }}
                       onClick={() => navigate(`/stock/${stock.c}`)}
@@ -225,7 +226,7 @@ function StockRankingTimeline({ snapshots, currentIndex }: { snapshots: Snapshot
                 {slots[currentIndex]?.stock && (
                   <button
                     onClick={() => slots[currentIndex].stock && navigate(`/stock/${slots[currentIndex].stock!.c}`)}
-                    className="text-xs text-[#F1F5F9] hover:text-[#3B82F6] transition-colors truncate"
+                    className="text-xs text-ink-primary hover:text-brand-blue transition-colors truncate"
                   >
                     {slots[currentIndex].stock!.n}
                   </button>
@@ -242,7 +243,7 @@ function StockRankingTimeline({ snapshots, currentIndex }: { snapshots: Snapshot
           <span
             key={i}
             className={`flex-1 text-[9px] font-mono text-center ${
-              i === currentIndex ? 'text-[#06B6D4] font-bold' : 'text-[#475569]'
+              i === currentIndex ? 'text-brand-cyan font-bold' : 'text-ink-quaternary'
             }`}
           >
             {formatTime(s.t)}
@@ -278,10 +279,10 @@ function SectorRankingTimeline({ snapshots, currentIndex }: { snapshots: Snapsho
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, delay: 0.15 }}
-      className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-4 overflow-hidden"
+      className="bg-surface-1 border border-hairline/10 rounded-[14px] p-4 overflow-hidden"
     >
-      <h3 className="text-[#F1F5F9] font-semibold text-base mb-3 flex items-center gap-2">
-        <Layers size={18} className="text-[#8B5CF6]" />
+      <h3 className="text-ink-primary font-semibold text-base mb-3 flex items-center gap-2">
+        <Layers size={18} className="text-brand-purple" />
         板块排名变化
       </h3>
 
@@ -301,7 +302,7 @@ function SectorRankingTimeline({ snapshots, currentIndex }: { snapshots: Snapsho
           >
             <span
               className={`w-6 text-center text-xs font-mono shrink-0 ${
-                rank < 3 ? 'text-[#FBBF24] font-bold' : 'text-[#64748B]'
+                rank < 3 ? 'text-brand-yellow font-bold' : 'text-ink-tertiary'
               }`}
             >
               {rank + 1}
@@ -310,12 +311,12 @@ function SectorRankingTimeline({ snapshots, currentIndex }: { snapshots: Snapsho
             <div className="flex-1 flex gap-0.5 h-7">
               {slots.map(({ sector, snapshotIdx }, si) => {
                 const isCurrent = snapshotIdx === currentIndex;
-                if (!sector) return <div key={si} className="flex-1 rounded-sm bg-[#1A2332]/50" />;
+                if (!sector) return <div key={si} className="flex-1 rounded-sm bg-surface-2/50" />;
                 const opacity = Math.max(0.3, Math.min(1, sector.sc / 200));
                 return (
                   <motion.div
                     key={`${si}-${sector.n}`}
-                    className={`flex-1 rounded-sm flex items-center justify-center overflow-hidden ${isCurrent ? 'ring-1 ring-[#8B5CF6]' : ''}`}
+                    className={`flex-1 rounded-sm flex items-center justify-center overflow-hidden ${isCurrent ? 'ring-1 ring-brand-purple' : ''}`}
                     style={{ backgroundColor: `rgba(59, 130, 246, ${opacity})` }}
                     whileHover={{ scale: 1.15, zIndex: 10 }}
                     title={`${sector.n} 热度:${sector.sc} ${formatTime(snapshots[snapshotIdx].t)}`}
@@ -330,7 +331,7 @@ function SectorRankingTimeline({ snapshots, currentIndex }: { snapshots: Snapsho
 
             <div className="w-20 shrink-0 text-right">
               {slots[currentIndex]?.sector && (
-                <span className="text-xs text-[#F1F5F9] truncate">
+                <span className="text-xs text-ink-primary truncate">
                   {slots[currentIndex].sector!.n}
                 </span>
               )}
@@ -344,7 +345,7 @@ function SectorRankingTimeline({ snapshots, currentIndex }: { snapshots: Snapsho
           <span
             key={i}
             className={`flex-1 text-[9px] font-mono text-center ${
-              i === currentIndex ? 'text-[#8B5CF6] font-bold' : 'text-[#475569]'
+              i === currentIndex ? 'text-brand-purple font-bold' : 'text-ink-quaternary'
             }`}
           >
             {formatTime(s.t)}
@@ -382,12 +383,12 @@ function SentimentTimelineChart({ snapshots, currentIndex }: { snapshots: Snapsh
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.2 }}
-      className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-4"
+      className="bg-surface-1 border border-hairline/10 rounded-[14px] p-4"
     >
-      <h3 className="text-[#F1F5F9] font-semibold text-base mb-3 flex items-center gap-2">
-        <TrendingUp size={18} className="text-[#00E396]" />
+      <h3 className="text-ink-primary font-semibold text-base mb-3 flex items-center gap-2">
+        <TrendingUp size={18} className="text-brand-green" />
         情绪趋势
-        <span className="text-xs font-normal text-[#64748B] ml-1">
+        <span className="text-xs font-normal text-ink-tertiary ml-1">
           (当前: {snapshots[currentIndex]?.sent})
         </span>
       </h3>
@@ -396,31 +397,26 @@ function SentimentTimelineChart({ snapshots, currentIndex }: { snapshots: Snapsh
         <AreaChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
           <defs>
             <linearGradient id="bullGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#00E396" stopOpacity={0.6} />
-              <stop offset="100%" stopColor="#00E396" stopOpacity={0.1} />
+              <stop offset="0%" stopColor="#30D158" stopOpacity={0.6} />
+              <stop offset="100%" stopColor="#30D158" stopOpacity={0.1} />
             </linearGradient>
             <linearGradient id="neutralGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#FBBF24" stopOpacity={0.4} />
-              <stop offset="100%" stopColor="#FBBF24" stopOpacity={0.05} />
+              <stop offset="0%" stopColor="#FFD60A" stopOpacity={0.4} />
+              <stop offset="100%" stopColor="#FFD60A" stopOpacity={0.05} />
             </linearGradient>
             <linearGradient id="bearGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#FF4560" stopOpacity={0.6} />
-              <stop offset="100%" stopColor="#FF4560" stopOpacity={0.1} />
+              <stop offset="0%" stopColor="#FF453A" stopOpacity={0.6} />
+              <stop offset="100%" stopColor="#FF453A" stopOpacity={0.1} />
             </linearGradient>
           </defs>
 
-          <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
-          <XAxis dataKey="time" stroke="#475569" tick={{ fill: '#475569', fontSize: 11 }} />
-          <YAxis stroke="#475569" tick={{ fill: '#475569', fontSize: 11 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#28282E" vertical={false} />
+          <XAxis dataKey="time" stroke="#5A5A64" tick={{ fill: '#5A5A64', fontSize: 11 }} />
+          <YAxis stroke="#5A5A64" tick={{ fill: '#5A5A64', fontSize: 11 }} />
 
           <Tooltip
-            contentStyle={{
-              backgroundColor: '#1A2332',
-              border: '1px solid #334155',
-              borderRadius: '10px',
-              fontSize: '12px',
-            }}
-            labelStyle={{ color: '#94A3B8' }}
+            contentStyle={chartTooltipStyle}
+            labelStyle={chartTooltipLabelStyle}
             itemStyle={{ fontSize: '12px' }}
             formatter={(value: number, name: string) => {
               return [value, name];
@@ -429,14 +425,14 @@ function SentimentTimelineChart({ snapshots, currentIndex }: { snapshots: Snapsh
           />
 
           {currentTime && (
-            <ReferenceLine x={currentTime} stroke="#06B6D4" strokeDasharray="4 4" strokeWidth={1.5} />
+            <ReferenceLine x={currentTime} stroke="#64D2FF" strokeDasharray="4 4" strokeWidth={1.5} />
           )}
 
           <Area
             type="monotone"
             dataKey="看多"
             stackId="sent"
-            stroke="#00E396"
+            stroke="#30D158"
             fill="url(#bullGrad)"
             animationDuration={1200}
           />
@@ -444,7 +440,7 @@ function SentimentTimelineChart({ snapshots, currentIndex }: { snapshots: Snapsh
             type="monotone"
             dataKey="观望"
             stackId="sent"
-            stroke="#FBBF24"
+            stroke="#FFD60A"
             fill="url(#neutralGrad)"
             animationDuration={1200}
           />
@@ -452,7 +448,7 @@ function SentimentTimelineChart({ snapshots, currentIndex }: { snapshots: Snapsh
             type="monotone"
             dataKey="看空"
             stackId="sent"
-            stroke="#FF4560"
+            stroke="#FF453A"
             fill="url(#bearGrad)"
             animationDuration={1200}
           />
@@ -502,37 +498,32 @@ function ActionSignalsTimeline({ snapshots, currentIndex }: { snapshots: Snapsho
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.25 }}
-      className="bg-[#111827] border border-[#1E293B] rounded-[14px] p-4"
+      className="bg-surface-1 border border-hairline/10 rounded-[14px] p-4"
     >
-      <h3 className="text-[#F1F5F9] font-semibold text-base mb-3 flex items-center gap-2">
-        <TrendingDown size={18} className="text-[#F97316]" />
+      <h3 className="text-ink-primary font-semibold text-base mb-3 flex items-center gap-2">
+        <TrendingDown size={18} className="text-brand-orange" />
         操作信号趋势
       </h3>
 
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
-          <XAxis dataKey="time" stroke="#475569" tick={{ fill: '#475569', fontSize: 11 }} />
-          <YAxis stroke="#475569" tick={{ fill: '#475569', fontSize: 11 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#28282E" vertical={false} />
+          <XAxis dataKey="time" stroke="#5A5A64" tick={{ fill: '#5A5A64', fontSize: 11 }} />
+          <YAxis stroke="#5A5A64" tick={{ fill: '#5A5A64', fontSize: 11 }} />
 
           <Tooltip
-            contentStyle={{
-              backgroundColor: '#1A2332',
-              border: '1px solid #334155',
-              borderRadius: '10px',
-              fontSize: '12px',
-            }}
-            labelStyle={{ color: '#94A3B8' }}
+            contentStyle={chartTooltipStyle}
+            labelStyle={chartTooltipLabelStyle}
           />
 
           {currentTime && (
-            <ReferenceLine x={currentTime} stroke="#06B6D4" strokeDasharray="4 4" strokeWidth={1.5} />
+            <ReferenceLine x={currentTime} stroke="#64D2FF" strokeDasharray="4 4" strokeWidth={1.5} />
           )}
 
-          <Bar dataKey="买入" fill="#00E396" fillOpacity={0.8} radius={[4, 4, 0, 0]} animationDuration={800} />
-          <Bar dataKey="卖出" fill="#FF4560" fillOpacity={0.8} radius={[4, 4, 0, 0]} animationDuration={800} />
-          <Bar dataKey="持有" fill="#FBBF24" fillOpacity={0.8} radius={[4, 4, 0, 0]} animationDuration={800} />
-          <Bar dataKey="风险" fill="#F97316" fillOpacity={0.8} radius={[4, 4, 0, 0]} animationDuration={800} />
+          <Bar dataKey="买入" fill="#30D158" fillOpacity={0.8} radius={[4, 4, 0, 0]} animationDuration={800} />
+          <Bar dataKey="卖出" fill="#FF453A" fillOpacity={0.8} radius={[4, 4, 0, 0]} animationDuration={800} />
+          <Bar dataKey="持有" fill="#FFD60A" fillOpacity={0.8} radius={[4, 4, 0, 0]} animationDuration={800} />
+          <Bar dataKey="风险" fill="#FF9F0A" fillOpacity={0.8} radius={[4, 4, 0, 0]} animationDuration={800} />
         </BarChart>
       </ResponsiveContainer>
     </motion.div>
@@ -619,13 +610,13 @@ function TimelineController({
       initial={{ y: '100%' }}
       animate={{ y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.3 }}
-      className="fixed bottom-0 left-0 right-0 z-50 h-[72px] bg-[#111827]/90 backdrop-blur-xl border-t border-[#1E293B]"
+      className="fixed bottom-0 left-0 right-0 z-50 h-[72px] bg-surface-1/90 backdrop-blur-xl border-t border-hairline/10"
     >
       <div className="max-w-[1440px] mx-auto h-full px-4 flex items-center gap-3">
         {/* Skip to start */}
         <button
           onClick={() => onSetIndex(0)}
-          className="p-2 rounded-full text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#1A2332] transition-colors shrink-0"
+          className="p-2 rounded-full text-ink-secondary hover:text-ink-primary hover:bg-surface-2 transition-colors shrink-0"
           title="跳到开头"
         >
           <SkipBack size={20} />
@@ -635,7 +626,7 @@ function TimelineController({
         <motion.button
           onClick={onTogglePlay}
           whileTap={{ scale: 0.92 }}
-          className="w-10 h-10 rounded-full bg-[#3B82F6] flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0"
+          className="w-10 h-10 rounded-full bg-brand-blue flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0"
         >
           <AnimatePresence mode="wait">
             {isPlaying ? (
@@ -665,23 +656,23 @@ function TimelineController({
         {/* Skip to end */}
         <button
           onClick={() => onSetIndex(snapshots.length - 1)}
-          className="p-2 rounded-full text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#1A2332] transition-colors shrink-0"
+          className="p-2 rounded-full text-ink-secondary hover:text-ink-primary hover:bg-surface-2 transition-colors shrink-0"
           title="跳到结尾"
         >
           <SkipForward size={20} />
         </button>
 
         {/* Speed selector */}
-        <div className="hidden sm:flex items-center gap-0.5 bg-[#1A2332] rounded-full p-0.5 shrink-0">
-          <Gauge size={14} className="text-[#64748B] ml-2 mr-1" />
+        <div className="hidden sm:flex items-center gap-0.5 bg-surface-2 rounded-full p-0.5 shrink-0">
+          <Gauge size={14} className="text-ink-tertiary ml-2 mr-1" />
           {speeds.map((s) => (
             <button
               key={s}
               onClick={() => onSetSpeed(s)}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                 playSpeed === s
-                  ? 'bg-[#3B82F6] text-white'
-                  : 'text-[#64748B] hover:text-[#94A3B8]'
+                  ? 'bg-brand-blue text-white'
+                  : 'text-ink-tertiary hover:text-ink-secondary'
               }`}
             >
               {s}x
@@ -693,7 +684,7 @@ function TimelineController({
         <div className="flex-1 flex items-center gap-3 min-w-0">
           <div
             ref={sliderRef}
-            className="relative flex-1 h-1.5 rounded-full bg-[#1A2332] cursor-pointer"
+            className="relative flex-1 h-1.5 rounded-full bg-surface-2 cursor-pointer"
             onClick={handleSliderClick}
             onMouseDown={handleMouseDown}
           >
@@ -702,12 +693,12 @@ function TimelineController({
               className="absolute left-0 top-0 h-full rounded-full"
               style={{
                 width: `${progress}%`,
-                background: 'linear-gradient(90deg, #06B6D4, #3B82F6)',
+                background: 'linear-gradient(90deg, #64D2FF, #0A84FF)',
               }}
             />
             {/* Thumb */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#06B6D4] shadow-lg cursor-pointer"
+              className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-brand-cyan shadow-lg cursor-pointer"
               style={{
                 left: `calc(${progress}% - 8px)`,
                 boxShadow: isDragging
@@ -720,7 +711,7 @@ function TimelineController({
               snapshots.map((_, i) => (
                 <div
                   key={i}
-                  className="absolute top-1/2 -translate-y-1/2 w-0.5 h-2.5 bg-[#475569] rounded-full"
+                  className="absolute top-1/2 -translate-y-1/2 w-0.5 h-2.5 bg-hairline/30 rounded-full"
                   style={{ left: `${(i / (snapshots.length - 1)) * 100}%` }}
                 />
               ))}
@@ -729,14 +720,14 @@ function TimelineController({
 
         {/* Time display */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[#06B6D4] text-sm font-mono font-semibold tabular-nums">
+          <span className="text-brand-cyan text-sm font-mono font-semibold tabular-nums">
             {currentTime}
           </span>
         </div>
 
         {/* Date picker button */}
         <button
-          className="p-2 rounded-full text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#1A2332] transition-colors shrink-0"
+          className="p-2 rounded-full text-ink-secondary hover:text-ink-primary hover:bg-surface-2 transition-colors shrink-0"
           title="选择日期"
         >
           <Calendar size={18} />
@@ -826,7 +817,7 @@ export default function Replay() {
   if (!displaySnapshot) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-[#64748B]">暂无回放数据，请先选择日期</p>
+        <p className="text-ink-tertiary">暂无回放数据，请先选择日期</p>
       </div>
     );
   }
@@ -841,8 +832,8 @@ export default function Replay() {
     >
       {/* 全量数据加载提示 */}
       {!dayFullLoaded && snapshots.length <= 1 && (
-        <div className="flex items-center gap-2 text-xs text-[#64748B] px-4 pt-2">
-          <div className="w-4 h-4 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+        <div className="flex items-center gap-2 text-xs text-ink-tertiary px-4 pt-2">
+          <div className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full animate-spin" />
           正在加载完整时间序列数据…
         </div>
       )}

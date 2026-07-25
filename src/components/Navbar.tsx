@@ -53,40 +53,40 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className="sticky top-0 z-50 h-14 md:h-[56px] bg-[#111827] border-b border-[#1E293B]">
+    <nav className="sticky top-0 z-50 h-14 md:h-[56px] vibrancy hairline-b">
       <div className="h-full max-w-[1440px] mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-[8px] bg-gradient-to-br from-brand-blue to-brand-cyan flex items-center justify-center shadow-[0_0_16px_-4px_rgba(10,132,255,0.5)]">
             <TrendingUp className="w-4 h-4 text-white" strokeWidth={2.5} />
           </div>
-          <span className="text-[#F1F5F9] font-semibold text-base tracking-tight hidden sm:inline">
+          <span className="text-ink-primary font-semibold text-[15px] tracking-tight hidden sm:inline">
             HotAlpha
           </span>
         </Link>
 
-        {/* Desktop Nav Links */}
-        <div className="hidden md:flex items-center gap-1 relative">
+        {/* Desktop Nav Links — Apple segmented-style pill indicator */}
+        <div className="hidden md:flex items-center gap-0.5 relative">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 ${
+                className={`relative px-3 py-1.5 rounded-[8px] text-[13.5px] font-medium transition-colors duration-150 ${
                   isActive
-                    ? 'text-[#F1F5F9]'
-                    : 'text-[#64748B] hover:text-[#94A3B8] hover:bg-[#1A2332]'
+                    ? 'text-ink-primary'
+                    : 'text-ink-tertiary hover:text-ink-secondary'
                 }`}
               >
-                {item.label}
                 {isActive && (
                   <motion.div
                     layoutId="nav-indicator"
-                    className="absolute bottom-0 left-1.5 right-1.5 h-0.5 bg-[#3B82F6] rounded-full"
+                    className="absolute inset-0 rounded-[8px] bg-hover/[0.08]"
                     transition={springTransition}
                   />
                 )}
+                <span className="relative">{item.label}</span>
               </Link>
             );
           })}
@@ -95,32 +95,32 @@ export default function Navbar() {
         {/* Right side: status + time + mobile menu */}
         <div className="flex items-center gap-3">
           {/* Real-time status */}
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-full bg-hover/[0.04]">
             {replayMode === 'live' ? (
               <>
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E396] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#00E396]" />
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-green opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-green" />
                 </span>
-                <span className="text-[#00E396] text-xs font-medium">实时</span>
+                <span className="text-brand-green text-[11px] font-medium tracking-tight">实时</span>
               </>
             ) : (
               <>
-                <span className="h-2.5 w-2.5 rounded-full bg-[#FBBF24]" />
-                <span className="text-[#FBBF24] text-xs font-medium">回放</span>
+                <span className="h-2 w-2 rounded-full bg-brand-yellow" />
+                <span className="text-brand-yellow text-[11px] font-medium tracking-tight">回放</span>
               </>
             )}
           </div>
 
           {/* Current time */}
-          <span className="hidden lg:inline-block text-[#64748B] text-xs font-mono tabular-nums">
+          <span className="hidden lg:inline-block text-ink-tertiary text-[11px] font-num">
             {currentTime}
           </span>
 
           {/* Mobile menu button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-1.5 rounded-md text-[#94A3B8] hover:bg-[#1A2332] transition-colors"
+            className="md:hidden p-1.5 rounded-[8px] text-ink-secondary hover:bg-hover/[0.06] transition-colors"
           >
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -135,9 +135,9 @@ export default function Navbar() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden bg-[#111827] border-b border-[#1E293B] overflow-hidden"
+            className="md:hidden vibrancy hairline-b overflow-hidden"
           >
-            <div className="px-4 py-2 space-y-1">
+            <div className="px-4 py-2 space-y-0.5">
               {navItems.map((item) => {
                 const isActive = location.pathname === item.path;
                 const Icon = item.icon;
@@ -146,10 +146,10 @@ export default function Navbar() {
                     key={item.path}
                     to={item.path}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-[14px] font-medium transition-colors ${
                       isActive
-                        ? 'bg-[#1A2332] text-[#F1F5F9]'
-                        : 'text-[#64748B] hover:text-[#94A3B8] hover:bg-[#1A2332]'
+                        ? 'bg-hover/[0.06] text-ink-primary'
+                        : 'text-ink-tertiary hover:text-ink-secondary hover:bg-hover/[0.04]'
                     }`}
                   >
                     <Icon size={18} />

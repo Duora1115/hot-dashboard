@@ -8,6 +8,30 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // Set theme before React renders — prevents FOUC.
+      // Light 07:00–18:59 Beijing (Asia/Shanghai, no DST), dark otherwise.
+      (function () {
+        try {
+          var h = parseInt(
+            new Intl.DateTimeFormat('en-US', {
+              timeZone: 'Asia/Shanghai',
+              hour: 'numeric',
+              hour12: false,
+            }).format(new Date()),
+            10
+          );
+          var theme = h >= 7 && h < 19 ? 'light' : 'dark';
+          document.documentElement.classList.add(theme);
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {
+          // Fallback: honor OS preference.
+          var prefersLight =
+            window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+          document.documentElement.classList.add(prefersLight ? 'light' : 'dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
