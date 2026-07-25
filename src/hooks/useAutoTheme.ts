@@ -1,18 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 /**
- * Auto-switch theme based on Beijing time.
- * Light 07:00–18:59, dark otherwise.
+ * Theme manager with three modes:
+ *   - 'auto':  Light 07:00–18:59 Beijing time, dark otherwise.
+ *   - 'light': Force light mode.
+ *   - 'dark':  Force dark mode.
  *
+ * The mode is persisted to localStorage so it survives reloads.
  * The initial class is applied by an inline script in index.html to prevent
  * FOUC — this hook keeps it in sync while the tab is open.
- *
- * Re-checks on:
- *   - a 1-minute interval (cheap; only reads Date)
- *   - visibility change (catches tabs left open across the boundary)
  */
 
 export type Theme = 'light' | 'dark';
+export type ThemeMode = 'auto' | 'light' | 'dark';
+
+const STORAGE_KEY = 'theme-mode';
 
 function computeBeijingTheme(): Theme {
   try {
@@ -30,6 +32,11 @@ function computeBeijingTheme(): Theme {
   }
 }
 
+function resolveTheme(mode: ThemeMode): Theme {
+  if (mode === 'auto') return computeBeijingTheme();
+  return mode;
+}
+
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
   root.classList.toggle('light', theme === 'light');
@@ -37,32 +44,63 @@ function applyTheme(theme: Theme) {
   root.dataset.theme = theme;
 }
 
-export function useAutoTheme(): Theme {
-  const [theme, setTheme] = useState<Theme>(() => computeBeijingTheme());
+function loadMode(): ThemeMode {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === 'light' || saved === 'dark' || saved === 'auto') return saved;
+  } catch {}
+  return 'auto';
+}
+
+function saveMode(mode: ThemeMode) {
+  try {
+    localStorage.setItem(STORAGE_KEY, mode);
+  } catch {}
+}
+
+export function useAutoTheme(): { theme: Theme; mode: ThemeMode; setMode: (m: ThemeMode) => void; toggle: () => void } {
+  const [mode, setModeState] = useState<ThemeMode>(loadMode);
+  const [theme, setTheme] = useState<Theme>(() => resolveTheme(loadMode()));
+
+  const setMode = useCallback((m: ThemeMode) => {
+    setModeState(m);
+    saveMode(m);
+    const next = resolveTheme(m);
+    setTheme(next);
+  }, []);
+
+  const toggle = useCallback(() => {
+    setModeState((prev) => {
+      // Toggle between light and dark, ignoring auto mode
+      const next: Theme = prev === 'dark' ? 'light' : 'dark';
+      saveMode(next);
+      setTheme(next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
-    // Sync — inline script may have already applied, but keep state in agreement.
     applyTheme(theme);
   }, [theme]);
 
+  // Re-evaluate when in auto mode
   useEffect(() => {
+    if (mode !== 'auto') return;
     const tick = () => {
       const next = computeBeijingTheme();
       setTheme((prev) => (prev === next ? prev : next));
     };
-
     tick();
     const interval = window.setInterval(tick, 60_000);
     const onVisibility = () => {
       if (document.visibilityState === 'visible') tick();
     };
     document.addEventListener('visibilitychange', onVisibility);
-
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []);
+  }, [mode]);
 
-  return theme;
+  return { theme, mode, setMode, toggle };
 }

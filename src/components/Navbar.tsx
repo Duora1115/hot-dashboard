@@ -11,8 +11,11 @@ import {
   Menu,
   X,
   TrendingUp,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import type { Theme } from '@/hooks/useAutoTheme';
 
 const navItems = [
   { path: '/', label: '仪表盘', icon: LayoutDashboard },
@@ -29,7 +32,7 @@ const springTransition = {
   damping: 30,
 };
 
-export default function Navbar() {
+export default function Navbar({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
   const location = useLocation();
   const isMobileMenuOpen = useStore((s) => s.isMobileMenuOpen);
   const setIsMobileMenuOpen = useStore((s) => s.setIsMobileMenuOpen);
@@ -116,6 +119,17 @@ export default function Navbar() {
           <span className="hidden lg:inline-block text-ink-tertiary text-[11px] font-num">
             {currentTime}
           </span>
+
+          {/* Theme toggle */}
+          <button
+            onClick={onToggleTheme}
+            className="p-1.5 rounded-[8px] text-ink-secondary hover:bg-hover/[0.06] transition-colors"
+            title={theme === 'dark' ? '切换浅色模式' : '切换深色模式'}
+          >
+            <motion.div initial={false} animate={{ rotate: theme === 'dark' ? 0 : 180 }} transition={{ duration: 0.3 }}>
+              {theme === 'dark' ? <Sun size={18} className="text-brand-yellow" /> : <Moon size={18} className="text-brand-blue" />}
+            </motion.div>
+          </button>
 
           {/* Mobile menu button */}
           <button

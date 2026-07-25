@@ -12,11 +12,11 @@ const pageTransition = {
 };
 
 export default function Layout() {
-  useAutoTheme();
+  const { theme, toggle } = useAutoTheme();
   const { pathname } = useLocation();
   return (
     <div className="noise-overlay min-h-[100dvh] flex flex-col bg-background text-foreground">
-      <Navbar />
+      <Navbar theme={theme} onToggleTheme={toggle} />
       <main className="flex-1 px-4 py-4 md:px-6 md:py-6 max-w-[1440px] mx-auto w-full">
         <motion.div
           key={pathname}
