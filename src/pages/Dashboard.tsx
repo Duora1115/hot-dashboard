@@ -13,6 +13,7 @@ import {
   ChevronDown,
   RefreshCw,
   Flame,
+  Loader2,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import type { Snapshot, StockItem, SectorItem } from '@/types/api';
@@ -810,7 +811,7 @@ export default function Dashboard() {
       return (
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
-            <img src="/loading-spinner.svg" alt="Loading" className="w-12 h-12 mx-auto mb-4 animate-spin" />
+            <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin text-[#3B82F6]" />
             <p className="text-[#64748B]">加载中...</p>
           </div>
         </div>
