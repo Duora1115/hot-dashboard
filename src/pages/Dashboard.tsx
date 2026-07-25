@@ -323,7 +323,7 @@ function StockCard({
         whileHover={{ y: -3, borderColor: '#5A5A64', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
         whileTap={{ scale: 0.98 }}
         onClick={() => navigate(`/stock/${stock.c}`)}
-        className="col-span-1 xl:col-span-2 bg-gradient-to-b from-[rgba(30,41,59,0.8)] to-[rgba(15,23,42,0.95)] border border-hairline/10 rounded-[14px] p-5 cursor-pointer transition-colors duration-200 shadow-card"
+        className="col-span-1 xl:col-span-2 card-gradient border border-hairline/10 rounded-[14px] p-5 cursor-pointer transition-colors duration-200 shadow-card"
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -395,7 +395,7 @@ function StockCard({
       whileHover={{ y: -3, borderColor: '#5A5A64', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
       whileTap={{ scale: 0.98 }}
       onClick={() => navigate(`/stock/${stock.c}`)}
-      className="bg-gradient-to-b from-[rgba(30,41,59,0.8)] to-[rgba(15,23,42,0.95)] border border-hairline/10 rounded-[14px] p-4 cursor-pointer transition-colors duration-200 shadow-card"
+      className="card-gradient border border-hairline/10 rounded-[14px] p-4 cursor-pointer transition-colors duration-200 shadow-card"
     >
       {/* Header row */}
       <div className="flex items-center justify-between mb-3">
@@ -484,7 +484,7 @@ function SectorCard({ sector, rank }: { sector: SectorItem; rank: number }) {
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.4, delay: rank * 0.07 }}
       whileHover={{ y: -3, borderColor: '#5A5A64', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
-      className="bg-gradient-to-b from-[rgba(30,41,59,0.8)] to-[rgba(15,23,42,0.95)] border border-hairline/10 rounded-[14px] p-4 cursor-pointer transition-colors duration-200 shadow-card"
+      className="card-gradient border border-hairline/10 rounded-[14px] p-4 cursor-pointer transition-colors duration-200 shadow-card"
     >
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
