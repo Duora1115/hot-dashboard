@@ -256,6 +256,19 @@ def api_day_snapshots(date_str: str, request: Request, start: int = 0, count: in
     })
 
 
+def _deduplicate_messages(messages: list) -> list:
+    """对消息列表按内容去重，保留首次出现的消息"""
+    seen = set()
+    unique = []
+    for msg in messages:
+        # 使用时间和内容的组合作为唯一标识
+        key = (msg.get("time", ""), msg.get("text", ""))
+        if key not in seen:
+            seen.add(key)
+            unique.append(msg)
+    return unique
+
+
 @app.get("/api/stock-messages/{date_str}")
 def api_stock_messages(date_str: str, request: Request, code: str, time: str = ""):
     """按需获取指定股票的消息原文（用索引定位，不扫描全部快照）。"""
@@ -285,9 +298,11 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
             if t["code"] == code:
                 result = []
                 for g in t.get("group_details", []):
+                    # 对每个群的消息进行去重
+                    deduped = _deduplicate_messages(g["messages"])
                     result.append({
                         "group": g["group"],
-                        "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
+                        "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in deduped]
                     })
                 return JSONResponse(result, headers={
                     "ETag": _etag_for(date_str),
@@ -314,9 +329,11 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
         for t in snap.get("top10_stocks", []):
             if t["code"] == code:
                 for g in t.get("group_details", []):
+                    # 对每个群的消息进行去重
+                    deduped = _deduplicate_messages(g["messages"])
                     result.append({
                         "group": g["group"],
-                        "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
+                        "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in deduped]
                     })
                 return JSONResponse(result, headers={
                     "ETag": _etag_for(date_str),
@@ -331,9 +348,11 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
             for t in snap.get("top10_stocks", []):
                 if t["code"] == code:
                     for g in t.get("group_details", []):
+                        # 对每个群的消息进行去重
+                        deduped = _deduplicate_messages(g["messages"])
                         result.append({
                             "group": g["group"],
-                            "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in g["messages"]]
+                            "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in deduped]
                         })
                     return JSONResponse(result, headers={
                         "ETag": _etag_for(date_str),
