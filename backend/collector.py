@@ -170,6 +170,7 @@ def fetch_messages_incremental(chat_id, data_dir, max_pages=3):
         existing_ids = set(grp_cache.keys())
 
     msgs = []
+    seen_ids = set()  # 追踪本次返回的消息ID，避免重复
     new_msgs = {}
     cmd_base = [
         "lark-cli", "im", "+chat-messages-list",
@@ -193,7 +194,10 @@ def fetch_messages_incremental(chat_id, data_dir, max_pages=3):
                 mid = m.get("message_id") or m.get("msg_id")
                 if mid and mid not in existing_ids:
                     new_msgs[mid] = m
-                msgs.append(m)
+                # 只添加未见过且不在缓存中的消息
+                if mid and mid not in existing_ids and mid not in seen_ids:
+                    msgs.append(m)
+                    seen_ids.add(mid)
             pt = d.get("data", {}).get("page_token")
             if not d.get("data", {}).get("has_more") or not pt:
                 break
