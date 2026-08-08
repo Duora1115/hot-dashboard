@@ -4,6 +4,7 @@ server:
   port: 8765
   data_dir: "data"
   replay_dir: "data"
+  api_key: ""   # 写接口鉴权密钥；留空则不启用（生产环境务必设置，可用环境变量 HOT_API_KEY 覆盖）
 
 # 缓存和数据保留策略
 cache:

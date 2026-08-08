@@ -69,6 +69,37 @@ app.add_middleware(
 # 低配远端机器上比默认的 9 快 3-4×，压缩率只差约 2-3%.
 app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
 
+# ---- 写接口鉴权 ----
+# 所有会修改数据的 POST 端点都需要 X-API-Key。读接口保持公开。
+_PROTECTED_WRITE_PREFIXES = (
+    "/api/collect",
+    "/api/replay/",
+    "/api/upload",
+    "/api/daily-report/",
+)
+
+
+def _get_api_key() -> str:
+    """读取写接口鉴权 key；优先级：环境变量 HOT_API_KEY > 配置 server.api_key。
+    返回空串表示未配置，此时不启用鉴权（保持向后兼容）。"""
+    return (
+        os.getenv("HOT_API_KEY", "").strip()
+        or str(cfg.get("server", {}).get("api_key", "")).strip()
+    )
+
+
+@app.middleware("http")
+async def require_api_key(request: Request, call_next):
+    if request.method == "POST":
+        path = request.url.path
+        if path.startswith(_PROTECTED_WRITE_PREFIXES):
+            expected = _get_api_key()
+            if expected:
+                provided = request.headers.get("x-api-key", "")
+                if provided != expected:
+                    return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    return await call_next(request)
+
 cache_cfg = cfg.get("cache", {})
 store = DataStore(
     data_dir,

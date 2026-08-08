@@ -9,6 +9,8 @@ All helpers return the same types as stdlib json to keep call sites simple.
 from __future__ import annotations
 
 import json as _stdjson
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -69,12 +71,28 @@ def dumps(obj: Any, *, indent: bool = False) -> bytes:
 
 
 def dump_path(obj: Any, path: str | Path, *, indent: bool = False) -> None:
-    """Write JSON to disk atomically-ish."""
+    """Write JSON to disk atomically.
+
+    Writes to a temp file in the same directory, fsyncs, then os.replace()s it
+    over the target. Readers never observe a half-written JSON file.
+    """
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     payload = dumps(obj, indent=indent)
-    with open(p, "wb") as f:
-        f.write(payload)
+
+    fd, tmp = tempfile.mkstemp(dir=str(p.parent), prefix=p.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, p)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 HAS_ORJSON = _HAS_ORJSON

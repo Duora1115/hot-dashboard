@@ -695,9 +695,15 @@ def push_to_cloud(cfg, date_str, data_dir=None):
     push_mode = cloud_cfg.get("push_mode", "both")
     import urllib.request, urllib.error
 
+    # 写接口鉴权 key（若有配置），与 server.py 的 _get_api_key 逻辑保持一致
+    api_key = os.getenv("HOT_API_KEY", "").strip() or str(cfg.get("server", {}).get("api_key", "")).strip()
+
     def _push(url, payload, label):
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["X-API-Key"] = api_key
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
         try:
             resp = urllib.request.urlopen(req, timeout=timeout)
             print(f"  ☁️ {label} → 成功 ({resp.status}, {len(data)//1024}KB)", flush=True)
