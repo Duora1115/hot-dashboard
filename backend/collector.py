@@ -162,15 +162,19 @@ def save_cache(data_dir, cache):
 
 # ---- 增量抓取 ----
 def fetch_messages_incremental(chat_id, data_dir, max_pages=3):
-    """增量抓取：加载缓存 → 抓新消息 → 合并 → 保存缓存（线程安全）"""
+    """增量抓取：加载缓存 → 抓新消息 → 合并 → 保存缓存（线程安全）
+
+    返回该群"今天"的全部消息（已缓存的 + 本次新增的），按 message_id 去重。
+    注意返回全量而非仅新增：collect_live 依赖它构建累计快照（统计截止当前
+    的全部消息）。若只返回新增，每个快照会退化为增量、早前提到的股票会从
+    最新快照中消失。
+    """
     # 1. 加锁读取缓存
     with _cache_lock:
         cache = load_cache(data_dir)
         grp_cache = cache.get(chat_id, {})
         existing_ids = set(grp_cache.keys())
 
-    msgs = []
-    seen_ids = set()  # 追踪本次返回的消息ID，避免重复
     new_msgs = {}
     cmd_base = [
         "lark-cli", "im", "+chat-messages-list",
@@ -194,10 +198,6 @@ def fetch_messages_incremental(chat_id, data_dir, max_pages=3):
                 mid = m.get("message_id") or m.get("msg_id")
                 if mid and mid not in existing_ids:
                     new_msgs[mid] = m
-                # 只添加未见过且不在缓存中的消息
-                if mid and mid not in existing_ids and mid not in seen_ids:
-                    msgs.append(m)
-                    seen_ids.add(mid)
             pt = d.get("data", {}).get("page_token")
             if not d.get("data", {}).get("has_more") or not pt:
                 break
@@ -213,10 +213,11 @@ def fetch_messages_incremental(chat_id, data_dir, max_pages=3):
             cache[chat_id] = {}
         cache[chat_id].update(new_msgs)
         save_cache(data_dir, cache)
+        merged = cache[chat_id]
 
-    # 只返回今日消息
+    # 3. 返回该群今天的全部消息（缓存 + 新增），按 message_id 天然去重
     today = datetime.now(CST).strftime("%Y-%m-%d")
-    return [m for m in msgs if m.get("create_time", "").startswith(today)]
+    return [m for m in merged.values() if m.get("create_time", "").startswith(today)]
 
 # ---- 配置加载 ----
 def load_config(config_path=None):

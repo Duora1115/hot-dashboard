@@ -63,12 +63,11 @@ def test_fetch_messages_incremental_no_duplicates():
 
 
 def test_fetch_messages_incremental_cache_dedup():
-    """测试已缓存的消息不会重复返回"""
+    """测试已缓存的消息会随返回（累计语义），但不会重复出现"""
     with tempfile.TemporaryDirectory() as tmpdir:
         data_dir = Path(tmpdir)
 
         # 先写入缓存，模拟之前已经抓取过msg_a
-        cache_file = data_dir / "msg_cache.json"
         cache_data = {
             "test_chat": {
                 "msg_a": {"message_id": "msg_a", "create_time": f"{_TODAY} 10:00", "content": "消息A"}
@@ -97,13 +96,10 @@ def test_fetch_messages_incremental_cache_dedup():
         with patch("subprocess.run", side_effect=mock_run):
             msgs = collector.fetch_messages_incremental("test_chat", data_dir, max_pages=3)
 
-        # 验证：msg_a已经在缓存中，不应该再次返回
+        # 验证：返回今天全部消息（msg_a + msg_b），且不重复
         msg_ids = [m.get("message_id") for m in msgs]
-        assert "msg_a" not in msg_ids, "已缓存的消息不应该再次返回"
-
-        # 验证：只返回新消息msg_b
-        assert len(msgs) == 1, f"期望1条新消息，实际返回{len(msgs)}条"
-        assert msgs[0]["message_id"] == "msg_b"
+        assert set(msg_ids) == {"msg_a", "msg_b"}, f"应返回全部今日消息，实际: {msg_ids}"
+        assert len(msg_ids) == len(set(msg_ids)), f"返回的消息有重复: {msg_ids}"
 
 
 def test_analyze_text_deduplicates_codes():

@@ -172,16 +172,15 @@ def test_real_world_scenario():
             msgs1 = collector.fetch_messages_incremental("test_chat", data_dir, max_pages=3)
             ids1 = [m.get("message_id") for m in msgs1]
 
-            # 第二次抓取（应该只返回新消息C）
+            # 第二次抓取（返回累计：已缓存的 + 新消息C）
             msgs2 = collector.fetch_messages_incremental("test_chat", data_dir, max_pages=3)
             ids2 = [m.get("message_id") for m in msgs2]
 
         # 验证：第一次返回A、B
         assert set(ids1) == {"msg_a", "msg_b"}, f"第一次抓取异常: {ids1}"
 
-        # 验证：第二次只返回C（B已在缓存中）
-        assert set(ids2) == {"msg_c"}, f"第二次抓取应该只返回新消息，实际: {ids2}"
+        # 验证：第二次返回累计全部（A、B、C），且不重复
+        assert set(ids2) == {"msg_a", "msg_b", "msg_c"}, f"第二次应返回累计消息，实际: {ids2}"
 
-        # 验证：两次抓取的消息合并后不应该有重复
-        all_ids = ids1 + ids2
-        assert len(all_ids) == len(set(all_ids)), f"累积抓取产生重复: {all_ids}"
+        # 验证：累计返回本身不应有重复（第二次覆盖第一次的所有消息 + 新增）
+        assert len(ids2) == len(set(ids2)), f"累计返回产生重复: {ids2}"
