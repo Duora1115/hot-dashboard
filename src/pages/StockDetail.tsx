@@ -558,7 +558,7 @@ function GroupMessages({ groups }: { groups: Array<{ g: string; c: number; m: Ar
                           <span className="text-[11px] font-mono text-ink-tertiary shrink-0 w-10 pt-0.5">
                             {msg.t}
                           </span>
-                          <p className="text-sm text-ink-primary leading-relaxed whitespace-pre-wrap break-words">
+                          <p className="flex-1 min-w-0 text-sm text-ink-primary leading-relaxed whitespace-pre-wrap break-words">
                             {msg.x}
                           </p>
                         </motion.div>
