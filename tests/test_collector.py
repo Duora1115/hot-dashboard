@@ -159,3 +159,39 @@ def test_compute_snapshot_counts_unique_messages_per_stock():
     # group_details 中的消息数应为1
     total_msgs = sum(len(gd["messages"]) for gd in target["group_details"])
     assert total_msgs == 1, f"消息详情应只有1条，实际{total_msgs}条"
+
+
+def test_compute_snapshot_dedups_duplicate_messages():
+    """同一群中重复返回的同一条消息（相同内容+时间、不同 message_id）只计一次"""
+    cfg = {
+        "sectors": {},
+        "sentiments": {"看多": ["买点"]},
+        "actions": {}
+    }
+    text = (
+        "[广和通](https://wap.eastmoney.com/quote/stock/0.300638.html)出现突破买点结构，看好"
+    )
+    base = {
+        "create_time": "2026-08-08 10:47",
+        "content": text,
+        "_analysis": collector.analyze_text(text, cfg),
+    }
+    # 飞书分页把同一条消息返回了 3 次（带不同 message_id），内容与时间完全相同
+    all_analyzed = {
+        "test_group": [
+            {**base, "message_id": "m_1"},
+            {**base, "message_id": "m_2"},
+            {**base, "message_id": "m_3"},
+        ]
+    }
+    snapshot = collector.compute_snapshot(all_analyzed, "2026-08-08 10:47", cfg)
+
+    target = next((s for s in snapshot["top10_stocks"] if s["code"] == "300638"), None)
+    assert target is not None, "快照中应包含广和通"
+    assert target["mention_count"] == 1, (
+        f"重复消息应只计一次，实际 {target['mention_count']}"
+    )
+    assert target["bull"] == 1, f"看多应只计 1，实际 {target['bull']}"
+    assert snapshot["total_messages"] == 1, (
+        f"总消息数应为 1，实际 {snapshot['total_messages']}"
+    )

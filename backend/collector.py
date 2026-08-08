@@ -309,10 +309,18 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
     active_groups = set()
 
     for grp_name, msgs in all_analyzed.items():
+        seen = set()
         for m in msgs:
             ct = m.get("create_time", "")
             if not ct or ct > cutoff:
                 continue
+            # 同一群内按 (时间, 内容) 去重：飞书分页可能重复返回同一条消息（带不同 message_id），
+            # 若不去重，同一条消息会被重复计数（提及数/看多/消息总数虚高）。
+            # 与 API 端 _deduplicate_messages 的 (time, text) 规则保持一致。
+            dup_key = (ct, m.get("content", ""))
+            if dup_key in seen:
+                continue
+            seen.add(dup_key)
             analysis = m.get("_analysis", {})
             msg_count += 1
             active_groups.add(grp_name)
