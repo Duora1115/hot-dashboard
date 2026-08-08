@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Snapshot, DateInfo, ApiStatus, DayData } from '@/types/api';
-import { fetchStatus, fetchDates, fetchLatest, fetchDay, fetchDayFull } from '@/lib/api';
+import { fetchStatus, fetchDates, fetchLatest, fetchDayFull } from '@/lib/api';
+import { aggregateSnapshots } from '@/lib/aggregate';
 
 interface AppState {
   // Global data
@@ -124,16 +125,19 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  // Load a specific date's day data (light: meta + last snapshot only)
+  // Load a specific date's day data. 拉取全量快照用于"日视图"聚合：
+  // 仪表盘显示的是聚合后的全天数据（历史 + 最新快照），而非仅最后一条快照。
   loadDate: async (date: string) => {
     set({ loading: true, error: null, currentDate: date, dayFullLoaded: false });
     try {
-      const dayData = await fetchDay(date);
+      const dayData = await fetchDayFull(date);
       const lastSnapshot = dayData.snapshots[dayData.snapshots.length - 1] ?? null;
       const { latestSnapshot } = get();
+      const aggregated = aggregateSnapshots(dayData.snapshots);
       set({
         currentDayData: dayData,
-        currentSnapshot: lastSnapshot ?? latestSnapshot,
+        dayFullLoaded: true,
+        currentSnapshot: aggregated ?? lastSnapshot ?? latestSnapshot,
         replayIndex: dayData.snapshots.length - 1,
         loading: false,
       });
@@ -170,14 +174,30 @@ export const useStore = create<AppState>((set, get) => ({
         fetchStatus().catch(() => get().apiStatus),
         fetchLatest().catch(() => get().latestSnapshot),
       ]);
-      set({
-        apiStatus: status,
-        latestSnapshot: latest,
-      });
-      // In live mode, also update current snapshot
-      if (get().replayMode === 'live') {
-        set({ currentSnapshot: latest });
+      set({ apiStatus: status, latestSnapshot: latest });
+      if (get().replayMode !== 'live') return;
+
+      const dayData = get().currentDayData;
+      if (!dayData || !latest) {
+        if (latest) set({ currentSnapshot: latest });
+        return;
       }
+
+      const snaps = [...dayData.snapshots];
+      const last = snaps[snaps.length - 1];
+      // 没有新快照：仅重新聚合（防止 last 是空快照时把展示拉空）
+      if (last && latest.t <= last.t) {
+        set({ currentSnapshot: aggregateSnapshots(snaps) ?? last });
+        return;
+      }
+      // 有新快照：替换/追加到日快照末尾，再聚合出全天视图
+      if (last) snaps[snaps.length - 1] = latest;
+      else snaps.push(latest);
+      const aggregated = aggregateSnapshots(snaps);
+      set({
+        currentDayData: { ...dayData, snapshots: snaps },
+        currentSnapshot: aggregated ?? latest,
+      });
     } catch (err) {
       console.error('Failed to refresh:', err);
     }
