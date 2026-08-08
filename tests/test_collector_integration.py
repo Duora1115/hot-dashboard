@@ -1,9 +1,13 @@
 """集成测试：验证整个消息处理流程不会产生重复"""
 import json
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from backend import collector
+
+# 用动态日期，避免 fetch_messages_incremental 的时间过滤导致测试失效
+_TODAY = datetime.now().strftime("%Y-%m-%d")
 
 
 def test_end_to_end_no_duplicate_messages():
@@ -20,13 +24,13 @@ def test_end_to_end_no_duplicate_messages():
                     "messages": [
                         {
                             "message_id": "msg_dup_1",
-                            "create_time": "2026-07-26 11:37",
+                            "create_time": f"{_TODAY} 11:37",
                             "content": "【DW电子】国产算力周思考\n\n本周超节点经历大热...",
                             "msg_type": "text"
                         },
                         {
                             "message_id": "msg_other",
-                            "create_time": "2026-07-26 11:30",
+                            "create_time": f"{_TODAY} 11:30",
                             "content": "其他消息",
                             "msg_type": "text"
                         }
@@ -41,13 +45,13 @@ def test_end_to_end_no_duplicate_messages():
                     "messages": [
                         {
                             "message_id": "msg_dup_1",  # 重复！
-                            "create_time": "2026-07-26 11:37",
+                            "create_time": f"{_TODAY} 11:37",
                             "content": "【DW电子】国产算力周思考\n\n本周超节点经历大热...",
                             "msg_type": "text"
                         },
                         {
                             "message_id": "msg_dup_2",  # 又一条重复
-                            "create_time": "2026-07-26 11:37",
+                            "create_time": f"{_TODAY} 11:37",
                             "content": "【DW电子】国产算力周思考\n\n本周超节点经历大热...",
                             "msg_type": "text"
                         }
@@ -90,7 +94,7 @@ def test_end_to_end_no_duplicate_messages():
 
             # Step 3: 构建快照
             all_analyzed = {"test_group": msgs}
-            snapshot = collector.compute_snapshot(all_analyzed, "2026-07-26 11:37", cfg)
+            snapshot = collector.compute_snapshot(all_analyzed, f"{_TODAY} 11:37", cfg)
 
             # 验证2：快照中的消息不应该有重复
             for stock in snapshot.get("top10_stocks", []):
@@ -131,8 +135,8 @@ def test_real_world_scenario():
         first_call_response = {
             "data": {
                 "messages": [
-                    {"message_id": "msg_a", "create_time": "2026-07-26 10:00", "content": "消息A"},
-                    {"message_id": "msg_b", "create_time": "2026-07-26 10:01", "content": "消息B"},
+                    {"message_id": "msg_a", "create_time": f"{_TODAY} 10:00", "content": "消息A"},
+                    {"message_id": "msg_b", "create_time": f"{_TODAY} 10:01", "content": "消息B"},
                 ],
                 "has_more": False,
                 "page_token": None
@@ -143,8 +147,8 @@ def test_real_world_scenario():
         second_call_response = {
             "data": {
                 "messages": [
-                    {"message_id": "msg_b", "create_time": "2026-07-26 10:01", "content": "消息B"},
-                    {"message_id": "msg_c", "create_time": "2026-07-26 10:02", "content": "消息C"},
+                    {"message_id": "msg_b", "create_time": f"{_TODAY} 10:01", "content": "消息B"},
+                    {"message_id": "msg_c", "create_time": f"{_TODAY} 10:02", "content": "消息C"},
                 ],
                 "has_more": False,
                 "page_token": None

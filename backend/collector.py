@@ -268,8 +268,8 @@ def analyze_text(text, cfg):
         "sectors": [], "sentiments": {}, "actions": []
     }
 
-    # 股票代码
-    result["codes"] = re.findall(r'\b([36890]\d{5})\b', text)
+    # 股票代码（同一消息中重复提及同一股票只计一次，保持顺序）
+    result["codes"] = list(dict.fromkeys(re.findall(r'\b([36890]\d{5})\b', text)))
 
     # 股票名称
     names = re.findall(r'\[([^\]]+)\]\(https://wap\.eastmoney\.com/quote/stock/', text)
