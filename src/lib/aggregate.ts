@@ -9,7 +9,7 @@ function mergeStocks(snapshots: Snapshot[]): StockItem[] {
     for (const stk of snap.stk ?? []) {
       const cur = map.get(stk.c);
       if (!cur) {
-        map.set(stk.c, { ...stk, sec: [...(stk.sec ?? [])] });
+        map.set(stk.c, { ...stk, sec: [...(stk.sec ?? [])], ms: [...(stk.ms ?? [])] });
         continue;
       }
       cur.sc = Math.max(cur.sc, stk.sc);
@@ -21,6 +21,7 @@ function mergeStocks(snapshots: Snapshot[]): StockItem[] {
       if (stk.ft && (!cur.ft || stk.ft < cur.ft)) cur.ft = stk.ft;
       if (stk.lt && stk.lt > cur.lt) cur.lt = stk.lt;
       cur.sec = Array.from(new Set([...(cur.sec ?? []), ...(stk.sec ?? [])]));
+      cur.ms = Array.from(new Set([...(cur.ms ?? []), ...(stk.ms ?? [])]));
     }
   }
   return Array.from(map.values())

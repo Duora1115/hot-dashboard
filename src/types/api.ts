@@ -19,7 +19,8 @@ export interface StockItem {
   be: number; // 看空计数
   ft: string; // 首次提及时间
   lt: string; // 最后提及时间
-  sec: string[]; // 关联板块
+  sec: string[]; // 所属板块（按股票就近归因）
+  ms?: string[]; // 消息关联板块（该消息整体涉及的题材，消息级并集）
 }
 
 export interface GroupDetail {
