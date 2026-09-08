@@ -1007,4 +1007,16 @@ git commit -m "docs: 记录归因修复的回归与重算校验结果"
 
 ## 执行记录
 
-（执行时填写 Step 3/4 的日期范围与结论）
+（执行：2026-09-09，worktree `attribution-fix`）
+
+- **Step 1 后端全量测试**：`python3 -m pytest tests/ -v` → **74 passed**（2 个 FastAPI `on_event` 弃用告警，既有、与本改无关）。本环境无 `python` 二进制，改用 `python3`。
+- **Step 2 前端构建**：`npm run build`（`tsc -b && vite build`）→ 成功，无 TS 错误；重建后 `git status` 干净，dist 产物确定（与 Task 7 提交一致，无额外 churn）。
+- **Step 3 本地重算 dry-run**：`python3 scripts/recompute.py --all --dry-run` → 退出 0，覆盖 **31 天：2026-06-03 … 2026-07-08**，逐日打印"消息N 快照M 股票K"，无异常。与设计 3.5 所述本地缓存范围（6/03–7/08、5 个群）一致。
+- **Step 4 远端缓存前置校验**：**未能执行**——本环境无 47.253.54.6 的可用 SSH 凭据（`root`/`ubuntu`/`admin` 均 `Permission denied (publickey)`，且无 `~/.ssh/config` 别名）。需运维/用户侧执行：
+
+  ```bash
+  ssh <remote> 'python3 -c "import json;d=json.load(open(\"data/msg_cache.json\"));print({k:len(v) for k,v in d.items()})"'
+  ```
+
+  **判断**：若远端缓存覆盖目标日期且消息数明显多于本地这份（本地仅 6/03–7/08、5 群），则可对目标日期重算；否则**只前向生效**，不重算历史。此决策待远端结果确定，不影响本次代码分支——前向生效始终安全。
+- **Step 5**：本条记录即结论，随本提交落库。
