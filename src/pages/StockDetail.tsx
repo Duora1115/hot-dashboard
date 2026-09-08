@@ -386,7 +386,7 @@ function BullBearAnalysis({ stock }: { stock: StockItem }) {
 /*  Related Sectors                                                    */
 /* ------------------------------------------------------------------ */
 
-function RelatedSectors({ sectors }: { sectors: string[] }) {
+function RelatedSectors({ sectors, mentionSectors }: { sectors: string[]; mentionSectors: string[] }) {
   const currentSnapshot = useStore((s) => s.currentSnapshot);
   const sectorData = useMemo(() => {
     const allSectors = currentSnapshot?.sec ?? [];
@@ -411,7 +411,7 @@ function RelatedSectors({ sectors }: { sectors: string[] }) {
     >
       <h3 className="text-ink-primary font-semibold text-base mb-4 flex items-center gap-2">
         <Layers size={18} className="text-brand-purple" />
-        关联板块
+        所属板块
       </h3>
 
       <div className="space-y-3">
@@ -452,6 +452,21 @@ function RelatedSectors({ sectors }: { sectors: string[] }) {
             </div>
           </motion.div>
         ))}
+        {mentionSectors.length > 0 && (
+          <div className="pt-3 mt-1 border-t border-hairline/10">
+            <p className="text-xs text-ink-tertiary mb-2">消息关联板块（该消息整体涉及的题材）</p>
+            <div className="flex flex-wrap gap-2">
+              {mentionSectors.map((s) => (
+                <span
+                  key={s}
+                  className="px-2.5 py-1 rounded-md bg-surface-2 text-ink-secondary text-xs font-medium border border-hairline/10"
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -807,7 +822,7 @@ export default function StockDetail() {
       {/* Bull/Bear + Related Sectors */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BullBearAnalysis stock={stock} />
-        <RelatedSectors sectors={stock.sec} />
+        <RelatedSectors sectors={stock.sec} mentionSectors={stock.ms ?? []} />
       </div>
 
       {/* Group Messages */}
