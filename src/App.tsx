@@ -13,6 +13,7 @@ const Sectors = lazy(() => import('@/pages/Sectors'));
 const Sentiment = lazy(() => import('@/pages/Sentiment'));
 const Report = lazy(() => import('@/pages/Report'));
 const Compare = lazy(() => import('@/pages/Compare'));
+const Chain = lazy(() => import('@/pages/Chain'));
 
 function RouteFallback() {
   return (
@@ -89,6 +90,14 @@ export default function App() {
           element={
             <Suspense fallback={<RouteFallback />}>
               <Compare />
+            </Suspense>
+          }
+        />
+        <Route
+          path="chain"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <Chain />
             </Suspense>
           }
         />

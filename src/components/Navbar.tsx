@@ -8,6 +8,7 @@ import {
   Activity,
   FileText,
   GitCompare,
+  Network,
   Menu,
   X,
   TrendingUp,
@@ -21,6 +22,7 @@ const navItems = [
   { path: '/sentiment', label: '情绪', icon: Activity },
   { path: '/report', label: '晨报', icon: FileText },
   { path: '/compare', label: '对比', icon: GitCompare },
+  { path: '/chain', label: '产业链图谱', icon: Network },
 ];
 
 const springTransition = {
