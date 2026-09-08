@@ -27,3 +27,88 @@ def test_settings_high_risk_keywords_cleaned():
     assert "推理" not in cfg["sectors"]["AI算力"]
     assert "训练" not in cfg["sectors"]["AI算力"]
     assert "牛市" not in cfg["sectors"]["券商"]
+
+
+from backend.collector import attribute_message
+
+
+def _link(name, code):
+    market = "1" if code.startswith("6") else "0"
+    return f"[{name}](https://wap.eastmoney.com/quote/stock/{market}.{code}.html)"
+
+
+def test_proximity_attributes_to_nearby_stock_only():
+    cfg = {"sectors": {"光模块": ["光模块"]}, "sentiments": {}, "actions": {}}
+    text = (
+        _link("中际旭创", "300308") + "光模块需求旺盛。"
+        + "今天大盘震荡。" * 5
+        + _link("海康威视", "002415") + "经营正常。"
+    )
+    by_code = attribute_message(text, cfg)
+    assert by_code["300308"]["sectors"] == ["光模块"]
+    assert by_code["002415"]["sectors"] == []
+
+
+def test_window_char_limit_within_one_sentence():
+    cfg = {"sectors": {"光模块": ["光模块"]}, "sentiments": {}, "actions": {}}
+    near = _link("中际旭创", "300308") + "光模块"
+    far = _link("中际旭创", "300308") + "啊" * 50 + "光模块"
+    assert attribute_message(near, cfg)["300308"]["sectors"] == ["光模块"]
+    assert attribute_message(far, cfg)["300308"]["sectors"] == []
+
+
+def test_long_url_does_not_inflate_distance():
+    cfg = {"sectors": {"光模块": ["光模块"]}, "sentiments": {}, "actions": {}}
+    text = "光模块景气 " + _link("中际旭创", "300308")
+    assert attribute_message(text, cfg)["300308"]["sectors"] == ["光模块"]
+
+
+def test_ignore_link_texts_drops_mention():
+    cfg = {"sectors": {"农业": ["农业"]}, "sentiments": {}, "actions": {},
+           "attribution": {"ignore_link_texts": ["农业"]}}
+    text = _link("农业", "601288") + "厄尔尼诺鱼粉中水"
+    assert "601288" not in attribute_message(text, cfg)
+
+
+def test_multiple_stocks_no_cross_contamination():
+    cfg = {"sectors": {"光模块": ["光模块"], "银行": ["银行"]},
+           "sentiments": {}, "actions": {}}
+    text = _link("中际旭创", "300308") + "光模块。" + _link("农业银行", "601288") + "银行板块走弱。"
+    by_code = attribute_message(text, cfg)
+    assert by_code["300308"]["sectors"] == ["光模块"]
+    assert by_code["601288"]["sectors"] == ["银行"]
+
+
+def test_bare_code_is_a_mention():
+    cfg = {"sectors": {"光模块": ["光模块"]}, "sentiments": {}, "actions": {}}
+    by_code = attribute_message("300308 光模块景气度回升", cfg)
+    assert by_code["300308"]["sectors"] == ["光模块"]
+
+
+def test_longest_match_wins_over_substring():
+    cfg = {"sectors": {"消费": ["消费"], "消费电子": ["消费电子"]},
+           "sentiments": {}, "actions": {}}
+    text = _link("立讯精密", "002475") + "消费电子回暖"
+    assert attribute_message(text, cfg)["002475"]["sectors"] == ["消费电子"]
+
+
+def test_ascii_keyword_has_word_boundary():
+    cfg = {"sectors": {"AI算力": ["AI"]}, "sentiments": {}, "actions": {}}
+    assert attribute_message(_link("中际旭创", "300308") + "he said it", cfg)["300308"]["sectors"] == []
+    assert attribute_message(_link("中际旭创", "300308") + "AI 算力景气", cfg)["300308"]["sectors"] == ["AI算力"]
+
+
+def test_bull_bear_attributed_per_code():
+    cfg = {"sectors": {}, "sentiments": {"看多": ["看好"], "看空": ["看空"]}, "actions": {}}
+    text = _link("中际旭创", "300308") + "看好。" + _link("海康威视", "002415") + "看空。"
+    by_code = attribute_message(text, cfg)
+    assert by_code["300308"]["bull"] is True and by_code["300308"]["bear"] is False
+    assert by_code["002415"]["bear"] is True and by_code["002415"]["bull"] is False
+
+
+def test_b2_regression_hikvision_not_bank():
+    """海康威视 + 红利，不应因旧词库被打上银行。"""
+    cfg = {"sectors": {"银行": ["银行", "息差"], "高股息": ["高股息", "红利"]},
+           "sentiments": {}, "actions": {}}
+    text = _link("海康威视", "002415") + "白马红利股"
+    assert "银行" not in attribute_message(text, cfg)["002415"]["sectors"]

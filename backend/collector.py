@@ -261,6 +261,124 @@ def fetch_messages_full(chat_id, max_pages=8):
             break
     return msgs
 
+# ---- 归因（就近）----
+LINK_RE = re.compile(r'\[([^\]]+)\]\(https://wap\.eastmoney\.com/quote/stock/\d\.(\d{6})\.html\)')
+BARE_CODE_RE = re.compile(r'\b([36890]\d{5})\b')
+SENT_SPLIT_RE = re.compile(r'[。！？；!?;]|\n|  +')
+DEFAULT_WINDOW_CHARS = 30
+
+
+def _find_all(text, kw):
+    """返回 kw 在 text 中全部 (start, end)。ASCII 词加词边界，避免 ai⊂said。"""
+    if kw.isascii():
+        pat = re.compile(r'(?<![A-Za-z0-9])' + re.escape(kw) + r'(?![A-Za-z0-9])', re.IGNORECASE)
+        return [(m.start(), m.end()) for m in pat.finditer(text)]
+    spans, i = [], text.find(kw)
+    while i >= 0:
+        spans.append((i, i + len(kw)))
+        i = text.find(kw, i + 1)
+    return spans
+
+
+def _scan_window(win, keyword_map):
+    """窗口内命中哪些标签。最长优先去重叠，消灭 消费⊂消费电子 这类嵌套误匹配。"""
+    hits = []
+    for label, kws in keyword_map.items():
+        for kw in kws:
+            for s, e in _find_all(win, kw):
+                hits.append((s, e, label))
+    hits.sort(key=lambda h: -(h[1] - h[0]))
+    accepted = []
+    for h in hits:
+        if any(not (h[1] <= a[0] or h[0] >= a[1]) for a in accepted):
+            continue
+        accepted.append(h)
+    return {a[2] for a in accepted}
+
+
+def _logical_text(text):
+    """把 [文字](url) 折叠成 文字，返回 (逻辑文本, 提及, 原文→逻辑位置, 链接区间)。
+
+    提及元素为 (逻辑位置, code, link_text)。长 URL 不参与距离计算，
+    否则一条链接就能撑爆 ±N 窗口。
+    """
+    out, mentions, pos_map, link_spans = [], [], {}, []
+    i, log_len = 0, 0
+    for m in LINK_RE.finditer(text):
+        for j in range(i, m.start()):
+            pos_map[j] = log_len
+            out.append(text[j])
+            log_len += 1
+        link_spans.append((m.start(), m.end()))
+        mentions.append((log_len, m.group(2), m.group(1)))
+        out.append(m.group(1))
+        log_len += len(m.group(1))
+        i = m.end()
+    for j in range(i, len(text)):
+        pos_map[j] = log_len
+        out.append(text[j])
+        log_len += 1
+    return "".join(out), mentions, pos_map, link_spans
+
+
+def _sentence_bounds(logical):
+    """按强标点 / 换行 / ≥2 连续空格切句，返回 [(start, end), ...]。"""
+    bounds, start = [], 0
+    for m in SENT_SPLIT_RE.finditer(logical):
+        bounds.append((start, m.start()))
+        start = m.end()
+    bounds.append((start, len(logical)))
+    return bounds
+
+
+def attribute_message(text, cfg, window_chars=None, ignore_link_texts=None):
+    """按股票就近归因板块 / 多空 / 操作。
+
+    返回 {code: {"sectors": [...], "bull": bool, "bear": bool, "actions": [...]}}
+    """
+    acfg = cfg.get("attribution", {}) or {}
+    if window_chars is None:
+        window_chars = acfg.get("window_chars", DEFAULT_WINDOW_CHARS)
+    if ignore_link_texts is None:
+        ignore_link_texts = acfg.get("ignore_link_texts", [])
+    ignore = set(ignore_link_texts or [])
+
+    logical, mentions, pos_map, link_spans = _logical_text(text)
+    bounds = _sentence_bounds(logical)
+
+    # 链接之外的裸代码也算提及（高置信）
+    for m in BARE_CODE_RE.finditer(text):
+        if any(s <= m.start() < e for s, e in link_spans):
+            continue
+        mentions.append((pos_map[m.start()], m.group(1), ""))
+
+    by_code = {}
+    for pos, code, link_text in mentions:
+        if link_text and link_text in ignore:
+            continue
+        s0, s1 = 0, len(logical)
+        for a, b in bounds:
+            if a <= pos <= b:
+                s0, s1 = a, b
+                break
+        win = logical[max(s0, pos - window_chars):min(s1, pos + window_chars)]
+        entry = by_code.setdefault(code, {"sectors": set(), "bull": False, "bear": False, "actions": set()})
+        entry["sectors"] |= _scan_window(win, cfg.get("sectors", {}))
+        sents = _scan_window(win, cfg.get("sentiments", {}))
+        entry["bull"] = entry["bull"] or bool(sents & {"看多", "情绪高涨"})
+        entry["bear"] = entry["bear"] or bool(sents & {"看空", "情绪低迷"})
+        entry["actions"] |= _scan_window(win, cfg.get("actions", {}))
+
+    return {
+        code: {
+            "sectors": sorted(v["sectors"]),
+            "bull": v["bull"],
+            "bear": v["bear"],
+            "actions": sorted(v["actions"]),
+        }
+        for code, v in by_code.items()
+    }
+
 # ---- 文本分析 ----
 def analyze_text(text, cfg):
     """对单条消息做多维度分析"""
