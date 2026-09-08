@@ -89,7 +89,7 @@ export default function Chain() {
           />
         </div>
 
-        <div className="flex-1 min-h-0 rounded-[14px] border border-border-subtle bg-bg-secondary overflow-hidden">
+        <div className="flex-1 min-h-0 relative rounded-[14px] border border-border-subtle bg-bg-secondary overflow-hidden">
           <GraphCanvas
             nodes={visibleNodes}
             links={visibleLinks}
@@ -101,6 +101,39 @@ export default function Chain() {
             candidateIds={highlightCandidates ? candidates : EMPTY_SET}
             onSelect={setSelectedId}
           />
+          <div className="hidden lg:flex flex-col gap-[5px] absolute left-3 bottom-3 z-10 pointer-events-none rounded-[10px] border border-border-subtle bg-bg-tertiary/85 backdrop-blur-sm px-2.5 py-2 text-[12.5px] text-ink-secondary">
+            <span className="flex items-center gap-2">
+              <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
+                <defs>
+                  <linearGradient id="chain-peer-grad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#30D158" />
+                    <stop offset="100%" stopColor="rgba(58,58,66,0.9)" />
+                  </linearGradient>
+                </defs>
+                <line x1="1" y1="4" x2="19" y2="4" stroke="url(#chain-peer-grad)" strokeWidth="1.6" />
+              </svg>
+              同业 · 实线（选中变绿）
+            </span>
+            <span className="flex items-center gap-2">
+              <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
+                <path d="M1 6 Q 10 1 19 6" fill="none" stroke="rgba(74,74,82,0.75)" strokeWidth="1.2" strokeDasharray="3.5 3" />
+              </svg>
+              上下游 · 虚线弧
+            </span>
+            <span className="flex items-center gap-2">
+              <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
+                <path d="M1 6 Q 10 1 19 6" fill="none" stroke="#BF5AF2" strokeWidth="1.5" />
+              </svg>
+              阵营 · 紫色曲线
+            </span>
+            <span className="flex items-center gap-2">
+              <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
+                <circle cx="6" cy="4" r="2" fill="#8E8E93" />
+                <circle cx="14" cy="4" r="3.5" fill="#8E8E93" />
+              </svg>
+              节点大小 = 当日峰值热度
+            </span>
+          </div>
         </div>
       </div>
 
