@@ -112,3 +112,20 @@ def test_b2_regression_hikvision_not_bank():
            "sentiments": {}, "actions": {}}
     text = _link("海康威视", "002415") + "白马红利股"
     assert "银行" not in attribute_message(text, cfg)["002415"]["sectors"]
+
+
+def test_analyze_text_exposes_by_code():
+    cfg = {"sectors": {"光模块": ["光模块"]}, "sentiments": {"看多": ["看好"]}, "actions": {}}
+    text = _link("中际旭创", "300308") + "光模块看好。" + _link("海康威视", "002415") + "正常。"
+    r = collector.analyze_text(text, cfg)
+    assert r["by_code"]["300308"]["sectors"] == ["光模块"]
+    assert r["by_code"]["300308"]["bull"] is True
+    assert r["by_code"]["002415"]["sectors"] == []
+    assert r["by_code"]["002415"]["bull"] is False
+
+
+def test_analyze_text_message_level_sectors_dedup_substring():
+    cfg = {"sectors": {"消费": ["消费"], "消费电子": ["消费电子"]},
+           "sentiments": {}, "actions": {}}
+    r = collector.analyze_text("消费电子回暖", cfg)
+    assert r["sectors"] == ["消费电子"]

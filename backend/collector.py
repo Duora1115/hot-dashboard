@@ -381,10 +381,10 @@ def attribute_message(text, cfg, window_chars=None, ignore_link_texts=None):
 
 # ---- 文本分析 ----
 def analyze_text(text, cfg):
-    """对单条消息做多维度分析"""
+    """对单条消息做多维度分析（消息级 + 按股票就近归因）"""
     result = {
         "codes": [], "name": "",
-        "sectors": [], "sentiments": {}, "actions": []
+        "sectors": [], "sentiments": {}, "actions": [], "by_code": {}
     }
 
     # 股票代码（同一消息中重复提及同一股票只计一次，保持顺序）
@@ -395,21 +395,18 @@ def analyze_text(text, cfg):
     if names:
         result["name"] = names[0]
 
-    # 板块识别
-    for sector, keywords in cfg["sectors"].items():
-        if any(kw in text.lower() for kw in keywords):
-            result["sectors"].append(sector)
+    # 消息级板块 / 操作（供板块热度、整体情绪、ms 使用）
+    result["sectors"] = sorted(_scan_window(text, cfg["sectors"]))
+    result["actions"] = sorted(_scan_window(text, cfg["actions"]))
 
-    # 情绪分析
+    # 情绪（消息级计数，供 sentiment_detail 汇总）
     for sent, keywords in cfg["sentiments"].items():
         matches = [kw for kw in keywords if kw in text]
         if matches:
             result["sentiments"][sent] = len(matches)
 
-    # 操作意图
-    for action, keywords in cfg["actions"].items():
-        if any(kw in text for kw in keywords):
-            result["actions"].append(action)
+    # 按股票就近归因（板块 / 多空 / 操作）
+    result["by_code"] = attribute_message(text, cfg)
 
     return result
 
