@@ -64,24 +64,6 @@ export default function GraphCanvas({
     [nodes, visibleLinks],
   );
 
-  // 环节簇中心：上下游弧线按簇心画，不做公司两两连边
-  const segmentCenters = useMemo(() => {
-    const acc = new Map<string, { x: number; y: number; n: number }>();
-    for (const node of nodes as SimNode[]) {
-      if (typeof node.x !== 'number' || typeof node.y !== 'number') continue;
-      const cur = acc.get(node.segment) ?? { x: 0, y: 0, n: 0 };
-      cur.x += node.x;
-      cur.y += node.y;
-      cur.n += 1;
-      acc.set(node.segment, cur);
-    }
-    const out = new Map<string, { x: number; y: number }>();
-    for (const [id, v] of acc) {
-      if (v.n > 0) out.set(id, { x: v.x / v.n, y: v.y / v.n });
-    }
-    return out;
-  }, [nodes]);
-
   useEffect(() => {
     fgRef.current?.zoomToFit(400, 60);
   }, [nodes.length]);
@@ -178,13 +160,27 @@ export default function GraphCanvas({
         onBackgroundClick={() => onSelect(null)}
         onRenderFramePost={(ctx, globalScale) => {
           if (!showSupply) return;
+          // 每帧按当前布局算环节簇心：d3 原地改 x/y，useMemo 抓不到
+          const acc = new Map<string, { x: number; y: number; n: number }>();
+          for (const node of nodes as SimNode[]) {
+            if (typeof node.x !== 'number' || typeof node.y !== 'number') continue;
+            const cur = acc.get(node.segment) ?? { x: 0, y: 0, n: 0 };
+            cur.x += node.x;
+            cur.y += node.y;
+            cur.n += 1;
+            acc.set(node.segment, cur);
+          }
+          const centers = new Map<string, { x: number; y: number }>();
+          for (const [id, v] of acc) {
+            if (v.n > 0) centers.set(id, { x: v.x / v.n, y: v.y / v.n });
+          }
           ctx.save();
           ctx.strokeStyle = 'rgba(74,74,82,0.75)';
           ctx.lineWidth = 1.2 / globalScale;
           ctx.setLineDash([7 / globalScale, 6 / globalScale]);
           for (const arc of arcs) {
-            const a = segmentCenters.get(arc.from);
-            const b = segmentCenters.get(arc.to);
+            const a = centers.get(arc.from);
+            const b = centers.get(arc.to);
             if (!a || !b) continue;
             const mx = (a.x + b.x) / 2;
             const my = (a.y + b.y) / 2;
