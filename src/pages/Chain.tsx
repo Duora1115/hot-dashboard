@@ -5,6 +5,7 @@ import {
   aggregateHeat,
   buildLinks,
   buildNodes,
+  buildPalette,
   buildSupplyArcs,
   candidateCodes,
   TIERS,
@@ -13,6 +14,9 @@ import {
 } from '@/lib/chain';
 import GraphCanvas from '@/components/chain/GraphCanvas';
 import DetailPanel from '@/components/chain/DetailPanel';
+import ChainList from '@/components/chain/ChainList';
+import { Drawer, DrawerContent } from '@/components/ui/drawer';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // JSON 里 tier 是 string，运行时形状由 tests/test_chain_data.py 保证
 const CHAIN_DATA = rawChainData as unknown as ChainData;
@@ -26,6 +30,9 @@ export default function Chain() {
   const [showPeer, setShowPeer] = useState(true);
   const [showSupply, setShowSupply] = useState(false);
   const [showEcosystem, setShowEcosystem] = useState(false);
+
+  const isMobile = useIsMobile();
+  const [mobileView, setMobileView] = useState<'graph' | 'list'>('graph');
 
   useEffect(() => {
     if (!dayFullLoaded) loadDayFull();
@@ -47,6 +54,9 @@ export default function Chain() {
     () => Array.from(new Set(CHAIN_DATA.stocks.flatMap((s) => s.ecosystems))).sort(),
     [],
   );
+
+  // 与 buildNodes 用同一套确定性调色板，窄屏色点条的颜色和画布一致
+  const segmentPalette = useMemo(() => buildPalette(CHAIN_DATA.segments), []);
 
   const visibleNodes = useMemo(() => {
     const q = query.trim();
@@ -89,50 +99,86 @@ export default function Chain() {
           />
         </div>
 
-        <div className="flex-1 min-h-0 relative rounded-[14px] border border-border-subtle bg-bg-secondary overflow-hidden">
-          <GraphCanvas
-            nodes={visibleNodes}
-            links={visibleLinks}
-            arcs={arcs}
-            showPeer={showPeer}
-            showSupply={showSupply}
-            showEcosystem={showEcosystem}
-            selectedId={selectedId}
-            candidateIds={highlightCandidates ? candidates : EMPTY_SET}
-            onSelect={setSelectedId}
-          />
-          <div className="hidden lg:flex flex-col gap-[5px] absolute left-3 bottom-3 z-10 pointer-events-none rounded-[10px] border border-border-subtle bg-bg-tertiary/85 backdrop-blur-sm px-2.5 py-2 text-[12.5px] text-ink-secondary">
-            <span className="flex items-center gap-2">
-              <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
-                <defs>
-                  <linearGradient id="chain-peer-grad" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#30D158" />
-                    <stop offset="100%" stopColor="rgba(58,58,66,0.9)" />
-                  </linearGradient>
-                </defs>
-                <line x1="1" y1="4" x2="19" y2="4" stroke="url(#chain-peer-grad)" strokeWidth="1.6" />
-              </svg>
-              同业 · 实线（选中变绿）
-            </span>
-            <span className="flex items-center gap-2">
-              <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
-                <path d="M1 6 Q 10 1 19 6" fill="none" stroke="rgba(74,74,82,0.75)" strokeWidth="1.2" strokeDasharray="3.5 3" />
-              </svg>
-              上下游 · 虚线弧
-            </span>
-            <span className="flex items-center gap-2">
-              <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
-                <path d="M1 6 Q 10 1 19 6" fill="none" stroke="#BF5AF2" strokeWidth="1.5" />
-              </svg>
-              阵营 · 紫色曲线
-            </span>
-            <span className="flex items-center gap-2">
-              <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
-                <circle cx="6" cy="4" r="2" fill="#8E8E93" />
-                <circle cx="14" cy="4" r="3.5" fill="#8E8E93" />
-              </svg>
-              节点大小 = 当日峰值热度
-            </span>
+        <div className="flex-1 min-h-0 relative flex flex-col rounded-[14px] border border-border-subtle bg-bg-secondary overflow-hidden">
+          {isMobile && (
+            <div className="flex gap-1 p-2 border-b border-border-subtle shrink-0">
+              <SegBtn label="图谱" active={mobileView === 'graph'} onClick={() => setMobileView('graph')} />
+              <SegBtn label="列表" active={mobileView === 'list'} onClick={() => setMobileView('list')} />
+            </div>
+          )}
+
+          <div className="flex-1 min-h-0 relative">
+            {mobileView === 'graph' || !isMobile ? (
+              <GraphCanvas
+                nodes={visibleNodes}
+                links={visibleLinks}
+                arcs={arcs}
+                showPeer={showPeer}
+                showSupply={showSupply}
+                showEcosystem={showEcosystem}
+                selectedId={selectedId}
+                candidateIds={highlightCandidates ? candidates : EMPTY_SET}
+                onSelect={setSelectedId}
+              />
+            ) : (
+              <ChainList
+                nodes={visibleNodes}
+                selectedId={selectedId}
+                candidateIds={highlightCandidates ? candidates : EMPTY_SET}
+                onSelect={setSelectedId}
+              />
+            )}
+
+            <div className="hidden lg:flex flex-col gap-[5px] absolute left-3 bottom-3 z-10 pointer-events-none rounded-[10px] border border-border-subtle bg-bg-tertiary/85 backdrop-blur-sm px-2.5 py-2 text-[12.5px] text-ink-secondary">
+              <span className="flex items-center gap-2">
+                <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="chain-peer-grad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#30D158" />
+                      <stop offset="100%" stopColor="rgba(58,58,66,0.9)" />
+                    </linearGradient>
+                  </defs>
+                  <line x1="1" y1="4" x2="19" y2="4" stroke="url(#chain-peer-grad)" strokeWidth="1.6" />
+                </svg>
+                同业 · 实线（选中变绿）
+              </span>
+              <span className="flex items-center gap-2">
+                <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
+                  <path d="M1 6 Q 10 1 19 6" fill="none" stroke="rgba(74,74,82,0.75)" strokeWidth="1.2" strokeDasharray="3.5 3" />
+                </svg>
+                上下游 · 虚线弧
+              </span>
+              <span className="flex items-center gap-2">
+                <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
+                  <path d="M1 6 Q 10 1 19 6" fill="none" stroke="#BF5AF2" strokeWidth="1.5" />
+                </svg>
+                阵营 · 紫色曲线
+              </span>
+              <span className="flex items-center gap-2">
+                <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
+                  <circle cx="6" cy="4" r="2" fill="#8E8E93" />
+                  <circle cx="14" cy="4" r="3.5" fill="#8E8E93" />
+                </svg>
+                节点大小 = 当日峰值热度
+              </span>
+            </div>
+
+            {(mobileView === 'graph' || !isMobile) && (
+              <div className="lg:hidden absolute inset-x-0 bottom-0 z-10 flex items-center gap-2.5 overflow-x-auto pointer-events-auto border-t border-border-subtle bg-bg-tertiary/85 backdrop-blur-sm px-2.5 py-1.5">
+                {CHAIN_DATA.segments.map((seg) => (
+                  <span
+                    key={seg.id}
+                    className="shrink-0 flex items-center gap-1.5 text-[11.5px] text-ink-secondary"
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: segmentPalette[seg.id] }}
+                    />
+                    {seg.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -150,7 +196,37 @@ export default function Chain() {
           </p>
         )}
       </aside>
+
+      {isMobile && (
+        <Drawer open={!!selected} onOpenChange={(open) => !open && setSelectedId(null)}>
+          <DrawerContent className="bg-bg-secondary border-border-subtle max-h-[75vh]">
+            <div className="p-4 overflow-y-auto">
+              {selected && (
+                <DetailPanel
+                  node={selected}
+                  nodes={nodes}
+                  onSelect={setSelectedId}
+                  onClose={() => setSelectedId(null)}
+                />
+              )}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
     </div>
+  );
+}
+
+function SegBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 h-[30px] rounded-[8px] text-[12.5px] font-medium ${
+        active ? 'bg-hover/[0.08] text-ink-primary' : 'text-ink-tertiary'
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
