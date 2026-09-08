@@ -7,9 +7,12 @@ import {
   buildNodes,
   buildSupplyArcs,
   candidateCodes,
+  TIERS,
   type ChainData,
+  type Tier,
 } from '@/lib/chain';
 import GraphCanvas from '@/components/chain/GraphCanvas';
+import DetailPanel from '@/components/chain/DetailPanel';
 
 // JSON 里 tier 是 string，运行时形状由 tests/test_chain_data.py 保证
 const CHAIN_DATA = rawChainData as unknown as ChainData;
@@ -34,30 +37,139 @@ export default function Chain() {
   const arcs = useMemo(() => buildSupplyArcs(CHAIN_DATA.segments), []);
   const candidates = useMemo(() => candidateCodes(nodes, selectedId), [nodes, selectedId]);
 
+  const [segmentFilter, setSegmentFilter] = useState<Set<string>>(new Set());
+  const [ecoFilter, setEcoFilter] = useState<Set<string>>(new Set());
+  const [tierFilter, setTierFilter] = useState<Set<Tier>>(new Set());
+  const [query, setQuery] = useState('');
+  const [highlightCandidates, setHighlightCandidates] = useState(true);
+
+  const allEcosystems = useMemo(
+    () => Array.from(new Set(CHAIN_DATA.stocks.flatMap((s) => s.ecosystems))).sort(),
+    [],
+  );
+
+  const visibleNodes = useMemo(() => {
+    const q = query.trim();
+    return nodes.filter((n) => {
+      if (segmentFilter.size > 0 && !segmentFilter.has(n.segment)) return false;
+      if (tierFilter.size > 0 && !tierFilter.has(n.tier)) return false;
+      if (ecoFilter.size > 0 && !n.ecosystems.some((e) => ecoFilter.has(e))) return false;
+      if (q && !n.name.includes(q) && !n.code.includes(q)) return false;
+      return true;
+    });
+  }, [nodes, segmentFilter, tierFilter, ecoFilter, query]);
+
+  const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
+  const visibleLinks = useMemo(
+    () => links.filter((l) => visibleIds.has(l.source) && visibleIds.has(l.target)),
+    [links, visibleIds],
+  );
+  const selected = useMemo(() => nodes.find((n) => n.id === selectedId) ?? null, [nodes, selectedId]);
+
   return (
-    <div className="flex flex-col h-[calc(100dvh-140px)] gap-3">
-      <div className="flex items-center gap-2 flex-wrap text-[13px]">
-        <Toggle label="同业" on={showPeer} onClick={() => setShowPeer((v) => !v)} />
-        <Toggle label="上下游" on={showSupply} onClick={() => setShowSupply((v) => !v)} />
-        <Toggle label="阵营" on={showEcosystem} onClick={() => setShowEcosystem((v) => !v)} />
-        <span className="text-ink-tertiary ml-2">
-          节点大小 = 当日峰值热度 · 描边 = 今日上榜 · 虚线 = 未上榜
-        </span>
+    <div className="flex flex-col lg:flex-row gap-3 h-[calc(100dvh-140px)]">
+      <div className="flex-1 min-h-0 flex flex-col gap-3">
+        <div className="flex items-center gap-2 flex-wrap text-[13px]">
+          <Filter label="环节" options={CHAIN_DATA.segments.map((s) => s.id)} selected={segmentFilter} onChange={setSegmentFilter} />
+          <Filter label="阵营" options={allEcosystems} selected={ecoFilter} onChange={setEcoFilter} />
+          <Filter label="层级" options={TIERS as unknown as string[]} selected={tierFilter as unknown as Set<string>} onChange={(next) => setTierFilter(next as Set<Tier>)} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="名称或代码"
+            className="h-[30px] px-3 rounded-[8px] border border-border-subtle bg-bg-secondary text-[12.5px] text-ink-primary outline-none focus:border-border-focus w-[150px]"
+          />
+          <Toggle label="同业" on={showPeer} onClick={() => setShowPeer((v) => !v)} />
+          <Toggle label="上下游" on={showSupply} onClick={() => setShowSupply((v) => !v)} />
+          <Toggle label="阵营" on={showEcosystem} onClick={() => setShowEcosystem((v) => !v)} />
+          <Toggle
+            label="高亮同链未上榜"
+            on={highlightCandidates}
+            onClick={() => setHighlightCandidates((v) => !v)}
+          />
+        </div>
+
+        <div className="flex-1 min-h-0 rounded-[14px] border border-border-subtle bg-bg-secondary overflow-hidden">
+          <GraphCanvas
+            nodes={visibleNodes}
+            links={visibleLinks}
+            arcs={arcs}
+            showPeer={showPeer}
+            showSupply={showSupply}
+            showEcosystem={showEcosystem}
+            selectedId={selectedId}
+            candidateIds={highlightCandidates ? candidates : EMPTY_SET}
+            onSelect={setSelectedId}
+          />
+        </div>
       </div>
 
-      <div className="flex-1 min-h-0 rounded-[14px] border border-border-subtle bg-bg-secondary overflow-hidden">
-        <GraphCanvas
-          nodes={nodes}
-          links={links}
-          arcs={arcs}
-          showPeer={showPeer}
-          showSupply={showSupply}
-          showEcosystem={showEcosystem}
-          selectedId={selectedId}
-          candidateIds={candidates}
-          onSelect={setSelectedId}
-        />
-      </div>
+      <aside className="hidden lg:block w-[280px] shrink-0 rounded-[14px] border border-border-subtle bg-bg-secondary p-4 overflow-y-auto">
+        {selected ? (
+          <DetailPanel node={selected} nodes={nodes} onSelect={setSelectedId} />
+        ) : (
+          <p className="text-[12.5px] text-ink-tertiary leading-relaxed">
+            点一个节点看它的环节、阵营与今日热度。
+            <br />
+            <br />
+            选中今日热票后，同环节里未上榜的票会被标成
+            <span className="text-brand-yellow"> 补涨候选</span>。
+          </p>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+const EMPTY_SET = new Set<string>();
+
+function Filter({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: string[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`px-3 h-[30px] rounded-[8px] border text-[12.5px] ${
+          selected.size > 0
+            ? 'border-brand-blue/55 bg-brand-blue/15 text-brand-blue'
+            : 'border-border-subtle bg-bg-tertiary text-ink-secondary'
+        }`}
+      >
+        {label}
+        {selected.size > 0 ? ` · ${selected.size}` : ''} ▾
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 min-w-[160px] max-h-[280px] overflow-y-auto rounded-[10px] border border-border-subtle bg-bg-tertiary shadow-elevated p-1">
+          {options.map((opt) => {
+            const on = selected.has(opt);
+            return (
+              <button
+                key={opt}
+                onClick={() => {
+                  const next = new Set(selected);
+                  if (on) next.delete(opt);
+                  else next.add(opt);
+                  onChange(next);
+                }}
+                className="w-full text-left px-2 py-[6px] rounded-[6px] text-[12.5px] hover:bg-hover/[0.06] flex items-center gap-2"
+              >
+                <span className={`w-3 h-3 rounded-[3px] border ${on ? 'bg-brand-blue border-brand-blue' : 'border-border-default'}`} />
+                <span className={on ? 'text-ink-primary' : 'text-ink-secondary'}>{opt}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
