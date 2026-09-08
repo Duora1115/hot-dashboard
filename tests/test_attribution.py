@@ -147,3 +147,38 @@ def test_compute_snapshot_attributes_sectors_per_stock():
     # 消息关联板块是消息级并集，两只票相同
     assert set(zj["mention_sectors"]) == {"光模块", "银行"}
     assert set(ny["mention_sectors"]) == {"光模块", "银行"}
+
+
+def test_compress_snapshot_exposes_ms():
+    from backend.data_store import _compress_snapshot
+    raw = {
+        "time": "2026-08-08 10:00", "total_messages": 1, "active_groups": 1,
+        "top10_stocks": [{
+            "code": "300308", "name": "中际旭创", "score": 10,
+            "mention_count": 1, "group_count": 1, "action_count": 0,
+            "bull": 1, "bear": 0, "sectors": ["光模块"],
+            "mention_sectors": ["光模块", "银行"],
+            "first_time": "2026-08-08 10:00", "last_time": "2026-08-08 10:00",
+        }],
+        "top8_sectors": [],
+    }
+    out = _compress_snapshot(raw, {"300308": "中际旭创"})
+    stk = out["stk"][0]
+    assert stk["sec"] == ["光模块"]
+    assert stk["ms"] == ["光模块", "银行"]
+
+
+def test_compress_snapshot_ms_defaults_empty():
+    from backend.data_store import _compress_snapshot
+    raw = {
+        "time": "2026-08-08 10:00", "total_messages": 1, "active_groups": 1,
+        "top10_stocks": [{
+            "code": "300308", "name": "中际旭创", "score": 10,
+            "mention_count": 1, "group_count": 1, "action_count": 0,
+            "bull": 1, "bear": 0, "sectors": ["光模块"],
+            "first_time": "2026-08-08 10:00", "last_time": "2026-08-08 10:00",
+        }],
+        "top8_sectors": [],
+    }
+    out = _compress_snapshot(raw, {"300308": "中际旭创"})
+    assert out["stk"][0]["ms"] == []

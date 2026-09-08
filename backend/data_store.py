@@ -46,6 +46,7 @@ def _compress_snapshot(s, name_map):
             "ft": first_time.split(" ", 1)[1] if " " in first_time else "",
             "lt": last_time.split(" ", 1)[1] if " " in last_time else "",
             "sec": sectors, "s": sectors,
+            "ms": t.get("mention_sectors", []),
         })
 
     top10_stocks_raw = s.get("top10_stocks", [])
