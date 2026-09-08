@@ -1,0 +1,1189 @@
+{
+  "meta": {
+    "source": "AI基础设施产业链深度报告",
+    "updated": "2026-09-09"
+  },
+  "segments": [
+    {
+      "id": "算力芯片",
+      "name": "算力芯片",
+      "tier": "直接铲子",
+      "upstream": [
+        "芯片制造设备",
+        "封测"
+      ],
+      "downstream": [
+        "服务器整机"
+      ]
+    },
+    {
+      "id": "存储",
+      "name": "存储",
+      "tier": "直接铲子",
+      "upstream": [
+        "芯片制造设备"
+      ],
+      "downstream": [
+        "服务器整机"
+      ]
+    },
+    {
+      "id": "服务器整机",
+      "name": "服务器整机",
+      "tier": "直接铲子",
+      "upstream": [
+        "算力芯片",
+        "存储",
+        "PCB",
+        "电源",
+        "液冷",
+        "铜连接"
+      ],
+      "downstream": [
+        "算力租赁与IDC"
+      ]
+    },
+    {
+      "id": "算力租赁与IDC",
+      "name": "算力租赁与IDC",
+      "tier": "直接铲子",
+      "upstream": [
+        "服务器整机"
+      ],
+      "downstream": []
+    },
+    {
+      "id": "光模块",
+      "name": "光模块",
+      "tier": "直接铲子",
+      "upstream": [
+        "光芯片",
+        "PCB"
+      ],
+      "downstream": [
+        "交换机"
+      ]
+    },
+    {
+      "id": "交换机",
+      "name": "交换机",
+      "tier": "直接铲子",
+      "upstream": [
+        "光模块",
+        "铜连接",
+        "CPO/OCS"
+      ],
+      "downstream": [
+        "服务器整机"
+      ]
+    },
+    {
+      "id": "铜连接",
+      "name": "铜连接",
+      "tier": "直接铲子",
+      "upstream": [],
+      "downstream": [
+        "服务器整机",
+        "交换机"
+      ]
+    },
+    {
+      "id": "PCB",
+      "name": "PCB",
+      "tier": "直接铲子",
+      "upstream": [
+        "CCL",
+        "铜箔"
+      ],
+      "downstream": [
+        "光模块",
+        "服务器整机"
+      ]
+    },
+    {
+      "id": "液冷",
+      "name": "液冷",
+      "tier": "直接铲子",
+      "upstream": [],
+      "downstream": [
+        "服务器整机"
+      ]
+    },
+    {
+      "id": "电源",
+      "name": "电源",
+      "tier": "直接铲子",
+      "upstream": [
+        "被动元件"
+      ],
+      "downstream": [
+        "服务器整机"
+      ]
+    },
+    {
+      "id": "被动元件",
+      "name": "被动元件",
+      "tier": "间接铲子",
+      "upstream": [
+        "芯片制造材料"
+      ],
+      "downstream": [
+        "电源",
+        "服务器整机"
+      ]
+    },
+    {
+      "id": "CCL",
+      "name": "CCL",
+      "tier": "间接铲子",
+      "upstream": [
+        "电子布",
+        "铜箔",
+        "树脂"
+      ],
+      "downstream": [
+        "PCB"
+      ]
+    },
+    {
+      "id": "芯片制造设备",
+      "name": "芯片制造设备",
+      "tier": "间接铲子",
+      "upstream": [
+        "芯片制造材料",
+        "量检测"
+      ],
+      "downstream": [
+        "算力芯片",
+        "存储"
+      ]
+    },
+    {
+      "id": "封测",
+      "name": "封测",
+      "tier": "间接铲子",
+      "upstream": [
+        "探针测试",
+        "芯片制造设备"
+      ],
+      "downstream": [
+        "算力芯片"
+      ]
+    },
+    {
+      "id": "光芯片",
+      "name": "光芯片",
+      "tier": "间接铲子",
+      "upstream": [
+        "芯片制造材料"
+      ],
+      "downstream": [
+        "光模块"
+      ]
+    },
+    {
+      "id": "光纤光缆",
+      "name": "光纤光缆",
+      "tier": "间接铲子",
+      "upstream": [],
+      "downstream": [
+        "光模块"
+      ]
+    },
+    {
+      "id": "CPO/OCS",
+      "name": "CPO/OCS",
+      "tier": "间接铲子",
+      "upstream": [
+        "光芯片"
+      ],
+      "downstream": [
+        "交换机"
+      ]
+    },
+    {
+      "id": "电子布",
+      "name": "电子布",
+      "tier": "铲子的铲子",
+      "upstream": [],
+      "downstream": [
+        "CCL"
+      ]
+    },
+    {
+      "id": "铜箔",
+      "name": "铜箔",
+      "tier": "铲子的铲子",
+      "upstream": [],
+      "downstream": [
+        "PCB",
+        "CCL"
+      ]
+    },
+    {
+      "id": "树脂",
+      "name": "树脂",
+      "tier": "铲子的铲子",
+      "upstream": [],
+      "downstream": [
+        "CCL"
+      ]
+    },
+    {
+      "id": "芯片制造材料",
+      "name": "芯片制造材料",
+      "tier": "铲子的铲子",
+      "upstream": [],
+      "downstream": [
+        "芯片制造设备",
+        "光芯片",
+        "封测"
+      ]
+    },
+    {
+      "id": "探针测试",
+      "name": "探针测试",
+      "tier": "铲子的铲子",
+      "upstream": [
+        "芯片制造材料"
+      ],
+      "downstream": [
+        "封测"
+      ]
+    },
+    {
+      "id": "量检测",
+      "name": "量检测",
+      "tier": "铲子的铲子",
+      "upstream": [
+        "芯片制造材料"
+      ],
+      "downstream": [
+        "芯片制造设备",
+        "封测"
+      ]
+    }
+  ],
+  "stocks": [
+    {
+      "code": "688256",
+      "name": "寒武纪",
+      "segment": "算力芯片",
+      "ecosystems": [
+        "国产算力链"
+      ],
+      "role": "GPU/通用算力，2026Q1净利+185%"
+    },
+    {
+      "code": "688041",
+      "name": "海光信息",
+      "segment": "算力芯片",
+      "ecosystems": [
+        "国产算力链"
+      ],
+      "role": "国产CPU/DCU，国产算力主力"
+    },
+    {
+      "code": "688521",
+      "name": "芯原股份",
+      "segment": "算力芯片",
+      "ecosystems": [
+        "北美CSP链"
+      ],
+      "role": "定制ASIC设计，绑定CSP自研芯片"
+    },
+    {
+      "code": "603986",
+      "name": "兆易创新",
+      "segment": "存储",
+      "ecosystems": [],
+      "role": "利基DRAM/NOR，DRAM合约价+90%"
+    },
+    {
+      "code": "301308",
+      "name": "江波龙",
+      "segment": "存储",
+      "ecosystems": [],
+      "role": "存储模组厂，受益DRAM涨价"
+    },
+    {
+      "code": "688525",
+      "name": "佰维存储",
+      "segment": "存储",
+      "ecosystems": [],
+      "role": "存储模组厂，受益DRAM涨价"
+    },
+    {
+      "code": "001309",
+      "name": "德明利",
+      "segment": "存储",
+      "ecosystems": [],
+      "role": "存储模组厂，受益DRAM涨价"
+    },
+    {
+      "code": "601138",
+      "name": "工业富联",
+      "segment": "服务器整机",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "NVL72机柜ODM，份额45-48%"
+    },
+    {
+      "code": "000977",
+      "name": "浪潮信息",
+      "segment": "服务器整机",
+      "ecosystems": [],
+      "role": "AI服务器整机，国产算力主力"
+    },
+    {
+      "code": "603296",
+      "name": "华勤技术",
+      "segment": "服务器整机",
+      "ecosystems": [],
+      "role": "AI服务器ODM，机柜级交付"
+    },
+    {
+      "code": "002475",
+      "name": "立讯精密",
+      "segment": "服务器整机",
+      "ecosystems": [],
+      "role": "AI服务器ODM，机柜级交付"
+    },
+    {
+      "code": "300857",
+      "name": "协创数据",
+      "segment": "算力租赁与IDC",
+      "ecosystems": [],
+      "role": "GPU算力租赁，NCP渠道"
+    },
+    {
+      "code": "603629",
+      "name": "利通电子",
+      "segment": "算力租赁与IDC",
+      "ecosystems": [],
+      "role": "GPU算力租赁，H1预增1173-1368%"
+    },
+    {
+      "code": "301396",
+      "name": "宏景科技",
+      "segment": "算力租赁与IDC",
+      "ecosystems": [],
+      "role": "算力租赁/IDC，受益GPU云需求"
+    },
+    {
+      "code": "300442",
+      "name": "润泽科技",
+      "segment": "算力租赁与IDC",
+      "ecosystems": [],
+      "role": "IDC/智算中心，受益算力租赁"
+    },
+    {
+      "code": "603881",
+      "name": "数据港",
+      "segment": "算力租赁与IDC",
+      "ecosystems": [],
+      "role": "IDC，受益算力租赁需求"
+    },
+    {
+      "code": "300308",
+      "name": "中际旭创",
+      "segment": "光模块",
+      "ecosystems": [
+        "英伟达链",
+        "北美CSP链"
+      ],
+      "role": "800G/1.6T光模块，全球份额约35%"
+    },
+    {
+      "code": "300502",
+      "name": "新易盛",
+      "segment": "光模块",
+      "ecosystems": [
+        "英伟达链",
+        "北美CSP链"
+      ],
+      "role": "800G/1.6T光模块，全球份额约20%"
+    },
+    {
+      "code": "002281",
+      "name": "光迅科技",
+      "segment": "光模块",
+      "ecosystems": [],
+      "role": "光模块整机，800G/1.6T布局"
+    },
+    {
+      "code": "000988",
+      "name": "华工科技",
+      "segment": "光模块",
+      "ecosystems": [],
+      "role": "光模块整机，800G/1.6T布局"
+    },
+    {
+      "code": "603083",
+      "name": "剑桥科技",
+      "segment": "光模块",
+      "ecosystems": [],
+      "role": "光模块整机，800G/1.6T布局"
+    },
+    {
+      "code": "301205",
+      "name": "联特科技",
+      "segment": "光模块",
+      "ecosystems": [],
+      "role": "光模块整机，800G/1.6T布局"
+    },
+    {
+      "code": "000938",
+      "name": "紫光股份",
+      "segment": "交换机",
+      "ecosystems": [],
+      "role": "交换机与AI网络设备（新华三）"
+    },
+    {
+      "code": "301165",
+      "name": "锐捷网络",
+      "segment": "交换机",
+      "ecosystems": [],
+      "role": "数据中心交换机，AI网络"
+    },
+    {
+      "code": "688702",
+      "name": "盛科通信",
+      "segment": "交换机",
+      "ecosystems": [
+        "国产算力链"
+      ],
+      "role": "交换芯片，在手订单超10万颗"
+    },
+    {
+      "code": "688800",
+      "name": "瑞可达",
+      "segment": "铜连接",
+      "ecosystems": [],
+      "role": "AEC/DAC铜连接，做到8米"
+    },
+    {
+      "code": "300913",
+      "name": "兆龙互连",
+      "segment": "铜连接",
+      "ecosystems": [],
+      "role": "AEC/DAC柜内铜连接"
+    },
+    {
+      "code": "300252",
+      "name": "金信诺",
+      "segment": "铜连接",
+      "ecosystems": [],
+      "role": "AEC/DAC柜内铜连接"
+    },
+    {
+      "code": "688629",
+      "name": "华丰科技",
+      "segment": "铜连接",
+      "ecosystems": [],
+      "role": "224G背板连接器"
+    },
+    {
+      "code": "688668",
+      "name": "鼎通科技",
+      "segment": "铜连接",
+      "ecosystems": [],
+      "role": "高速连接器，224G背板"
+    },
+    {
+      "code": "002897",
+      "name": "意华股份",
+      "segment": "铜连接",
+      "ecosystems": [],
+      "role": "高速连接器，224G背板"
+    },
+    {
+      "code": "002916",
+      "name": "深南电路",
+      "segment": "PCB",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "AI高多层PCB，NV五家之一"
+    },
+    {
+      "code": "688183",
+      "name": "生益电子",
+      "segment": "PCB",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "AI高多层PCB，NV五家之一"
+    },
+    {
+      "code": "300476",
+      "name": "胜宏科技",
+      "segment": "PCB",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "AI高多层PCB，NV五家之一"
+    },
+    {
+      "code": "002463",
+      "name": "沪电股份",
+      "segment": "PCB",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "AI高多层PCB，NV五家之一"
+    },
+    {
+      "code": "002938",
+      "name": "鹏鼎控股",
+      "segment": "PCB",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "AI高多层PCB，NV五家之一"
+    },
+    {
+      "code": "002837",
+      "name": "英维克",
+      "segment": "液冷",
+      "ecosystems": [],
+      "role": "冷板/CDU液冷系统，AI渗透率47%"
+    },
+    {
+      "code": "301018",
+      "name": "申菱环境",
+      "segment": "液冷",
+      "ecosystems": [],
+      "role": "液冷系统集成，受益AI液冷渗透"
+    },
+    {
+      "code": "300499",
+      "name": "高澜股份",
+      "segment": "液冷",
+      "ecosystems": [],
+      "role": "液冷系统，受益AI液冷渗透"
+    },
+    {
+      "code": "920808",
+      "name": "曙光数创",
+      "segment": "液冷",
+      "ecosystems": [
+        "国产算力链"
+      ],
+      "role": "液冷系统，曙光系国产算力"
+    },
+    {
+      "code": "300547",
+      "name": "川环科技",
+      "segment": "液冷",
+      "ecosystems": [],
+      "role": "液冷管路/冷板，车规迁移"
+    },
+    {
+      "code": "002536",
+      "name": "飞龙股份",
+      "segment": "液冷",
+      "ecosystems": [],
+      "role": "液冷泵/冷板，车规迁移"
+    },
+    {
+      "code": "603757",
+      "name": "大元泵业",
+      "segment": "液冷",
+      "ecosystems": [],
+      "role": "液冷泵，车规迁移"
+    },
+    {
+      "code": "300731",
+      "name": "科创新源",
+      "segment": "液冷",
+      "ecosystems": [],
+      "role": "液冷零部件，车规迁移"
+    },
+    {
+      "code": "300684",
+      "name": "中石科技",
+      "segment": "液冷",
+      "ecosystems": [],
+      "role": "光模块液冷，国内份额≈50%"
+    },
+    {
+      "code": "002851",
+      "name": "麦格米特",
+      "segment": "电源",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "800V HVDC电源，NV官宣A股唯一"
+    },
+    {
+      "code": "300870",
+      "name": "欧陆通",
+      "segment": "电源",
+      "ecosystems": [
+        "北美CSP链"
+      ],
+      "role": "PSU电源，谷歌份额10%→20-30%"
+    },
+    {
+      "code": "002364",
+      "name": "中恒电气",
+      "segment": "电源",
+      "ecosystems": [],
+      "role": "HVDC电源，受益800V切换"
+    },
+    {
+      "code": "002518",
+      "name": "科士达",
+      "segment": "电源",
+      "ecosystems": [],
+      "role": "数据中心电源/UPS"
+    },
+    {
+      "code": "002335",
+      "name": "科华数据",
+      "segment": "电源",
+      "ecosystems": [],
+      "role": "数据中心电源/UPS"
+    },
+    {
+      "code": "300814",
+      "name": "中富电路",
+      "segment": "电源",
+      "ecosystems": [
+        "北美CSP链"
+      ],
+      "role": "VPD垂直供电，导入北美CSP"
+    },
+    {
+      "code": "002138",
+      "name": "顺络电子",
+      "segment": "电源",
+      "ecosystems": [
+        "北美CSP链"
+      ],
+      "role": "超薄电感(<2mm)，VPD三次电源"
+    },
+    {
+      "code": "300593",
+      "name": "新雷能",
+      "segment": "电源",
+      "ecosystems": [
+        "北美CSP链"
+      ],
+      "role": "三次电源模块，VPD导入"
+    },
+    {
+      "code": "688141",
+      "name": "杰华特",
+      "segment": "电源",
+      "ecosystems": [
+        "北美CSP链"
+      ],
+      "role": "电源芯片，VPD三次电源"
+    },
+    {
+      "code": "300408",
+      "name": "三环集团",
+      "segment": "被动元件",
+      "ecosystems": [],
+      "role": "MLCC，AI服务器价值量+182%"
+    },
+    {
+      "code": "000636",
+      "name": "风华高科",
+      "segment": "被动元件",
+      "ecosystems": [],
+      "role": "MLCC，AI服务器价值量+182%"
+    },
+    {
+      "code": "603678",
+      "name": "火炬电子",
+      "segment": "被动元件",
+      "ecosystems": [],
+      "role": "MLCC，AI服务器价值量+182%"
+    },
+    {
+      "code": "605376",
+      "name": "博迁新材",
+      "segment": "被动元件",
+      "ecosystems": [],
+      "role": "镍粉供三星电机，签43-50亿长单"
+    },
+    {
+      "code": "300285",
+      "name": "国瓷材料",
+      "segment": "被动元件",
+      "ecosystems": [],
+      "role": "MLCC钛酸钡粉体"
+    },
+    {
+      "code": "002859",
+      "name": "洁美科技",
+      "segment": "被动元件",
+      "ecosystems": [],
+      "role": "MLCC离型膜"
+    },
+    {
+      "code": "002484",
+      "name": "江海股份",
+      "segment": "被动元件",
+      "ecosystems": [],
+      "role": "铝电容/MLPC，AI服务器缺口40%"
+    },
+    {
+      "code": "600183",
+      "name": "生益科技",
+      "segment": "CCL",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "大陆唯一M9认证，7月提价25%"
+    },
+    {
+      "code": "688519",
+      "name": "南亚新材",
+      "segment": "CCL",
+      "ecosystems": [],
+      "role": "M8.5/M9覆铜板"
+    },
+    {
+      "code": "603186",
+      "name": "华正新材",
+      "segment": "CCL",
+      "ecosystems": [],
+      "role": "覆铜板CCL，M8/M9布局"
+    },
+    {
+      "code": "688012",
+      "name": "中微公司",
+      "segment": "芯片制造设备",
+      "ecosystems": [],
+      "role": "刻蚀设备CCP/ICP，国产化≈40%"
+    },
+    {
+      "code": "002371",
+      "name": "北方华创",
+      "segment": "芯片制造设备",
+      "ecosystems": [],
+      "role": "刻蚀/薄膜/清洗设备平台"
+    },
+    {
+      "code": "688072",
+      "name": "拓荆科技",
+      "segment": "芯片制造设备",
+      "ecosystems": [],
+      "role": "薄膜沉积PVD/CVD/ALD"
+    },
+    {
+      "code": "688147",
+      "name": "微导纳米",
+      "segment": "芯片制造设备",
+      "ecosystems": [],
+      "role": "ALD薄膜沉积设备"
+    },
+    {
+      "code": "688082",
+      "name": "盛美上海",
+      "segment": "芯片制造设备",
+      "ecosystems": [],
+      "role": "清洗设备，国产占40-50%"
+    },
+    {
+      "code": "688037",
+      "name": "芯源微",
+      "segment": "芯片制造设备",
+      "ecosystems": [],
+      "role": "涂胶显影Track设备"
+    },
+    {
+      "code": "301392",
+      "name": "汇成真空",
+      "segment": "芯片制造设备",
+      "ecosystems": [],
+      "role": "光刻镀膜设备，订单10→20台"
+    },
+    {
+      "code": "688502",
+      "name": "茂莱光学",
+      "segment": "芯片制造设备",
+      "ecosystems": [],
+      "role": "光刻物镜，国产唯一成套"
+    },
+    {
+      "code": "600584",
+      "name": "长电科技",
+      "segment": "封测",
+      "ecosystems": [],
+      "role": "先进封装，H1预增63-102%"
+    },
+    {
+      "code": "002156",
+      "name": "通富微电",
+      "segment": "封测",
+      "ecosystems": [],
+      "role": "先进封装，H1预增288-337%"
+    },
+    {
+      "code": "688362",
+      "name": "甬矽电子",
+      "segment": "封测",
+      "ecosystems": [],
+      "role": "先进封装/封测"
+    },
+    {
+      "code": "002185",
+      "name": "华天科技",
+      "segment": "封测",
+      "ecosystems": [],
+      "role": "先进封装/封测"
+    },
+    {
+      "code": "688498",
+      "name": "源杰科技",
+      "segment": "光芯片",
+      "ecosystems": [],
+      "role": "EML/CW光芯片，CW全球第二"
+    },
+    {
+      "code": "688048",
+      "name": "长光华芯",
+      "segment": "光芯片",
+      "ecosystems": [],
+      "role": "200G EML，26Q3量产"
+    },
+    {
+      "code": "688313",
+      "name": "仕佳光子",
+      "segment": "光芯片",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "CW光源，硅光外置激光器"
+    },
+    {
+      "code": "600105",
+      "name": "永鼎股份",
+      "segment": "光芯片",
+      "ecosystems": [],
+      "role": "EML光芯片布局"
+    },
+    {
+      "code": "601869",
+      "name": "长飞光纤",
+      "segment": "光纤光缆",
+      "ecosystems": [],
+      "role": "光纤光缆，H1预增711-914%"
+    },
+    {
+      "code": "600487",
+      "name": "亨通光电",
+      "segment": "光纤光缆",
+      "ecosystems": [
+        "北美CSP链"
+      ],
+      "role": "空芯光纤独供微软，毛利70%+"
+    },
+    {
+      "code": "600498",
+      "name": "烽火通信",
+      "segment": "光纤光缆",
+      "ecosystems": [],
+      "role": "光纤光缆，高密度/空芯布局"
+    },
+    {
+      "code": "688143",
+      "name": "长盈通",
+      "segment": "光纤光缆",
+      "ecosystems": [],
+      "role": "保偏光纤，配套NPO光源"
+    },
+    {
+      "code": "300757",
+      "name": "罗博特科",
+      "segment": "CPO/OCS",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "CPO耦合设备，8款过NV验证"
+    },
+    {
+      "code": "002957",
+      "name": "科瑞技术",
+      "segment": "CPO/OCS",
+      "ecosystems": [],
+      "role": "CPO耦合/测试设备"
+    },
+    {
+      "code": "300620",
+      "name": "光库科技",
+      "segment": "CPO/OCS",
+      "ecosystems": [],
+      "role": "OCS光交换器件布局"
+    },
+    {
+      "code": "688337",
+      "name": "普源精电",
+      "segment": "CPO/OCS",
+      "ecosystems": [],
+      "role": "采样示波器，1.6T光测试"
+    },
+    {
+      "code": "688112",
+      "name": "鼎阳科技",
+      "segment": "CPO/OCS",
+      "ecosystems": [],
+      "role": "光测试仪器，高速采样"
+    },
+    {
+      "code": "603256",
+      "name": "宏和科技",
+      "segment": "电子布",
+      "ecosystems": [],
+      "role": "T布/超薄布，H1预增280-364%"
+    },
+    {
+      "code": "300395",
+      "name": "菲利华",
+      "segment": "电子布",
+      "ecosystems": [],
+      "role": "Q布石英布，国内唯一量产"
+    },
+    {
+      "code": "301526",
+      "name": "国际复材",
+      "segment": "电子布",
+      "ecosystems": [],
+      "role": "Low-Dk二代布，订单排至年底"
+    },
+    {
+      "code": "600176",
+      "name": "中国巨石",
+      "segment": "电子布",
+      "ecosystems": [],
+      "role": "普通电子布7628，以量补质"
+    },
+    {
+      "code": "002080",
+      "name": "中材科技",
+      "segment": "电子布",
+      "ecosystems": [],
+      "role": "Low-Dk二代布（泰山玻纤）"
+    },
+    {
+      "code": "605006",
+      "name": "山东玻纤",
+      "segment": "电子布",
+      "ecosystems": [],
+      "role": "普通电子布7628"
+    },
+    {
+      "code": "301511",
+      "name": "德福科技",
+      "segment": "铜箔",
+      "ecosystems": [],
+      "role": "HVLP4/5铜箔，加工费大涨"
+    },
+    {
+      "code": "301217",
+      "name": "铜冠铜箔",
+      "segment": "铜箔",
+      "ecosystems": [],
+      "role": "HVLP铜箔，缺口24%/40%"
+    },
+    {
+      "code": "688388",
+      "name": "嘉元科技",
+      "segment": "铜箔",
+      "ecosystems": [],
+      "role": "HVLP铜箔，受益高端缺口"
+    },
+    {
+      "code": "605589",
+      "name": "圣泉集团",
+      "segment": "树脂",
+      "ecosystems": [],
+      "role": "PPO树脂一供，60万/吨"
+    },
+    {
+      "code": "601208",
+      "name": "东材科技",
+      "segment": "树脂",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "M9碳氢全球唯一NV验证"
+    },
+    {
+      "code": "688300",
+      "name": "联瑞新材",
+      "segment": "树脂",
+      "ecosystems": [],
+      "role": "化学法球硅，国内份额>50%"
+    },
+    {
+      "code": "300666",
+      "name": "江丰电子",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "溅射靶材，H1预增90-122%"
+    },
+    {
+      "code": "688530",
+      "name": "欧莱新材",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "溅射靶材，6N高纯"
+    },
+    {
+      "code": "300706",
+      "name": "阿石创",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "溅射靶材，6N高纯"
+    },
+    {
+      "code": "688126",
+      "name": "沪硅产业",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "12英寸大硅片"
+    },
+    {
+      "code": "688783",
+      "name": "西安奕材",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "12英寸大硅片，扩产去日化"
+    },
+    {
+      "code": "603688",
+      "name": "石英股份",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "高纯石英砂/制品"
+    },
+    {
+      "code": "688106",
+      "name": "金宏气体",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "电子特气，受益扩产"
+    },
+    {
+      "code": "688268",
+      "name": "华特气体",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "电子特气，受益扩产"
+    },
+    {
+      "code": "688146",
+      "name": "中船特气",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "电子特气，受益扩产"
+    },
+    {
+      "code": "300054",
+      "name": "鼎龙股份",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "CMP抛光垫，量价齐升"
+    },
+    {
+      "code": "688019",
+      "name": "安集科技",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "CMP抛光液，量价齐升"
+    },
+    {
+      "code": "688409",
+      "name": "富创精密",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "精密零部件，先进制程<10%"
+    },
+    {
+      "code": "603650",
+      "name": "彤程新材",
+      "segment": "芯片制造材料",
+      "ecosystems": [],
+      "role": "光刻胶KrF/ArF，替代窗口"
+    },
+    {
+      "code": "688661",
+      "name": "和林微纳",
+      "segment": "探针测试",
+      "ecosystems": [],
+      "role": "MEMS探针卡，2.5D/3D待认证"
+    },
+    {
+      "code": "688809",
+      "name": "强一股份",
+      "segment": "探针测试",
+      "ecosystems": [
+        "英伟达链"
+      ],
+      "role": "MEMS探针卡，英伟达认证"
+    },
+    {
+      "code": "300604",
+      "name": "长川科技",
+      "segment": "探针测试",
+      "ecosystems": [],
+      "role": "测试机，H1预增110-134%"
+    },
+    {
+      "code": "688200",
+      "name": "华峰测控",
+      "segment": "探针测试",
+      "ecosystems": [],
+      "role": "模拟测试机，模拟国产100%"
+    },
+    {
+      "code": "688627",
+      "name": "精智达",
+      "segment": "探针测试",
+      "ecosystems": [],
+      "role": "存储测试机"
+    },
+    {
+      "code": "688372",
+      "name": "伟测科技",
+      "segment": "探针测试",
+      "ecosystems": [],
+      "role": "第三方晶圆测试服务"
+    },
+    {
+      "code": "301629",
+      "name": "矽电股份",
+      "segment": "探针测试",
+      "ecosystems": [],
+      "role": "12英寸晶圆探针台"
+    },
+    {
+      "code": "688361",
+      "name": "中科飞测",
+      "segment": "量检测",
+      "ecosystems": [],
+      "role": "量检测全品类，订单+70%"
+    },
+    {
+      "code": "300567",
+      "name": "精测电子",
+      "segment": "量检测",
+      "ecosystems": [],
+      "role": "量检测设备"
+    },
+    {
+      "code": "688610",
+      "name": "埃科光电",
+      "segment": "量检测",
+      "ecosystems": [],
+      "role": "工业相机，量检测配套"
+    }
+  ]
+}
