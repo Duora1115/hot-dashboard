@@ -182,3 +182,45 @@ def test_compress_snapshot_ms_defaults_empty():
     }
     out = _compress_snapshot(raw, {"300308": "中际旭创"})
     assert out["stk"][0]["ms"] == []
+
+
+def test_recompute_day_from_cache(tmp_path):
+    from scripts.recompute import recompute_day
+    cfg = {
+        "groups": [{"name": "群A", "chat_id": "chat_a"}],
+        "sectors": {"光模块": ["光模块"]},
+        "sentiments": {}, "actions": {},
+        "attribution": {"window_chars": 30, "ignore_link_texts": []},
+    }
+    cache = {
+        "chat_a": {
+            "m1": {
+                "message_id": "m1", "msg_type": "text",
+                "create_time": "2026-08-08 10:47",
+                "content": _link("中际旭创", "300308") + "光模块",
+            }
+        }
+    }
+    day = recompute_day("2026-08-08", cache, cfg, tmp_path, dry_run=True)
+    assert day["total_msgs"] == 1
+    assert day["snapshots"], "应生成快照"
+    stk = next(s for s in day["snapshots"][-1]["top10_stocks"] if s["code"] == "300308")
+    assert stk["sectors"] == ["光模块"]
+    assert stk["mention_sectors"] == ["光模块"]
+
+
+def test_recompute_day_writes_file(tmp_path):
+    from scripts.recompute import recompute_day
+    cfg = {
+        "groups": [{"name": "群A", "chat_id": "chat_a"}],
+        "sectors": {"光模块": ["光模块"]},
+        "sentiments": {}, "actions": {},
+        "attribution": {"window_chars": 30, "ignore_link_texts": []},
+    }
+    cache = {"chat_a": {"m1": {
+        "message_id": "m1", "msg_type": "text",
+        "create_time": "2026-08-08 10:47",
+        "content": _link("中际旭创", "300308") + "光模块",
+    }}}
+    recompute_day("2026-08-08", cache, cfg, tmp_path, dry_run=False)
+    assert (tmp_path / "day_2026-08-08.json").exists()
