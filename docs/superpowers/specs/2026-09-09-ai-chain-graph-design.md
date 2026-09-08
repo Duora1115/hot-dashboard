@@ -137,10 +137,11 @@
 
 ## 7. 测试与维护
 
-- **pytest 一条**：校验 `ai_chain.json` —— 每个 `code` 存在于 `backend/stock_mapping.json`；每个 `segment`/`upstream`/`downstream` 指向已定义环节 id；`code` 不重复；`tier` 取值合法。这是唯一的自动化测试（前端无测试框架）。
+- **pytest 一条**：校验 `ai_chain.json` —— 每个 `code` 存在于 `backend/stock_mapping.json`；每个 `segment`/`upstream`/`downstream` 指向已定义环节 id；`code` 不重复；`tier` 取值合法。
+- **vitest（新增）**：`src/lib/chain.ts` 的纯函数单测 —— 边派生（同业/上下游/阵营）、调色板确定性（同一 `segments` 顺序 → 同一颜色）、热度聚合（峰值 `sc`、今日上榜集合、空快照日降级）。这是本仓库引入的第一个前端测试框架，只覆盖 `chain.ts`，不测组件。
 - `npm run build` + 类型检查。
-- **浏览器手动验证**：过滤、三个开关、点击高亮、同链未提及、空数据日、窄屏降级。
-- **维护**：直接手改 `ai_chain.json`；校验测试兜底。
+- **浏览器手动验证**：过滤、三个开关、点击高亮、同链未上榜、空数据日、窄屏（图谱 + 列表切换）。
+- **维护**：直接手改 `ai_chain.json`；pytest 校验兜底。
 
 ## 8. 风险与已知限制
 
