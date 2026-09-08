@@ -407,6 +407,8 @@ def analyze_text(text, cfg):
 
     # 按股票就近归因（板块 / 多空 / 操作）
     result["by_code"] = attribute_message(text, cfg)
+    # 命中歧义清单的伪提及（Bug A）不进 by_code，从个股统计中丢弃
+    result["codes"] = [c for c in result["codes"] if c in result["by_code"]]
 
     return result
 

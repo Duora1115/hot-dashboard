@@ -224,3 +224,17 @@ def test_recompute_day_writes_file(tmp_path):
     }}}
     recompute_day("2026-08-08", cache, cfg, tmp_path, dry_run=False)
     assert (tmp_path / "day_2026-08-08.json").exists()
+
+
+def test_ignored_link_text_drops_ghost_stock_from_snapshot():
+    """Bug A：链接文字命中歧义清单的伪提及不应成为排行里的幽灵股。"""
+    cfg = {"sectors": {"光模块": ["光模块"], "农业": ["农业"]},
+           "sentiments": {}, "actions": {},
+           "attribution": {"window_chars": 30, "ignore_link_texts": ["农业"]}}
+    text = _link("农业", "601288") + "厄尔尼诺鱼粉景气。" + _link("中际旭创", "300308") + "光模块。"
+    msg = {"message_id": "m1", "create_time": "2026-08-08 10:47", "content": text,
+           "_analysis": collector.analyze_text(text, cfg)}
+    snap = collector.compute_snapshot({"群A": [msg]}, "2026-08-08 10:47", cfg)
+    codes = {s["code"] for s in snap["top10_stocks"]}
+    assert "601288" not in codes, "农业链接是伪提及，不应出现在个股排行"
+    assert "300308" in codes
