@@ -455,16 +455,18 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
                     "text": m.get("content", "")
                 })
 
-            # 股票聚合
+            # 股票聚合（板块 / 多空 / 操作按 code 就近归因）
             for code in analysis.get("codes", []):
+                bc = analysis.get("by_code", {}).get(code, {})
                 stock_data[code].append({
                     "group": grp_name, "time": ct,
                     "name": analysis.get("name", ""),
-                    "has_action": bool(analysis.get("actions")),
-                    "bull": any(s in analysis.get("sentiments", {}) for s in ["看多", "情绪高涨"]),
-                    "bear": any(s in analysis.get("sentiments", {}) for s in ["看空", "情绪低迷"]),
+                    "has_action": bool(bc.get("actions")),
+                    "bull": bool(bc.get("bull")),
+                    "bear": bool(bc.get("bear")),
                     "text": m.get("content", ""),
-                    "sectors": analysis.get("sectors", [])
+                    "sectors": bc.get("sectors", []),
+                    "msg_sectors": analysis.get("sectors", []),
                 })
 
     # 股票热度排行
@@ -483,10 +485,12 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
         if score < 5 and len(groups) < 2:
             continue
 
-        # 关联板块（复用前面 analyze_text 已识别的板块，避免重复关键词扫描）
+        # 所属板块（就近）与消息关联板块（消息级并集）
         involved_sectors = set()
+        mention_sectors = set()
         for d in details:
             involved_sectors.update(d.get("sectors", []))
+            mention_sectors.update(d.get("msg_sectors", []))
 
         # 按群聚合消息明细
         group_msgs = defaultdict(list)
@@ -506,6 +510,7 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
             "groups": sorted(groups), "action_count": action_count,
             "bull": bull, "bear": bear,
             "sectors": sorted(involved_sectors),
+            "mention_sectors": sorted(mention_sectors),
             "first_time": min(d["time"] for d in details),
             "last_time": max(d["time"] for d in details),
             "group_details": group_details,

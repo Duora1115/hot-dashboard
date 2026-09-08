@@ -129,3 +129,21 @@ def test_analyze_text_message_level_sectors_dedup_substring():
            "sentiments": {}, "actions": {}}
     r = collector.analyze_text("消费电子回暖", cfg)
     assert r["sectors"] == ["消费电子"]
+
+
+def test_compute_snapshot_attributes_sectors_per_stock():
+    cfg = {"sectors": {"光模块": ["光模块"], "银行": ["银行"]},
+           "sentiments": {"看多": ["看好"]}, "actions": {}}
+    text = (_link("中际旭创", "300308") + "光模块看好。"
+            + _link("农业银行", "601288") + "银行板块。")
+    msg = {"message_id": "m1", "create_time": "2026-08-08 10:47", "content": text,
+           "_analysis": collector.analyze_text(text, cfg)}
+    snap = collector.compute_snapshot({"群A": [msg]}, "2026-08-08 10:47", cfg)
+
+    zj = next(s for s in snap["top10_stocks"] if s["code"] == "300308")
+    ny = next(s for s in snap["top10_stocks"] if s["code"] == "601288")
+    assert set(zj["sectors"]) == {"光模块"}
+    assert set(ny["sectors"]) == {"银行"}
+    # 消息关联板块是消息级并集，两只票相同
+    assert set(zj["mention_sectors"]) == {"光模块", "银行"}
+    assert set(ny["mention_sectors"]) == {"光模块", "银行"}
