@@ -200,7 +200,9 @@ function StockHeader({ stock }: { stock: StockItem }) {
 /* ------------------------------------------------------------------ */
 
 function HeatScoreHistory({ stockCode }: { stockCode: string }) {
-  const snapshots = useStore((s) => s.currentDayData?.snapshots ?? []);
+  // 选择器必须返回稳定引用：`?? []` 每次给新数组，会让 useSyncExternalStore 无限重渲染
+  const rawSnapshots = useStore((s) => s.currentDayData?.snapshots);
+  const snapshots = useMemo(() => rawSnapshots ?? [], [rawSnapshots]);
   const heatData = useMemo(() => {
     return snapshots.map((snap, i) => {
       for (let j = 0; j < snap.stk.length; j++) {
@@ -729,7 +731,9 @@ export default function StockDetail() {
   const currentDate = useStore((s) => s.currentDate);
   const dayFullLoaded = useStore((s) => s.dayFullLoaded);
   const loadDayFull = useStore((s) => s.loadDayFull);
-  const snapshots = useStore((s) => s.currentDayData?.snapshots ?? []);
+  // 选择器必须返回稳定引用：`?? []` 每次给新数组，会让 useSyncExternalStore 无限重渲染
+  const rawSnapshots = useStore((s) => s.currentDayData?.snapshots);
+  const snapshots = useMemo(() => rawSnapshots ?? [], [rawSnapshots]);
 
   const [groups, setGroups] = useState<GroupShape[]>([]);
   const [gmLoading, setGmLoading] = useState(false);

@@ -1701,3 +1701,42 @@ git commit -m "docs: 记录产业链图谱的验证结果"
 **Spec 覆盖**：§2 数据模型 → Task 2；§3 关系派生 → Task 3；§4 抽取规则 → Task 2；§5 页面与交互（桌面画布/过滤/三开关/选中高亮/同链未上榜/详情栏/窄屏图谱+列表/图例）→ Task 4、5、6；§6 数据流与选型 → Task 1、4；§7 测试（pytest + vitest + build + 手动）→ Task 2、3、7；§8 风险（React 19 闸门）→ Task 1 Step 9；§9 回滚 → 纯新增文件，无删除步骤。
 
 **口径检查**：全文未出现「提及 / 未提及」用于描述热榜状态；「未上榜」统一指「今日未进过 Top10」。
+
+---
+
+## 执行记录
+
+（2026-09-09，SDD 流程；分支 `main`，用户明确同意直接在 main 上做）
+
+- **pytest**：`python3 -m pytest tests/ -q` → **77 passed**（含 `tests/test_chain_data.py` 新增 2 例）。
+- **vitest**：`npm run test` → **8 passed**（`src/lib/chain.test.ts`）。
+- **npm run build**：退出码 0、无 warning。`/chain` 为独立 chunk（`Chain-*.js`）；`react-force-graph` 及其 d3 依赖被单独拆进 `vendor-force-graph-*.js`（97.93 kB），仅被 `Chain-*.js` 引用，`index.html` 不预加载；主包 vendor 由 380.52 kB 降至 300.60 kB（gzip 122.80→98.84）。
+- **浏览器回归**（kimi-webbridge 驱动真实 Chrome，`http://localhost:3000/chain`，用户指示「你自行验证」）：
+  1. 默认态 ✓ 124 节点按环节着色、同业灰线、左下图例、顶部过滤条、右栏占位。
+  2. 过滤/搜索 ✓ 搜索「旭创」隔离出「中际旭创」；「环节」下拉选「光模块」→ 6 节点、按钮「环节 · 1 ▾」。
+  3. 点节点 ✓ 右栏详情正确（华丰科技 688629）；选中蓝环、同环节未上榜黄环、非候选未上榜压暗+虚线、选中边变绿。
+  4. 「高亮同链未上榜」开关 ✓ 关闭后黄环消失、选中态保留。
+  5. 「→ 个股详情」✓ 跳 `/stock/688629`。
+  6. 点空白取消选中 ✓（**拖拽平移 / 节点拖拽 / 双指缩放未能验证**——kimi-webbridge 的 CDP 桥不投递按下后的 `mouseMoved`，touch 事件亦未投递；依赖 react-force-graph 原生 d3-zoom/d3-drag，记为验证盲区）。
+  7. 窄屏 390×844 ✓ 图谱/列表切换、列表按环节分组、点行开底部抽屉、底部横向色点条；桌面图例已隐藏。
+  8. 空数据日 ✓ 拦截 `/api/day/*?full=1` 返回 `{snapshots: []}` 后，页面正常渲染 124 节点、无 `Maximum update depth`。
+- **过程中修复的三处缺陷**（均超出任务简报、由回归发现）：
+  - `src/pages/Chain.tsx`：`useStore((s) => s.currentDayData?.snapshots ?? [])` 每次返回新数组 → `useSyncExternalStore` 无限重渲染、首屏空白。改为引用稳定的选择器，`?? []` 下沉进 `useMemo`。
+  - `src/components/chain/GraphCanvas.tsx`：`zoomToFit` 挂在 `[nodes.length]`（恒 124），早于布局展开 → 首屏聚成小簇。改为 `onEngineStop` + `fittedRef` 取景一次。
+  - `vite.config.ts`：`react-force-graph` 落进被全站 `modulepreload` 的 `vendor` 主包。新增 `vendor-force-graph` 分包规则。
+- **已知问题**：
+  - `StockDetail.tsx` / `Sectors.tsx` / `Sentiment.tsx` 存在与 Ruling 14 相同的 `?? []` 选择器写法（未改，超出本计划范围，待用户定夺）。
+  - 默认视图（同业开、上下游关、阵营关）下 23 个环节互不相连；d3 初始位置随机，故每次加载布局不同：或叠成一个连贯的团（实测 k≈2.65），或散成 23 个小簇（实测 k≈0.49）。spec §5 示意本就是多簇，记为 deferred；是否调力参数或默认开「阵营」由用户定。
+  - 画布拖动平移 / 节点拖拽 / 双指缩放未经浏览器验证（工具盲区，见上）。
+
+## 执行记录 · 最终整支审查修复（2026-09-09）
+
+最终整支审查（`4b2a0b1..worktree`）结论：0 Critical、4 Important、8 Minor。裁定与修复：
+
+- **Ruling 16**（Important #1）`candidateCodes` 未校验锚点上榜 → 选中未上榜节点时整段被标「补涨候选」、琥珀环盖过选中环。修复：加 `if (!sel.listed) return out;`（spec §5:116），并新增 vitest「锚点未上榜时无补涨候选」。
+- **Ruling 17**（Important #2）选中态只压暗「未上榜非候选」，未含同阵营邻居。修复：`GraphCanvas` 新增 `neighborIds`（同环节 ∪ 共享阵营），`dimmed = neighborIds.size > 0 && !neighborIds.has(id) && !isCandidate`（spec §5:114）。
+- **Ruling 18**（Important #3）768–1023px 无详情面板（`aside` 是 `hidden lg:block`、抽屉是 `isMobile`<768）。修复：该页四处 `lg:` → `md:`（=768，与 `useIsMobile` 同界）；**并补 `min-w-0`**——改 `md:flex-row` 后画布列无法收缩，900px 视口下整页 1416px 宽（横向溢出），实测修复后 889 ≤ 900。
+- **Ruling 19**（Important #4）审查据「默认 k≈0.49」推断标签被 `globalScale > 0.5` 门限挡住。实测 k 随布局随机（2.65 或 0.489），故该门限确实会偶发抑制标签；且 spec §5:121 要求「选中节点 + 其同环节候选」始终带标签。修复：把选中/候选移出缩放门限，热度 ≥ 60 的仍受门限约束。
+- **残留 Minor（scoped re-review 提出，已修）**：选中节点被过滤出 `visibleNodes` 时 `neighborIds` 为空 → 全场压暗。修复：`dimmed` 增加 `neighborIds.size > 0` 前置条件。
+- 复查：scoped re-review 结论 **Clean**，四项全部 ADDRESSED。`npm run test` 9 passed；`python3 -m pytest tests/ -q` 77 passed；`npm run build` exit 0（`vendor-force-graph` 仍为独立 97.93 kB chunk）。浏览器复验：900px 下右栏可见、无横向溢出；选中未上榜节点显示蓝色选中环、无琥珀候选环；选中节点标签正常渲染。
+- 未修（Minor，记为 deferred）：悬停 tooltip 无热度、`zoomToFit` 只跑一次、列表/画布环优先级不一致、下拉不自动关闭、移动端两步详情、类型 cast、`aggregateHeat` 依赖快照有序。`StockDetail/Sectors/Sentiment` 的 `?? []` 选择器为范围外隐患，已向用户报告。

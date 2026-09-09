@@ -486,7 +486,9 @@ function SentimentInsights({ sd }: { sd: { bu: number; be: number; ne: number; e
 
 export default function Sentiment() {
   const currentSnapshot = useStore((s) => s.currentSnapshot);
-  const snapshots = useStore((s) => s.currentDayData?.snapshots ?? []);
+  // 选择器必须返回稳定引用：`?? []` 每次给新数组，会让 useSyncExternalStore 无限重渲染
+  const rawSnapshots = useStore((s) => s.currentDayData?.snapshots);
+  const snapshots = useMemo(() => rawSnapshots ?? [], [rawSnapshots]);
   const dayFullLoaded = useStore((s) => s.dayFullLoaded);
   const loadDayFull = useStore((s) => s.loadDayFull);
   const [isRefreshing, setIsRefreshing] = useState(false);

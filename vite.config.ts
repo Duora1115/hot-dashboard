@@ -23,6 +23,22 @@ export default defineConfig({
         // app updates.
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
+          // force-graph 只被 /chain 动态引入，单独分包，别落进主包 vendor
+          if (
+            id.includes('force-graph') ||
+            id.includes('kapsule') ||
+            id.includes('d3-force-3d') ||
+            id.includes('d3-binarytree') ||
+            id.includes('d3-octree') ||
+            id.includes('canvas-color-tracker') ||
+            id.includes('float-tooltip') ||
+            id.includes('accessor-fn') ||
+            id.includes('index-array-by') ||
+            id.includes('bezier-js') ||
+            id.includes('@tweenjs')
+          ) {
+            return 'vendor-force-graph'
+          }
           if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-vendor')) {
             return 'vendor-recharts'
           }

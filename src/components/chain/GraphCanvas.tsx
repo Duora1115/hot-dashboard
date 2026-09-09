@@ -64,9 +64,22 @@ export default function GraphCanvas({
     [nodes, visibleLinks],
   );
 
-  useEffect(() => {
-    fgRef.current?.zoomToFit(400, 60);
-  }, [nodes.length]);
+  // spec §5：选中节点的「邻居」= 同环节 ∪ 共享阵营；其余压暗
+  const neighborIds = useMemo(() => {
+    const out = new Set<string>();
+    if (!selectedId) return out;
+    const sel = nodes.find((n) => n.id === selectedId);
+    if (!sel) return out;
+    for (const n of nodes) {
+      if (n.segment === sel.segment || n.ecosystems.some((e) => sel.ecosystems.includes(e))) {
+        out.add(n.id);
+      }
+    }
+    return out;
+  }, [nodes, selectedId]);
+
+  // 首帧节点还在初始位置，此刻 fit 会把镜头拉到一个小簇上；等布局停稳再取景一次
+  const fittedRef = useRef(false);
 
   const paintNode = useCallback(
     (rawNode: unknown, ctx: CanvasRenderingContext2D, globalScale: number) => {
@@ -74,7 +87,8 @@ export default function GraphCanvas({
       const r = node.val;
       const isSelected = node.id === selectedId;
       const isCandidate = candidateIds.has(node.id);
-      const dimmed = selectedId !== null && !isSelected && !isCandidate && !node.listed;
+      // 选中节点被过滤掉时 neighborIds 为空（含自身），此时不压暗任何节点
+      const dimmed = neighborIds.size > 0 && !neighborIds.has(node.id) && !isCandidate;
 
       ctx.beginPath();
       ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, Math.PI * 2);
@@ -111,9 +125,10 @@ export default function GraphCanvas({
         ctx.stroke();
       }
 
-      // 标签只给够热或够相关的票，避免上百节点糊成一片
-      const showLabel = isSelected || isCandidate || node.peakSc >= 60;
-      if (showLabel && globalScale > 0.5) {
+      // 标签只给够热或够相关的票，避免上百节点糊成一片；
+      // 选中节点与候选不受缩放门限限制（spec §5：这两个始终带标签）
+      const showLabel = isSelected || isCandidate || (node.peakSc >= 60 && globalScale > 0.5);
+      if (showLabel) {
         const label = node.name;
         ctx.font = `${isSelected ? 600 : 400} ${11 / globalScale}px Inter, "PingFang SC", sans-serif`;
         ctx.textAlign = 'center';
@@ -122,7 +137,7 @@ export default function GraphCanvas({
         ctx.fillText(label, node.x ?? 0, (node.y ?? 0) + r + 2);
       }
     },
-    [candidateIds, selectedId],
+    [candidateIds, neighborIds, selectedId],
   );
 
   const paintPointerArea = useCallback((rawNode: unknown, color: string, ctx: CanvasRenderingContext2D) => {
@@ -158,6 +173,11 @@ export default function GraphCanvas({
         linkCurvature={(l) => ((l as unknown as GraphLink).kind === 'ecosystem' ? 0.25 : 0)}
         onNodeClick={(n) => onSelect((n as unknown as GraphNode).id)}
         onBackgroundClick={() => onSelect(null)}
+        onEngineStop={() => {
+          if (fittedRef.current) return;
+          fittedRef.current = true;
+          fgRef.current?.zoomToFit(400, 60);
+        }}
         onRenderFramePost={(ctx, globalScale) => {
           if (!showSupply) return;
           // 每帧按当前布局算环节簇心：d3 原地改 x/y，useMemo 抓不到

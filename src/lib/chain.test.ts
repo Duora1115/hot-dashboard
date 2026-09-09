@@ -112,6 +112,14 @@ describe('candidateCodes', () => {
     expect(candidateCodes(nodes, null).size).toBe(0);
     expect(candidateCodes(nodes, '不存在的代码').size).toBe(0);
   });
+
+  it('锚点未上榜时无补涨候选', () => {
+    const nodes = buildNodes(DATA, {
+      '300308': { peakSc: 92, listed: true, mentions: 9, bull: 4, bear: 1 },
+    });
+    // 002281 未上榜；选中它不应把同环节的未上榜票标成候选
+    expect(candidateCodes(nodes, '002281').size).toBe(0);
+  });
 });
 
 describe('nodeRadius', () => {

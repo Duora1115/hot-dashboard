@@ -22,7 +22,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const CHAIN_DATA = rawChainData as unknown as ChainData;
 
 export default function Chain() {
-  const snapshots = useStore((s) => s.currentDayData?.snapshots ?? []);
+  // 选择器必须返回稳定引用：`?? []` 每次给新数组，会让 useSyncExternalStore 无限重渲染
+  const snapshots = useStore((s) => s.currentDayData?.snapshots);
   const dayFullLoaded = useStore((s) => s.dayFullLoaded);
   const loadDayFull = useStore((s) => s.loadDayFull);
 
@@ -38,7 +39,7 @@ export default function Chain() {
     if (!dayFullLoaded) loadDayFull();
   }, [dayFullLoaded, loadDayFull]);
 
-  const heat = useMemo(() => aggregateHeat(snapshots), [snapshots]);
+  const heat = useMemo(() => aggregateHeat(snapshots ?? []), [snapshots]);
   const nodes = useMemo(() => buildNodes(CHAIN_DATA, heat), [heat]);
   const links = useMemo(() => buildLinks(CHAIN_DATA), []);
   const arcs = useMemo(() => buildSupplyArcs(CHAIN_DATA.segments), []);
@@ -77,8 +78,8 @@ export default function Chain() {
   const selected = useMemo(() => nodes.find((n) => n.id === selectedId) ?? null, [nodes, selectedId]);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-3 h-[calc(100dvh-140px)]">
-      <div className="flex-1 min-h-0 flex flex-col gap-3">
+    <div className="flex flex-col md:flex-row gap-3 h-[calc(100dvh-140px)]">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-3">
         <div className="flex items-center gap-2 flex-wrap text-[13px]">
           <Filter label="环节" options={CHAIN_DATA.segments.map((s) => s.id)} selected={segmentFilter} onChange={setSegmentFilter} />
           <Filter label="阵营" options={allEcosystems} selected={ecoFilter} onChange={setEcoFilter} />
@@ -129,7 +130,7 @@ export default function Chain() {
               />
             )}
 
-            <div className="hidden lg:flex flex-col gap-[5px] absolute left-3 bottom-3 z-10 pointer-events-none rounded-[10px] border border-border-subtle bg-bg-tertiary/85 backdrop-blur-sm px-2.5 py-2 text-[12.5px] text-ink-secondary">
+            <div className="hidden md:flex flex-col gap-[5px] absolute left-3 bottom-3 z-10 pointer-events-none rounded-[10px] border border-border-subtle bg-bg-tertiary/85 backdrop-blur-sm px-2.5 py-2 text-[12.5px] text-ink-secondary">
               <span className="flex items-center gap-2">
                 <svg width="20" height="8" viewBox="0 0 20 8" className="shrink-0" aria-hidden="true">
                   <defs>
@@ -164,7 +165,7 @@ export default function Chain() {
             </div>
 
             {(mobileView === 'graph' || !isMobile) && (
-              <div className="lg:hidden absolute inset-x-0 bottom-0 z-10 flex items-center gap-2.5 overflow-x-auto pointer-events-auto border-t border-border-subtle bg-bg-tertiary/85 backdrop-blur-sm px-2.5 py-1.5">
+              <div className="md:hidden absolute inset-x-0 bottom-0 z-10 flex items-center gap-2.5 overflow-x-auto pointer-events-auto border-t border-border-subtle bg-bg-tertiary/85 backdrop-blur-sm px-2.5 py-1.5">
                 {CHAIN_DATA.segments.map((seg) => (
                   <span
                     key={seg.id}
@@ -183,7 +184,7 @@ export default function Chain() {
         </div>
       </div>
 
-      <aside className="hidden lg:block w-[280px] shrink-0 rounded-[14px] border border-border-subtle bg-bg-secondary p-4 overflow-y-auto">
+      <aside className="hidden md:block w-[280px] shrink-0 rounded-[14px] border border-border-subtle bg-bg-secondary p-4 overflow-y-auto">
         {selected ? (
           <DetailPanel node={selected} nodes={nodes} onSelect={setSelectedId} />
         ) : (

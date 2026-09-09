@@ -203,6 +203,8 @@ export function candidateCodes(nodes: GraphNode[], selectedId: string | null): S
   if (!selectedId) return out;
   const sel = nodes.find((n) => n.id === selectedId);
   if (!sel) return out;
+  // spec §5：只有选中「今日热票」才谈补涨候选
+  if (!sel.listed) return out;
   for (const n of nodes) {
     if (n.segment === sel.segment && !n.listed) out.add(n.id);
   }
