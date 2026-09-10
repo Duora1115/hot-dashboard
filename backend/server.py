@@ -3,6 +3,7 @@
 FastAPI 服务端：提供数据 API + 托管前端页面
 """
 
+import logging
 import os
 import subprocess
 import sys
@@ -26,9 +27,12 @@ from backend.report import generate_report
 from backend.data_store import DataStore
 from backend.responses import ORJSONResponse
 from backend.jsonio import load_path, dump_path
+from backend.palace import PalaceStore
 
 # Alias so the rest of the file can stay unchanged.
 JSONResponse = ORJSONResponse
+
+logger = logging.getLogger(__name__)
 
 CST = timezone(timedelta(hours=8))
 cfg = load_config()
@@ -110,6 +114,8 @@ store = DataStore(
     eager_load_days=cache_cfg.get("eager_load_days", 1),
 )
 
+palace = PalaceStore(data_dir, lru_groups=cfg.get("palace", {}).get("lru_groups", 8))
+
 
 def _etag_for(date_str: str) -> str:
     version = store.get_version(date_str)
@@ -138,15 +144,80 @@ _CACHE_POLICIES = {
     "market": "max-age=30",
     "stock_messages": "max-age=300",
     "daily_report": "max-age=300",
+    "palace": "max-age=60",
 }
 
 
 @app.on_event("startup")
 def startup_event():
     store.startup()
+    try:
+        palace.startup()
+    except Exception as e:
+        logger.warning(f"观点宫殿索引加载失败，/api/palace/* 降级为未就绪：{e}")
 
 
 # ---- API 路由 ----
+
+# ---- 大V 观点宫殿 ----
+
+def _palace_headers() -> dict:
+    return {"Cache-Control": _CACHE_POLICIES["palace"]}
+
+
+def _palace_404(detail: str) -> JSONResponse:
+    """直接返回 404 响应而非 raise HTTPException。
+
+    app 注册了 ``@app.exception_handler(404)`` 的 SPA 兜底（任何 404 都回
+    index.html + 200，见文件末尾），而 frontend/dist 是随代码提交的，所以
+    该兜底恒生效——raise HTTPException(404) 会被它吃掉变成 200，前端与测试都
+    拿不到 404。改为返回响应体可绕过异常处理器，且不触碰既有路由的行为。
+    """
+    return JSONResponse({"detail": detail}, status_code=404, headers=_palace_headers())
+
+
+@app.get("/api/palace/meta")
+def api_palace_meta():
+    """覆盖范围与生成时间。索引缺失时返回空结构，前端据此提示降级。"""
+    return JSONResponse(palace.get_meta(), headers=_palace_headers())
+
+
+@app.get("/api/palace/kols")
+def api_palace_kols():
+    """大V 列表 + 画像概要，按观点数降序。"""
+    return JSONResponse({
+        "generated_at": palace.get_meta()["generated_at"],
+        "kols": palace.list_kols(),
+    }, headers=_palace_headers())
+
+
+@app.get("/api/palace/kols/{chat_id}")
+def api_palace_kol(chat_id: str):
+    """单群画像 + 该群讨论过的股票。"""
+    result = palace.get_kol(chat_id)
+    if result is None:
+        return _palace_404(f"大V {chat_id} 不存在")
+    return JSONResponse(result, headers=_palace_headers())
+
+
+@app.get("/api/palace/kols/{chat_id}/stocks/{code}")
+def api_palace_kol_stock(chat_id: str, code: str):
+    """该群对该票的观点时间线（含正文），时间倒序。"""
+    opinions = palace.get_kol_stock(chat_id, code)
+    if opinions is None:
+        return _palace_404(f"大V {chat_id} 不存在")
+    return JSONResponse({"chat_id": chat_id, "code": code, "opinions": opinions},
+                        headers=_palace_headers())
+
+
+@app.get("/api/palace/stocks/{code}")
+def api_palace_stock(code: str):
+    """该票的跨群汇总：哪些大V讨论过、各自操作与多空。"""
+    result = palace.get_stock_kols(code)
+    if result is None:
+        return _palace_404(f"股票 {code} 暂无大V观点")
+    return JSONResponse(result, headers=_palace_headers())
+
 
 @app.get("/api/status")
 def api_status(request: Request):
