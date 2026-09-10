@@ -82,3 +82,79 @@ def test_write_opinions_writes_jsonl_and_is_idempotent(tmp_path):
 
     lines = opinions_path(tmp_path, "oc_1").read_text(encoding="utf-8").strip().split("\n")
     assert len(lines) == 1, "重建是覆盖写，不是追加"
+
+
+# ---- 以下是 Task 4 的画像测试 ----
+
+from backend.palace_build import build_profile
+
+
+def _op(code, ts, text="", bull=False, bear=False, sectors=None):
+    return {"ts": ts, "id": "om", "code": code, "name": code, "bull": bull, "bear": bear,
+            "actions": [], "sectors": sectors or [], "text": text}
+
+
+def test_bias_ratio_and_label():
+    ops = [_op("1", "2026-07-06 10:00", bull=True)] * 8 + [_op("1", "2026-07-06 10:00", bear=True)] * 2
+    prof = build_profile(ops, CFG)
+
+    assert prof["bias"] == {"bull": 8, "bear": 2, "ratio": 0.8, "label": "偏多"}
+
+
+def test_bias_without_signal_has_null_ratio():
+    prof = build_profile([_op("1", "2026-07-06 10:00")], CFG)
+
+    assert prof["bias"]["ratio"] is None
+    assert prof["bias"]["label"] == "无信号"
+
+
+def test_bias_lean_bear_and_neutral():
+    assert build_profile([_op("1", "2026-07-06 10:00", bear=True)] * 4
+                         + [_op("1", "2026-07-06 10:00", bull=True)], CFG)["bias"]["label"] == "偏空"
+    assert build_profile([_op("1", "2026-07-06 10:00", bull=True)] * 2
+                         + [_op("1", "2026-07-06 10:00", bear=True)] * 2, CFG)["bias"]["label"] == "中性"
+
+
+def test_trading_picks_top_two_style_labels():
+    ops = [_op("1", "2026-07-06 10:00", text="格局 持有 趋势 主升，低吸 回调")]
+    prof = build_profile(ops, CFG)
+
+    assert prof["trading"] == ["趋势中长线", "低吸埋伏"]
+
+
+def test_trading_is_empty_when_no_keyword_hits():
+    assert build_profile([_op("1", "2026-07-06 10:00", text="随便聊聊")], CFG)["trading"] == []
+
+
+def test_breadth_counts_distinct_stocks_and_concentration():
+    ops = [_op("301308", "2026-07-06 10:00")] * 3 + [_op("300308", "2026-07-06 10:00")]
+    prof = build_profile(ops, CFG)
+
+    assert prof["breadth"] == {"distinct_stocks": 2, "concentration": 0.75}
+
+
+def test_top_sectors_dedupes_within_one_opinion():
+    ops = [
+        _op("1", "2026-07-06 10:00", sectors=["半导体"]),
+        _op("2", "2026-07-06 10:00", sectors=["半导体", "半导体"]),
+        _op("3", "2026-07-06 10:00", sectors=["军工"]),
+    ]
+    prof = build_profile(ops, CFG)
+
+    assert prof["top_sectors"][0] == ["半导体", 2]
+
+
+def test_session_splits_intraday_and_after_hours():
+    ops = [
+        _op("1", "2026-07-06 10:00"),   # 盘中
+        _op("2", "2026-07-06 14:59"),   # 盘中
+        _op("3", "2026-07-06 20:00"),   # 盘外
+        _op("4", "2026-07-06 08:00"),   # 盘外
+    ]
+    prof = build_profile(ops, CFG)
+
+    assert prof["session"] == {"intraday": 0.5, "after_hours": 0.5}
+
+
+def test_ai_summary_is_always_null():
+    assert build_profile([_op("1", "2026-07-06 10:00")], CFG)["ai_summary"] is None
