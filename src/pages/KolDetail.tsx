@@ -137,6 +137,7 @@ export default function KolDetail() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setKol(null);
     fetchPalaceKol(chatId)
       .then((k) => {
         if (!cancelled) setKol(k);
@@ -149,9 +150,10 @@ export default function KolDetail() {
     };
   }, [chatId]);
 
-  // 未选中股票时，默认落到提及最多的那只（用 replace 保持历史干净）
+  // 未选中股票、或选中的票不属于这个群时，落到提及最多的那只（用 replace 保持历史干净）
   useEffect(() => {
-    if (!code && kol && kol.stocks.length > 0) {
+    if (!kol || kol.chat_id !== chatId || kol.stocks.length === 0) return;
+    if (!code || !kol.stocks.some((s) => s.code === code)) {
       navigate(`/kol/${chatId}/${kol.stocks[0].code}`, { replace: true });
     }
   }, [code, kol, chatId, navigate]);

@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, Users } from 'lucide-react';
 import { fetchPalaceKols, fetchPalaceMeta } from '@/lib/api';
-import { FOCUS_RING, biasText, filterKols, isStale, sortKols, splitGroupName } from '@/lib/palace';
+import { FOCUS_RING, filterKols, isStale, sortKols, splitGroupName } from '@/lib/palace';
 import type { KolSortKey } from '@/lib/palace';
 import type { PalaceKol, PalaceMeta } from '@/types/api';
 import { useStore } from '@/store/useStore';
@@ -15,7 +15,7 @@ const SORTS: Array<{ key: KolSortKey; label: string }> = [
 ];
 
 /** 多空倾向条：绿多红空（A 股惯例），两侧给数字不只用颜色 */
-function BiasBar({ bull, bear }: { bull: number; bear: number }) {
+function BiasBar({ bull, bear, label }: { bull: number; bear: number; label: string }) {
   const total = bull + bear;
   const bullPct = total ? Math.round((bull / total) * 100) : 0;
 
@@ -33,7 +33,7 @@ function BiasBar({ bull, bear }: { bull: number; bear: number }) {
       </div>
       <div className="flex justify-between text-[11px] text-ink-tertiary mt-1.5">
         <span className="tabular-nums">
-          {biasText(bull, bear)} {total ? `${bullPct}%` : '—'}
+          {label} {total ? `${bullPct}%` : '—'}
         </span>
         <span className="tabular-nums">多 {bull} · 空 {bear}</span>
       </div>
@@ -91,7 +91,7 @@ function KolCard({ kol }: { kol: PalaceKol }) {
         </div>
       )}
 
-      <BiasBar bull={bias.bull} bear={bias.bear} />
+      <BiasBar bull={bias.bull} bear={bias.bear} label={bias.label} />
 
       {sectors.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2.5">
@@ -117,6 +117,17 @@ function NoResult({ query, hot, onClear }: {
   hot: Array<{ code: string; name: string }>;
   onClear: () => void;
 }) {
+  if (!query) {
+    return (
+      <div className="rounded-[14px] border border-dashed border-hairline/20 p-8 text-center">
+        <p className="text-ink-secondary text-sm mb-2">还没有大V 数据</p>
+        <p className="text-ink-tertiary text-xs">
+          索引尚未生成。先在服务端跑 python3 scripts/build_palace.py，再刷新本页。
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-[14px] border border-dashed border-hairline/20 p-8 text-center">
       <p className="text-ink-secondary text-sm mb-2">没有匹配「{query}」的群</p>

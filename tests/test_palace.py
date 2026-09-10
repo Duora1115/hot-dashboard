@@ -1,5 +1,6 @@
 """PalaceStore：索引常驻 + 单群观点 LRU 懒加载"""
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -134,3 +135,35 @@ def test_opinions_lru_evicts_oldest_group(tmp_path):
 
     assert len(store._opinions) == 1
     assert "oc_1" not in store._opinions, "超出 LRU 上限应淘汰最久未用的群"
+
+
+def test_reloads_when_index_mtime_changes(tmp_path):
+    """cron 用独立进程重建索引后，长驻 store 靠 mtime 感知并重载。"""
+    _make_store(tmp_path, {"oc_1": {"name": "群A",
+                                    "opinions": [_opinion("301308", "2026-07-06 08:09")]}})
+    store = PalaceStore(tmp_path)
+    store.startup()
+    assert [k["name"] for k in store.list_kols()] == ["群A"]
+
+    _make_store(tmp_path, {"oc_2": {"name": "群B",
+                                    "opinions": [_opinion("300308", "2026-07-06 08:09")]}})
+    p = kols_index_path(tmp_path)
+    st = p.stat()
+    os.utime(p, (st.st_atime, st.st_mtime + 10))  # 同秒连续写可能同 mtime，显式推前
+
+    assert [k["name"] for k in store.list_kols()] == ["群B"]
+    assert store.is_ready() is True
+
+
+def test_becomes_ready_when_index_appears_later(tmp_path):
+    """启动时无索引 → 未就绪；索引随后出现 → 下次查询即就绪。"""
+    store = PalaceStore(tmp_path)
+    store.startup()
+    assert store.is_ready() is False
+    assert store.list_kols() == []
+
+    _make_store(tmp_path, {"oc_1": {"name": "群A",
+                                    "opinions": [_opinion("301308", "2026-07-06 08:09")]}})
+
+    assert [k["name"] for k in store.list_kols()] == ["群A"]
+    assert store.is_ready() is True
