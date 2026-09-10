@@ -686,7 +686,8 @@ git commit -m "feat(palace): lark-cli 回补与断点续传"
   - `extract_opinions(messages, cfg, name_map=None) -> list[dict]`
   - `write_opinions(data_dir, chat_id, opinions) -> Path`
   - `opinions_path(data_dir, chat_id) -> Path`
-  - （本任务只建立 `extract_opinions` / `write_opinions` / `opinions_path`，画像与索引在 Task 4/5 追加进同一文件）
+  - `iter_opinions(data_dir, chat_id) -> Iterator[dict]`（Task 6 的 `PalaceStore` 消费）
+  - （本任务建立以上四个；画像与索引在 Task 4/5 追加进同一文件）
 
 - [ ] **Step 1: 写失败的测试**
 
