@@ -138,10 +138,20 @@ export async function fetchDailyReport(date: string): Promise<DailyReport | null
 
 /* ---- Palace (大V 观点宫殿) ---- */
 
-// GET /api/palace/meta —— 索引缺失时后端返回空结构，这里不抛错
+// GET /api/palace/meta —— 索引缺失时后端返回 200 的空 coverage，
+// 需补全为完整结构；网络失败同样降级到空结构。
 export async function fetchPalaceMeta(): Promise<PalaceMeta> {
   try {
-    return await fetchJson<PalaceMeta>('/api/palace/meta');
+    const meta = await fetchJson<PalaceMeta>('/api/palace/meta');
+    return {
+      generated_at: meta.generated_at ?? '',
+      coverage: {
+        from: meta.coverage?.from ?? '',
+        to: meta.coverage?.to ?? '',
+        groups: meta.coverage?.groups ?? 0,
+        missing_days: meta.coverage?.missing_days ?? [],
+      },
+    };
   } catch {
     return { generated_at: '', coverage: { from: '', to: '', groups: 0, missing_days: [] } };
   }
