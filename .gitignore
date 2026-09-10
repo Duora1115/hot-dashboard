@@ -17,6 +17,9 @@ __pycache__/
 .superpowers/
 .worktrees/
 
+# Claude Code 本地配置与技能
+.claude/
+
 # Tailwind CSS 编译输出（dist 目录需要随代码部署）
 # frontend/dist/
 
