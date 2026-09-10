@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft,
@@ -14,6 +14,8 @@ import {
   ArrowUp,
   ArrowDown,
   Thermometer,
+  ArrowLeft,
+  Users,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -26,8 +28,9 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useStore } from '@/store/useStore';
-import { fetchStockMessages } from '@/lib/api';
-import type { StockItem } from '@/types/api';
+import { fetchStockMessages, fetchPalaceStock } from '@/lib/api';
+import type { StockItem, PalaceStockDetail } from '@/types/api';
+import { FOCUS_RING, ROW_GRID, biasText } from '@/lib/palace';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
 /* ------------------------------------------------------------------ */
@@ -723,8 +726,117 @@ async function loadGroupMessages(date: string, code: string): Promise<GroupShape
 /*  Main Stock Detail Page                                             */
 /* ------------------------------------------------------------------ */
 
+/* ---- 大V 观点（Mind Palace）---- */
+
+function PalaceStockSection({ code }: { code: string }) {
+  const [data, setData] = useState<PalaceStockDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchPalaceStock(code)
+      .then((d) => {
+        if (!cancelled) setData(d);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
+  if (loading) {
+    return (
+      <div role="status" aria-live="polite"
+           className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5">
+        <span className="sr-only">正在加载大V 观点…</span>
+        <div className="h-4 w-32 bg-surface-2 rounded mb-3 animate-pulse" />
+        <div className="h-3 w-full bg-surface-2 rounded mb-2 animate-pulse" />
+        <div className="h-3 w-2/3 bg-surface-2 rounded animate-pulse" />
+      </div>
+    );
+  }
+
+  // 后端 404 / 索引缺失都走这里：如实说明，不留白屏
+  if (!data || data.groups.length === 0) {
+    return (
+      <div className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5">
+        <h3 className="text-ink-primary font-semibold text-base mb-3 flex items-center gap-2">
+          <Users size={18} className="text-brand-purple" />
+          大V 观点
+        </h3>
+        <p className="text-ink-tertiary text-xs">
+          还没有大V 讨论过这只票。观点来自接入的 25 个付费群，需要先跑完回补与索引。
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.45 }}
+      className="bg-surface-1 border border-hairline/10 rounded-[14px] p-4"
+    >
+      <h3 className="text-ink-primary font-semibold text-base mb-3 flex items-center gap-2">
+        <Users size={18} className="text-brand-purple" />
+        大V 观点
+        <span className="text-ink-tertiary text-xs font-normal tabular-nums">
+          {data.group_count} 个群讨论过 · 共 {data.total_mentions} 条
+        </span>
+      </h3>
+
+      <div className={`${ROW_GRID} pb-2 mb-1 border-b border-hairline/10 text-ink-tertiary text-[11px]`}>
+        <span>大V / 群</span>
+        <span>提及</span>
+        <span className="max-[1000px]:hidden">多空</span>
+        <span>最近操作</span>
+        <span className="max-[1000px]:hidden">最近</span>
+      </div>
+
+      <div className="flex flex-col">
+        {data.groups.map((g) => (
+          <Link
+            key={g.chat_id}
+            to={`/kol/${g.chat_id}/${code}`}
+            className={`${ROW_GRID} px-2 py-2.5 rounded-md hover:bg-surface-2
+                        transition-colors ${FOCUS_RING}`}
+          >
+            <span className="text-ink-primary text-[13px] truncate">{g.name}</span>
+            <span className="text-ink-secondary text-[13px] tabular-nums">{g.count}</span>
+            <span className="text-[12px] tabular-nums max-[1000px]:hidden">
+              <b className="text-brand-green font-medium">+{g.bull}</b>
+              <i className="text-brand-red font-normal not-italic ml-1">−{g.bear}</i>
+              <span className="text-ink-tertiary ml-1.5">{biasText(g.bull, g.bear)}</span>
+            </span>
+            <span className="flex flex-wrap gap-1">
+              {g.actions.slice(0, 2).map((a) => (
+                <span key={a} className="px-1.5 py-0.5 rounded bg-surface-3 text-ink-secondary text-[10.5px]">
+                  {a}
+                </span>
+              ))}
+            </span>
+            <span className="text-ink-tertiary text-[11px] tabular-nums max-[1000px]:hidden">
+              {g.last_ts.slice(5, 10) || '—'}
+            </span>
+          </Link>
+        ))}
+      </div>
+
+      <p className="text-ink-tertiary text-[11px] mt-3">
+        覆盖 {data.first_ts.slice(0, 10) || '—'} → {data.last_ts.slice(0, 10) || '—'}
+      </p>
+    </motion.div>
+  );
+}
+
 export default function StockDetail() {
   const { code } = useParams<{ code: string }>();
+  const [searchParams] = useSearchParams();
+  const from = searchParams.get('from');
   const navigate = useNavigate();
   const latestSnapshot = useStore((s) => s.latestSnapshot);
   const currentSnapshot = useStore((s) => s.currentSnapshot);
@@ -856,6 +968,19 @@ export default function StockDetail() {
 
       {/* Stock Comparison */}
       <StockComparison currentStock={stock} />
+
+      {/* 从大V 详情跳来时的回程入口（spec §9.5 第 2 条） */}
+      {from && code && (
+        <Link
+          to={`/kol/${from}/${code}`}
+          className={`inline-flex items-center gap-1.5 text-brand-blue text-xs ${FOCUS_RING}`}
+        >
+          <ArrowLeft size={13} /> 回到该大V 的观点
+        </Link>
+      )}
+
+      {/* 大V 观点（Mind Palace） */}
+      {code && <PalaceStockSection code={code} />}
     </motion.div>
   );
 }
