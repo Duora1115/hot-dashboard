@@ -262,3 +262,114 @@ export interface DailyReport {
   coreReview: CoreReview;
   groupViews: GroupView[];
 }
+
+/* ---- Palace (大V 观点宫殿) 相关类型 ---- */
+
+export interface PalaceCoverage {
+  from: string;
+  to: string;
+  groups: number;
+  missing_days: string[];
+}
+
+export interface PalaceMeta {
+  generated_at: string;
+  coverage: PalaceCoverage;
+}
+
+export interface PalaceBias {
+  bull: number;
+  bear: number;
+  ratio: number | null;
+  label: string; // 偏多 | 偏空 | 中性 | 无信号
+}
+
+export interface PalaceBreadth {
+  distinct_stocks: number;
+  concentration: number;
+}
+
+export interface PalaceSession {
+  intraday: number;
+  after_hours: number;
+}
+
+export interface PalaceStyle {
+  bias: PalaceBias;
+  trading: string[];
+  breadth: PalaceBreadth;
+  top_sectors: Array<[string, number]>;
+  session: PalaceSession;
+  ai_summary: string | null; // 本期恒为 null，为空时不渲染
+}
+
+export interface PalaceKol {
+  chat_id: string;
+  name: string;
+  msg_count: number;
+  opinion_count: number;
+  active_days: number;
+  stock_count: number;
+  first_ts: string;
+  last_ts: string;
+  style: PalaceStyle;
+}
+
+export interface PalaceOpinion {
+  ts: string;
+  id: string;
+  code: string;
+  name: string;
+  bull: boolean;
+  bear: boolean;
+  actions: string[];
+  sectors: string[];
+  text: string;
+}
+
+export interface PalaceKolStock {
+  code: string;
+  name: string;
+  count: number;
+  bull: number;
+  bear: number;
+  actions: string[];
+  sectors: string[];
+  first_ts: string;
+  last_ts: string;
+  recent: PalaceOpinion[];
+}
+
+export interface PalaceKolDetail extends PalaceKol {
+  stocks: PalaceKolStock[];
+}
+
+export interface PalaceStockGroup {
+  chat_id: string;
+  name: string;
+  count: number;
+  bull: number;
+  bear: number;
+  actions: string[];
+  last_ts: string;
+}
+
+export interface PalaceStockDetail {
+  name: string;
+  group_count: number;
+  total_mentions: number;
+  first_ts: string;
+  last_ts: string;
+  groups: PalaceStockGroup[];
+}
+
+export interface PalaceKolListResponse {
+  generated_at: string;
+  kols: PalaceKol[];
+}
+
+export interface PalaceKolStockResponse {
+  chat_id: string;
+  code: string;
+  opinions: PalaceOpinion[];
+}

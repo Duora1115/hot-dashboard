@@ -11,6 +11,12 @@ import type {
   SentimentTimelineItem,
   ExtremeStats,
   DailyReport,
+  PalaceKolListResponse,
+  PalaceKolDetail,
+  PalaceKolStockResponse,
+  PalaceMeta,
+  PalaceOpinion,
+  PalaceStockDetail,
 } from '@/types/api';
 
 const API_BASE = '';
@@ -125,6 +131,59 @@ export async function fetchExtremeStats(date: string): Promise<ExtremeStats> {
 export async function fetchDailyReport(date: string): Promise<DailyReport | null> {
   try {
     return await fetchJson<DailyReport>(`/api/daily-report/${date}`);
+  } catch {
+    return null;
+  }
+}
+
+/* ---- Palace (大V 观点宫殿) ---- */
+
+// GET /api/palace/meta —— 索引缺失时后端返回空结构，这里不抛错
+export async function fetchPalaceMeta(): Promise<PalaceMeta> {
+  try {
+    return await fetchJson<PalaceMeta>('/api/palace/meta');
+  } catch {
+    return { generated_at: '', coverage: { from: '', to: '', groups: 0, missing_days: [] } };
+  }
+}
+
+// GET /api/palace/kols
+export async function fetchPalaceKols(): Promise<PalaceKolListResponse> {
+  try {
+    return await fetchJson<PalaceKolListResponse>('/api/palace/kols');
+  } catch {
+    return { generated_at: '', kols: [] };
+  }
+}
+
+// GET /api/palace/kols/{chat_id}
+export async function fetchPalaceKol(chatId: string): Promise<PalaceKolDetail | null> {
+  try {
+    return await fetchJson<PalaceKolDetail>(`/api/palace/kols/${chatId}`);
+  } catch {
+    return null;
+  }
+}
+
+// GET /api/palace/kols/{chat_id}/stocks/{code}
+export async function fetchPalaceKolStock(
+  chatId: string,
+  code: string,
+): Promise<PalaceOpinion[]> {
+  try {
+    const res = await fetchJson<PalaceKolStockResponse>(
+      `/api/palace/kols/${chatId}/stocks/${code}`,
+    );
+    return res.opinions ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// GET /api/palace/stocks/{code}
+export async function fetchPalaceStock(code: string): Promise<PalaceStockDetail | null> {
+  try {
+    return await fetchJson<PalaceStockDetail>(`/api/palace/stocks/${code}`);
   } catch {
     return null;
   }
