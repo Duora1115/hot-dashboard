@@ -27,6 +27,9 @@ const navItems = [
   { path: '/kols', label: '大V', icon: Users },
 ];
 
+/** 详情页与列表页不同段（/kol/ vs /kols），故「大V」入口额外认领这些前缀。 */
+const EXTRA_PREFIXES: Record<string, string[]> = { '/kols': ['/kol/'] };
+
 const springTransition = {
   type: 'spring' as const,
   stiffness: 400,
@@ -76,7 +79,8 @@ export default function Navbar() {
               item.path === '/'
                 ? location.pathname === '/'
                 : location.pathname === item.path ||
-                  location.pathname.startsWith(`${item.path}/`);
+                  location.pathname.startsWith(`${item.path}/`) ||
+                  (EXTRA_PREFIXES[item.path] ?? []).some((p) => location.pathname.startsWith(p));
             return (
               <Link
                 key={item.path}
@@ -151,7 +155,8 @@ export default function Navbar() {
                   item.path === '/'
                     ? location.pathname === '/'
                     : location.pathname === item.path ||
-                      location.pathname.startsWith(`${item.path}/`);
+                      location.pathname.startsWith(`${item.path}/`) ||
+                      (EXTRA_PREFIXES[item.path] ?? []).some((p) => location.pathname.startsWith(p));
                 const Icon = item.icon;
                 return (
                   <Link

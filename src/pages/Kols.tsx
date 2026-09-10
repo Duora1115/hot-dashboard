@@ -22,10 +22,14 @@ function BiasBar({ bull, bear }: { bull: number; bear: number }) {
   return (
     <>
       <div className="relative h-1.5 rounded-full overflow-hidden bg-surface-2">
-        <div className="absolute left-0 top-0 h-full bg-brand-green rounded-full"
-             style={{ width: `${bullPct}%` }} />
-        <div className="absolute top-0 h-full bg-brand-red rounded-full"
-             style={{ left: `${bullPct}%`, width: `${100 - bullPct}%` }} />
+        {total > 0 && (
+          <>
+            <div className="absolute left-0 top-0 h-full bg-brand-green rounded-full"
+                 style={{ width: `${bullPct}%` }} />
+            <div className="absolute top-0 h-full bg-brand-red rounded-full"
+                 style={{ left: `${bullPct}%`, width: `${100 - bullPct}%` }} />
+          </>
+        )}
       </div>
       <div className="flex justify-between text-[11px] text-ink-tertiary mt-1.5">
         <span className="tabular-nums">
@@ -120,7 +124,7 @@ function NoResult({ query, hot, onClear }: {
         搜索只匹配群号与群名，不搜观点正文。换个关键词，或直接看这几只热票。
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <button onClick={onClear}
+        <button type="button" onClick={onClear}
                 className={`px-3 py-1 rounded-md bg-surface-2 text-ink-secondary text-xs
                             hover:text-ink-primary transition-colors ${FOCUS_RING}`}>
           清空搜索
@@ -157,7 +161,7 @@ function Skeleton() {
 export default function Kols() {
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
-  const sortKey = (params.get('sort') as KolSortKey | null) ?? 'active';
+  const sortKey = SORTS.find((s) => s.key === params.get('sort'))?.key ?? 'active';
 
   const [kols, setKols] = useState<PalaceKol[]>([]);
   const [meta, setMeta] = useState<PalaceMeta | null>(null);
@@ -188,7 +192,7 @@ export default function Kols() {
 
   const refTs = meta?.coverage?.to ?? '';
   const visible = useMemo(
-    () => (refTs ? sortKols(filterKols(kols, query), sortKey, refTs) : filterKols(kols, query)),
+    () => sortKols(filterKols(kols, query), sortKey, refTs),
     [kols, query, sortKey, refTs],
   );
 
@@ -222,7 +226,8 @@ export default function Kols() {
         : 1;
     const delta = step === 'row' ? cols : step === '-row' ? -cols : (step as number);
     e.preventDefault();
-    nodes[(i + delta + nodes.length) % nodes.length]?.focus();
+    const next = ((i + delta) % nodes.length + nodes.length) % nodes.length;
+    nodes[next]?.focus();
   };
 
   return (
