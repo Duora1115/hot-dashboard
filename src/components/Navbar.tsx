@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   TrendingUp,
+  Users,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 
@@ -23,6 +24,7 @@ const navItems = [
   { path: '/report', label: '晨报', icon: FileText },
   { path: '/compare', label: '对比', icon: GitCompare },
   { path: '/chain', label: '产业链图谱', icon: Network },
+  { path: '/kols', label: '大V', icon: Users },
 ];
 
 const springTransition = {
@@ -70,7 +72,11 @@ export default function Navbar() {
         {/* Desktop Nav Links — Apple segmented-style pill indicator */}
         <div className="hidden md:flex items-center gap-0.5 relative">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive =
+              item.path === '/'
+                ? location.pathname === '/'
+                : location.pathname === item.path ||
+                  location.pathname.startsWith(`${item.path}/`);
             return (
               <Link
                 key={item.path}
@@ -141,7 +147,11 @@ export default function Navbar() {
           >
             <div className="px-4 py-2 space-y-0.5">
               {navItems.map((item) => {
-                const isActive = location.pathname === item.path;
+                const isActive =
+                  item.path === '/'
+                    ? location.pathname === '/'
+                    : location.pathname === item.path ||
+                      location.pathname.startsWith(`${item.path}/`);
                 const Icon = item.icon;
                 return (
                   <Link

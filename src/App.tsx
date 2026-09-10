@@ -14,6 +14,7 @@ const Sentiment = lazy(() => import('@/pages/Sentiment'));
 const Report = lazy(() => import('@/pages/Report'));
 const Compare = lazy(() => import('@/pages/Compare'));
 const Chain = lazy(() => import('@/pages/Chain'));
+const Kols = lazy(() => import('@/pages/Kols'));
 
 function RouteFallback() {
   return (
@@ -98,6 +99,14 @@ export default function App() {
           element={
             <Suspense fallback={<RouteFallback />}>
               <Chain />
+            </Suspense>
+          }
+        />
+        <Route
+          path="kols"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <Kols />
             </Suspense>
           }
         />
