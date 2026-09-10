@@ -25,6 +25,8 @@ try:
 except ImportError:
     _OCR_AVAILABLE = False
 
+from backend.palace_archive import append_messages
+
 CST = timezone(timedelta(hours=8))
 
 logger = logging.getLogger(__name__)
@@ -616,6 +618,12 @@ def collect_live(cfg=None, data_dir=None):
                         m["content"] = text
                 if text and "_analysis" not in m:
                     m["_analysis"] = analyze_text(text, cfg)
+            # 顺带把当天全部原始消息写进档案层。用独立的 try 包住：
+            # 档案写失败只记 warning，不抛出、不影响采集结果。
+            try:
+                append_messages(data_dir, g["chat_id"], g["name"], msgs)
+            except Exception as e:
+                logger.warning(f"档案追加失败 {g['name']}: {e}")
             return g["name"], day_msgs
         except Exception as e:
             print(f"  跳过 {g['name']}: {e}")

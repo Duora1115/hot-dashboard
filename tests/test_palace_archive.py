@@ -77,3 +77,57 @@ def test_state_roundtrip(tmp_path):
 
 def test_iter_messages_on_missing_file_yields_nothing(tmp_path):
     assert list(iter_messages(tmp_path, "oc_nope")) == []
+
+
+# ---- 以下是 Task 8 的采集集成测试 ----
+
+from datetime import datetime
+from unittest.mock import MagicMock, patch
+
+from backend import collector
+from backend.collector import collect_live
+
+
+def _lark_reply(messages):
+    return MagicMock(returncode=0, stdout=__import__("json").dumps(
+        {"data": {"messages": messages, "has_more": False, "page_token": None}}))
+
+
+def _msgs_now():
+    """消息时间戳必须取「当前时刻」。
+
+    collect_live 会丢弃 create_time > now 的消息（future 过滤）。写死成
+    "09:31" 会让这两个测试在凌晨到早上九点半之间必然失败——本机开发时
+    正好是白天，容易漏掉。
+    """
+    stamp = datetime.now(collector.CST).strftime("%Y-%m-%d %H:%M")
+    return [{"message_id": "om_1", "create_time": stamp,
+             "content": "江波龙看多", "msg_type": "text"}]
+
+
+def _cfg(tmp_path):
+    return {
+        "server": {"data_dir": str(tmp_path)},
+        "collector": {"max_pages": 1},
+        "groups": [{"chat_id": "oc_1", "name": "253_橙子不糊涂"}],
+        "sectors": {}, "sentiments": {}, "actions": {},
+    }
+
+
+def test_collect_live_appends_to_archive(tmp_path):
+    with patch("subprocess.run", return_value=_lark_reply(_msgs_now())):
+        collect_live(cfg=_cfg(tmp_path), data_dir=tmp_path)
+
+    rows = list(iter_messages(tmp_path, "oc_1"))
+    assert len(rows) == 1
+    assert rows[0]["text"] == "江波龙看多"
+
+
+def test_collect_live_survives_archive_failure(tmp_path):
+    """档案写失败不能让采集挂掉，也不能改变采集结果。"""
+    with patch("subprocess.run", return_value=_lark_reply(_msgs_now())), \
+         patch("backend.collector.append_messages", side_effect=OSError("磁盘满")):
+        output = collect_live(cfg=_cfg(tmp_path), data_dir=tmp_path)
+
+    assert output["total_messages"] == 1, "档案失败不应影响采集结果"
+    assert (tmp_path / "latest.json").exists()
