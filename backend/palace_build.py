@@ -160,3 +160,128 @@ def build_profile(opinions: list[dict], cfg) -> dict:
         ),
         "ai_summary": None,
     }
+
+
+# ---- 索引层（spec §4.3）----
+
+def kols_index_path(data_dir) -> Path:
+    return Path(data_dir) / PALACE_DIRNAME / "kols.json"
+
+
+def stock_index_path(data_dir) -> Path:
+    return Path(data_dir) / PALACE_DIRNAME / "stock_index.json"
+
+
+def build_kol_entry(chat_id: str, group_name: str, messages: list[dict],
+                    opinions: list[dict], profile: dict) -> dict:
+    """单个大V的画像条目（写进 kols.json 的 kols[chat_id]）。"""
+    stamps = sorted(m.get("ts", "") for m in messages if m.get("ts"))
+    return {
+        "chat_id": chat_id,
+        "name": group_name,
+        "msg_count": len(messages),
+        "opinion_count": len(opinions),
+        "active_days": len({m.get("ts", "")[:10] for m in messages if m.get("ts")}),
+        "stock_count": len({o.get("code", "") for o in opinions if o.get("code")}),
+        "first_ts": stamps[0] if stamps else "",
+        "last_ts": stamps[-1] if stamps else "",
+        "style": profile,
+    }
+
+
+def build_stock_index(groups: dict) -> dict:
+    """每票跨群汇总（不含正文）。groups = {chat_id: {"name":..,"opinions":[...]}}。"""
+    index: dict = {}
+    for chat_id, g in groups.items():
+        group_name = g.get("name", chat_id)
+        for o in g.get("opinions") or []:
+            code = o.get("code", "")
+            if not code:
+                continue
+            ts = o.get("ts", "")
+            entry = index.setdefault(code, {
+                "name": o.get("name", ""),
+                "group_count": 0, "total_mentions": 0,
+                "first_ts": "", "last_ts": "", "groups": {},
+            })
+            if not entry["name"] and o.get("name"):
+                entry["name"] = o["name"]
+            entry["total_mentions"] += 1
+            if ts:
+                if not entry["first_ts"] or ts < entry["first_ts"]:
+                    entry["first_ts"] = ts
+                if ts > entry["last_ts"]:
+                    entry["last_ts"] = ts
+
+            ge = entry["groups"].setdefault(chat_id, {
+                "name": group_name, "count": 0, "bull": 0, "bear": 0,
+                "actions": [], "last_ts": "",
+            })
+            ge["count"] += 1
+            ge["bull"] += 1 if o.get("bull") else 0
+            ge["bear"] += 1 if o.get("bear") else 0
+            for a in o.get("actions") or []:
+                if a not in ge["actions"]:
+                    ge["actions"].append(a)
+            if ts and ts > ge["last_ts"]:
+                ge["last_ts"] = ts
+
+    for entry in index.values():
+        entry["group_count"] = len(entry["groups"])
+    return index
+
+
+def build_coverage(groups: dict) -> dict:
+    """覆盖范围 + 区间内「全部群消息数为 0」的工作日。groups = {chat_id: {"messages":[...]}}。"""
+    all_ts = [m.get("ts", "") for g in groups.values() for m in g.get("messages") or []]
+    days = {ts[:10] for ts in all_ts if ts}
+    if not days:
+        return {"from": "", "to": "", "groups": len(groups), "missing_days": []}
+
+    lo, hi = min(days), max(days)
+    missing = []
+    cursor = date.fromisoformat(lo)
+    end = date.fromisoformat(hi)
+    while cursor <= end:
+        iso = cursor.isoformat()
+        if cursor.weekday() < 5 and iso not in days:
+            missing.append(iso)
+        cursor += timedelta(days=1)
+    return {"from": lo, "to": hi, "groups": len(groups), "missing_days": missing}
+
+
+def build_all(data_dir, cfg) -> dict:
+    """全量重建：归档 → opinions/ → kols.json + stock_index.json。
+
+    幂等：重复跑结果一致。data/palace/ 整个删掉重跑也能恢复。
+    """
+    data_dir = Path(data_dir)
+    chat_to_name = {g["chat_id"]: g["name"] for g in (cfg.get("groups") or [])}
+    name_map = load_stock_mapping()
+
+    groups: dict = {}
+    for path in sorted(archive_dir(data_dir).glob("*.jsonl")):
+        chat_id = path.stem
+        group_name = chat_to_name.get(chat_id, chat_id)
+        messages = list(iter_messages(data_dir, chat_id))
+        opinions = extract_opinions(messages, cfg, name_map)
+        write_opinions(data_dir, chat_id, opinions)
+        groups[chat_id] = {"name": group_name, "messages": messages, "opinions": opinions}
+        logger.info(f"{group_name}: 消息 {len(messages)}，观点 {len(opinions)}")
+
+    kols = {
+        chat_id: build_kol_entry(chat_id, g["name"], g["messages"], g["opinions"],
+                                 build_profile(g["opinions"], cfg))
+        for chat_id, g in groups.items()
+    }
+    coverage = build_coverage(groups)
+    generated_at = datetime.now(CST).isoformat(timespec="seconds")
+
+    doc = {"generated_at": generated_at, "coverage": coverage, "kols": kols}
+    dump_path(doc, kols_index_path(data_dir), indent=True)
+    dump_path(build_stock_index(groups), stock_index_path(data_dir), indent=True)
+
+    logger.info(f"✅ palace 索引完成: {len(kols)} 群, "
+                f"{sum(k['opinion_count'] for k in kols.values())} 观点, "
+                f"缺 {len(coverage['missing_days'])} 个交易日")
+    return doc

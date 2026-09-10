@@ -158,3 +158,124 @@ def test_session_splits_intraday_and_after_hours():
 
 def test_ai_summary_is_always_null():
     assert build_profile([_op("1", "2026-07-06 10:00")], CFG)["ai_summary"] is None
+
+
+# ---- 以下是 Task 5 的索引测试 ----
+
+import json
+
+from backend.palace_build import (
+    build_all, build_coverage, build_kol_entry, build_stock_index,
+    kols_index_path, stock_index_path,
+)
+from backend.palace_archive import append_messages
+
+
+def _archived(ts, text, mid):
+    return {"message_id": mid, "create_time": ts, "content": text, "msg_type": "text"}
+
+
+def test_kol_entry_counts_messages_days_and_stocks():
+    messages = [
+        {"ts": "2026-07-06 08:09"}, {"ts": "2026-07-06 09:09"}, {"ts": "2026-07-07 09:00"},
+    ]
+    opinions = [_op("301308", "2026-07-06 08:09"), _op("300308", "2026-07-07 09:00")]
+    entry = build_kol_entry("oc_1", "253_橙子不糊涂", messages, opinions, {"bias": {}})
+
+    assert entry["msg_count"] == 3
+    assert entry["active_days"] == 2
+    assert entry["opinion_count"] == 2
+    assert entry["stock_count"] == 2
+    assert entry["first_ts"] == "2026-07-06 08:09"
+    assert entry["last_ts"] == "2026-07-07 09:00"
+    assert entry["name"] == "253_橙子不糊涂"
+
+
+def test_stock_index_aggregates_across_groups():
+    groups = {
+        "oc_1": {"name": "253_橙子不糊涂", "opinions": [
+            _op("301308", "2026-07-06 08:09", bull=True),
+            _op("301308", "2026-07-09 08:09", bear=True),
+        ]},
+        "oc_2": {"name": "006_帝凌枫", "opinions": [
+            _op("301308", "2026-08-01 08:09", bull=True),
+        ]},
+    }
+    idx = build_stock_index(groups)
+    entry = idx["301308"]
+
+    assert entry["group_count"] == 2
+    assert entry["total_mentions"] == 3
+    assert entry["first_ts"] == "2026-07-06 08:09"
+    assert entry["last_ts"] == "2026-08-01 08:09"
+    assert entry["groups"]["oc_1"]["count"] == 2
+    assert entry["groups"]["oc_1"]["bull"] == 1
+    assert entry["groups"]["oc_1"]["bear"] == 1
+    assert entry["groups"]["oc_2"]["name"] == "006_帝凌枫"
+
+
+def test_stock_index_ignores_empty_timestamps_for_range():
+    groups = {"oc_1": {"name": "群", "opinions": [
+        _op("301308", ""), _op("301308", "2026-07-06 08:09"),
+    ]}}
+    entry = build_stock_index(groups)["301308"]
+
+    assert entry["first_ts"] == "2026-07-06 08:09"
+    assert entry["last_ts"] == "2026-07-06 08:09"
+
+
+def test_coverage_lists_weekday_gaps():
+    groups = {
+        "oc_1": {"messages": [{"ts": "2026-07-06 08:09"}, {"ts": "2026-07-08 08:09"}]},
+    }
+    cov = build_coverage(groups)
+
+    assert cov["from"] == "2026-07-06"
+    assert cov["to"] == "2026-07-08"
+    assert cov["groups"] == 1
+    # 07-07 是周二、无消息 → 记入空洞；07-06/07-08 有消息不记
+    assert cov["missing_days"] == ["2026-07-07"]
+
+
+def test_coverage_on_empty_input():
+    assert build_coverage({}) == {"from": "", "to": "", "groups": 0, "missing_days": []}
+
+
+def test_build_all_writes_opinions_and_indexes(tmp_path):
+    text = f"{_link('江波龙', '301308')} 存储模组涨价，看多，买入"
+    append_messages(tmp_path, "oc_1", "253_橙子不糊涂", [_archived("2026-07-06 08:09", text, "om_1")])
+    cfg = {**CFG, "groups": [{"chat_id": "oc_1", "name": "253_橙子不糊涂"}]}
+
+    build_all(tmp_path, cfg)
+
+    kol_doc = json.loads(kols_index_path(tmp_path).read_text(encoding="utf-8"))
+    assert kol_doc["kols"]["oc_1"]["opinion_count"] == 1
+    assert kol_doc["coverage"]["from"] == "2026-07-06"
+    assert kol_doc["generated_at"]
+
+    stock_doc = json.loads(stock_index_path(tmp_path).read_text(encoding="utf-8"))
+    assert stock_doc["301308"]["total_mentions"] == 1
+    assert stock_doc["301308"]["groups"]["oc_1"]["name"] == "253_橙子不糊涂"
+
+
+def test_build_all_is_idempotent(tmp_path):
+    text = f"{_link('江波龙', '301308')} 看多"
+    append_messages(tmp_path, "oc_1", "群", [_archived("2026-07-06 08:09", text, "om_1")])
+    cfg = {**CFG, "groups": [{"chat_id": "oc_1", "name": "群"}]}
+
+    build_all(tmp_path, cfg)
+    first = json.loads(kols_index_path(tmp_path).read_text(encoding="utf-8"))
+    build_all(tmp_path, cfg)
+    second = json.loads(kols_index_path(tmp_path).read_text(encoding="utf-8"))
+
+    # generated_at 是当前时间，两次跑必然不同——只比派生部分
+    first.pop("generated_at")
+    second.pop("generated_at")
+    assert first == second
+
+
+def test_build_all_with_no_archive_is_safe(tmp_path):
+    doc = build_all(tmp_path, {**CFG, "groups": []})
+
+    assert doc["kols"] == {}
+    assert kols_index_path(tmp_path).exists()
