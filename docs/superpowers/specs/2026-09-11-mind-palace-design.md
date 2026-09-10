@@ -244,7 +244,7 @@
 
 ### 9.4 导航
 
-`Navbar` 新增「大V」入口指向 `/kols`。`App.tsx` 新增两条路由，沿用现有 `Suspense` + 懒加载写法。
+`Navbar` 新增「大V」入口指向 `/kols`。`App.tsx` 新增三条路由（`/kols`、`/kol/:chatId`、`/kol/:chatId/:code`，后两条复用同一个 `KolDetail` 组件），沿用现有 `Suspense` + 懒加载写法。
 
 ### 9.5 交互契约（跨页生效）
 
@@ -268,7 +268,7 @@
 
 ## 10. 更新机制
 
-- `build_palace.py` 接在采集流程之后（或 cron 每日一次）：增量读档案新增部分 → 抽取观点 → 重建两个索引。
+- `scripts/palace_daily.sh` 由云端 crontab 每个交易日 16:10 调用，跑 `scripts/build_palace.py` 重建索引。档案由实时采集（每 5 分钟）持续追加，所以这里不需要回补。
 - 档案层是追加的，增量成本主要在 `analyze_text`；全量重建（删 `opinions/` 重跑）作为兜底手段保留。
 - 前端不做实时刷新，页面加载时取一次；`/api/palace/meta` 的 `generated_at` 用于显示数据新鲜度。
 
