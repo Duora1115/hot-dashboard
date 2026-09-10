@@ -2892,17 +2892,25 @@ const Kols = lazy(() => import('@/pages/Kols'));
 
 1. 图标 import 里加 `Users`。
 2. `navItems` 末尾加 `{ path: '/kols', label: '大V', icon: Users },`。
-3. 把两处 `const isActive = location.pathname === item.path;`（桌面端与移动端各一处）都换成：
+3. 在 `navItems` 声明之后加一段别名（详情页路由 `/kol/:chatId` 用**单数** `kol`，与列表页 `/kols` 不同段，纯前缀匹配覆盖不到）：
+
+```tsx
+/** 详情页与列表页不同段（/kol/ vs /kols），故「大V」入口额外认领这些前缀。 */
+const EXTRA_PREFIXES: Record<string, string[]> = { '/kols': ['/kol/'] };
+```
+
+4. 把两处 `const isActive = location.pathname === item.path;`（桌面端与移动端各一处）都换成：
 
 ```tsx
             const isActive =
               item.path === '/'
                 ? location.pathname === '/'
                 : location.pathname === item.path ||
-                  location.pathname.startsWith(`${item.path}/`);
+                  location.pathname.startsWith(`${item.path}/`) ||
+                  (EXTRA_PREFIXES[item.path] ?? []).some((p) => location.pathname.startsWith(p));
 ```
 
-> 这同时修掉一个既有缺陷：`/stock/:code` 之前从不点亮导航。
+> 注意：通用前缀匹配对**现有**路由全是空转（没有任何 `navItems` 路径是既有路由的前缀），它的作用是为将来可能出现的嵌套路由兜底；真正让「大V」在 `/kol/:chatId` 详情页保持高亮的是 `EXTRA_PREFIXES`。不要写「修掉 `/stock/:code` 不亮导航」这类说法——`/stock/:code` 没有对应导航项，那是错的。
 
 - [ ] **Step 4: 起 dev server 人工验证**
 
