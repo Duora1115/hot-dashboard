@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   biasText, filterKols, filterStocks, isStale, readableText, sortKols, sortStocks,
-  splitGroupName,
+  splitGroupName, toGroupDetails,
 } from './palace';
 import type { PalaceKol, PalaceStockSummary } from '@/types/api';
 
@@ -166,6 +166,39 @@ describe('filterStocks', () => {
 
   it('无匹配返回空数组', () => {
     expect(filterStocks([stock('301308')], '京东方')).toEqual([]);
+  });
+});
+
+describe('toGroupDetails', () => {
+  it('长键响应折成抽屉用的短键形状', () => {
+    const resp = [{
+      group: '253_橙子不糊涂',
+      count: 7,
+      messages: [
+        { time: '09:30', text: '看多半导体' },
+        { time: '09:50', text: '继续加' },
+      ],
+    }];
+
+    expect(toGroupDetails(resp)).toEqual([{
+      g: '253_橙子不糊涂',
+      c: 7,
+      m: [
+        { t: '09:30', x: '看多半导体' },
+        { t: '09:50', x: '继续加' },
+      ],
+    }]);
+  });
+
+  it('count 是全文计数，可以大于展示的消息条数', () => {
+    const resp = [{ group: '群A', count: 12, messages: [{ time: '10:00', text: 'x' }] }];
+
+    expect(toGroupDetails(resp)[0].c).toBe(12);
+    expect(toGroupDetails(resp)[0].m).toHaveLength(1);
+  });
+
+  it('空数组不炸', () => {
+    expect(toGroupDetails([])).toEqual([]);
   });
 });
 

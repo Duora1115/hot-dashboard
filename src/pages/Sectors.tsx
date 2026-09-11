@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { readableText } from '@/lib/palace';
+import { readableText, toGroupDetails } from '@/lib/palace';
+import { fetchSectorMessages } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Layers,
@@ -28,7 +29,7 @@ import {
   Area,
 } from 'recharts';
 import { useStore } from '@/store/useStore';
-import type { SectorItem, Snapshot } from '@/types/api';
+import type { GroupDetail, SectorItem, Snapshot } from '@/types/api';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
 /* ------------------------------------------------------------------ */
@@ -181,13 +182,46 @@ function SectorDetailDrawer({
   timeSlots,
   heatmapData,
   sectorStocks,
+  date,
 }: {
   sector: SectorItem | null;
   onClose: () => void;
   timeSlots: string[];
   heatmapData: Record<string, number[]>;
   sectorStocks: Record<string, Array<{ name: string; code: string; sc: number; mc: number }>>;
+  date: string;
 }) {
+  // 群消息原文不在快照里（压缩时被剥掉了），得按需向后端要。hook 必须放在下面的
+  // 早返回之前，否则 sector 从 null 变成有值时会改变 hook 数量。
+  const sectorName = sector?.n;
+  const [groups, setGroups] = useState<GroupDetail[] | null>(null);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+
+  useEffect(() => {
+    if (!sectorName || !date) {
+      setGroups(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingGroups(true);
+    setGroups(null);
+    // 不传 time：面板上半部分是全天聚合的板块指标，消息也取最全的那份快照，
+    // 否则又会重演「热度 106 但只有 3 条消息」。与个股页 fetchStockMessages 同口径。
+    fetchSectorMessages(date, sectorName)
+      .then((resp) => {
+        if (!cancelled) setGroups(toGroupDetails(resp));
+      })
+      .catch(() => {
+        if (!cancelled) setGroups([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingGroups(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sectorName, date]);
+
   if (!sector) return null;
 
   const stocks = sectorStocks[sector.n] || [];
@@ -340,7 +374,13 @@ function SectorDetailDrawer({
                   群消息摘要
                 </h3>
                 <div className="space-y-3">
-                  {(sector.gd ?? []).map((group, gi) => (
+                  {loadingGroups && (
+                    <p className="text-xs text-ink-tertiary py-2">正在加载群消息…</p>
+                  )}
+                  {!loadingGroups && (groups?.length ?? 0) === 0 && (
+                    <p className="text-xs text-ink-tertiary py-2">该板块暂无可展示的群消息。</p>
+                  )}
+                  {(groups ?? []).map((group, gi) => (
                     <motion.div
                       key={group.g}
                       initial={{ opacity: 0, y: 10 }}
@@ -839,6 +879,7 @@ export default function Sectors() {
         timeSlots={timeSlots}
         heatmapData={heatmapData}
         sectorStocks={sectorStocks}
+        date={currentSnapshot?.t.slice(0, 10) ?? ''}
       />
     </div>
   );

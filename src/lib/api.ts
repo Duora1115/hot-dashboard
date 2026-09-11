@@ -5,6 +5,7 @@ import type {
   Snapshot,
   DayData,
   StockMessagesResponse,
+  SectorMessagesResponse,
   MarketIndex,
   AdvanceDecline,
   ReportData,
@@ -91,6 +92,18 @@ export async function fetchStockMessages(
   params.append('code', code);
   if (time) params.append('time', time);
   return fetchJson<StockMessagesResponse>(`/api/stock-messages/${date}?${params.toString()}`);
+}
+
+// GET /api/sector-messages/{date}?name={板块}&time={time}
+export async function fetchSectorMessages(
+  date: string,
+  name: string,
+  time?: string,
+): Promise<SectorMessagesResponse> {
+  const params = new URLSearchParams();
+  params.append('name', name);
+  if (time) params.append('time', time);
+  return fetchJson<SectorMessagesResponse>(`/api/sector-messages/${date}?${params.toString()}`);
 }
 
 // POST /api/collect

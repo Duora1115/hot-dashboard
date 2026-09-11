@@ -90,6 +90,20 @@ export interface StockGroupMessages {
 // GET /api/stock-messages/{date}?code=... — backend returns a plain array.
 export type StockMessagesResponse = StockGroupMessages[];
 
+export interface SectorMessageItem {
+  time: string; // "HH:MM"
+  text: string;
+}
+
+export interface SectorGroupMessages {
+  group: string;
+  count: number; // 该群消息总数；messages 只留前几条，两者未必相等
+  messages: SectorMessageItem[];
+}
+
+// GET /api/sector-messages/{date}?name=... — backend returns a plain array.
+export type SectorMessagesResponse = SectorGroupMessages[];
+
 /* ---- Report (晨报) 相关类型 ---- */
 
 export interface MarketIndex {

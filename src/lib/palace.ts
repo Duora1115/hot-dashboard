@@ -1,4 +1,4 @@
-import type { PalaceKol, PalaceStockSummary } from '@/types/api';
+import type { GroupDetail, PalaceKol, PalaceStockSummary, SectorGroupMessages } from '@/types/api';
 
 /** /kols 的排序键 */
 export type KolSortKey = 'active' | 'opinion' | 'stocks';
@@ -93,6 +93,20 @@ export function readableText(text: string): string {
   return text
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '[图片]')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+}
+
+/**
+ * /api/sector-messages 的长键响应 → 板块抽屉使用的短键形状。
+ *
+ * `c` 用的是后端给的 count（按全文算），不是 messages 的长度——快照里每群最多
+ * 只留 5 条原文，两者可以不等。
+ */
+export function toGroupDetails(groups: SectorGroupMessages[]): GroupDetail[] {
+  return groups.map((g) => ({
+    g: g.group,
+    c: g.count,
+    m: g.messages.map((msg) => ({ t: msg.time, x: msg.text })),
+  }));
 }
 
 /** 多空的文字标签（spec §9.5 第 4 条：状态不只靠颜色）。 */

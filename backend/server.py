@@ -551,6 +551,71 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
     })
 
 
+def _sector_messages(snapshot: dict, name: str):
+    """从一份原始快照里抽出指定板块的群消息；快照里没这个板块则返回 None。
+
+    返回 None 而不是 []，是为了区分「这份快照里没有这个板块」和「有板块但一条
+    消息都没有」——前者要跳过继续往前找，后者就是终点了。
+    """
+    for s in snapshot.get("top8_sectors", []):
+        if s.get("name") != name:
+            continue
+        return [
+            {
+                "group": g["group"],
+                # count 是聚合时按全文算的，messages 只留前 5 条，两者未必相等。
+                "count": g.get("count", len(g["messages"])),
+                "messages": [
+                    {"time": m["time"].split(" ")[1], "text": m["text"]}
+                    for m in _deduplicate_messages(g["messages"])
+                ],
+            }
+            for g in s.get("group_details", [])
+        ]
+    return None
+
+
+@app.get("/api/sector-messages/{date_str}")
+def api_sector_messages(date_str: str, request: Request, name: str, time: str = ""):
+    """按需获取指定板块的群消息明细。
+
+    压缩存快照时 _compact 会把 sec[].gd 整个丢掉（占体积九成以上），这里从原始
+    LRU 快照把它捞回来。选快照的规则与 /api/stock-messages 一致。
+    """
+    target_time = time or ""
+    # 响应体随 name/time 变化，ETag 必须带上它们，否则不同板块会共用同一个 ETag。
+    scope = f"{name}|{target_time}"
+    not_modified = _check_etag(request, date_str, scope)
+    if not_modified:
+        return not_modified
+
+    raw_snaps = store.get_raw_snapshots(date_str)
+
+    payload = None
+    if target_time:
+        # 回放要的是「当时那份」：快照时间对得上就照它，哪怕那份里没有这个板块
+        # 也返回空，而不是拿别的时间点的数据冒充。
+        snap = next((s for s in raw_snaps if s.get("time", "") == target_time), None)
+        if snap is not None:
+            payload = _sector_messages(snap, name) or []
+
+    if payload is None:
+        # 没指定 time，或指定的时间在快照里找不到：快照是累计窗口，越晚越全，
+        # 从后往前取第一份含该板块的，就是内容最全的那份。
+        for snap in reversed(raw_snaps):
+            found = _sector_messages(snap, name)
+            if found is not None:
+                payload = found
+                break
+
+    # 日期或板块不存在都给空数组：404 会被 SPA 兜底处理器变成 200 + index.html，
+    # 前端拿到的就不是 JSON 了。
+    return JSONResponse(payload or [], headers={
+        "ETag": _etag_for(date_str, scope),
+        "Cache-Control": _CACHE_POLICIES["stock_messages"],
+    })
+
+
 @app.get("/api/market/indices")
 def api_market_indices(request: Request):
     """获取大盘指数实时数据（带 5min 缓存，避免频繁调用外部 API）"""
