@@ -728,12 +728,18 @@ async function loadGroupMessages(date: string, code: string): Promise<GroupShape
 
 /* ---- 大V 观点（Mind Palace）---- */
 
-function PalaceStockSection({ code }: { code: string }) {
+/** 取该票的跨群观点。提到页面层是因为「不在当日热度榜」的分支也要用股票名。 */
+function usePalaceStock(code: string | undefined) {
   const [data, setData] = useState<PalaceStockDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    if (!code) {
+      setData(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     fetchPalaceStock(code)
       .then((d) => {
@@ -747,6 +753,14 @@ function PalaceStockSection({ code }: { code: string }) {
     };
   }, [code]);
 
+  return { data, loading };
+}
+
+function PalaceStockSection({ code, data, loading }: {
+  code: string;
+  data: PalaceStockDetail | null;
+  loading: boolean;
+}) {
   if (loading) {
     return (
       <div role="status" aria-live="polite"
@@ -851,6 +865,9 @@ export default function StockDetail() {
   const [gmLoading, setGmLoading] = useState(false);
   const [gmError, setGmError] = useState<string | null>(null);
 
+  // 必须无条件调用（在下面的提前 return 之前），否则违反 hooks 规则
+  const palace = usePalaceStock(code);
+
   useEffect(() => {
     if (!dayFullLoaded) loadDayFull();
   }, [dayFullLoaded, loadDayFull]);
@@ -891,6 +908,50 @@ export default function StockDetail() {
   }, [code, currentSnapshot, latestSnapshot]);
 
   if (!code || !stock) {
+    const pd = palace.data;
+    // 该票不在当日热度快照里。宫殿认识它时这里不是死路——渲染只含「大V 观点」的股票页。
+    if (code && palace.loading) {
+      return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          <div className="h-7 w-40 bg-surface-2 rounded animate-pulse" />
+          <div className="h-24 w-full bg-surface-1 border border-hairline/10 rounded-[14px] animate-pulse" />
+        </motion.div>
+      );
+    }
+    if (code && pd && pd.groups.length > 0) {
+      return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/')}
+              aria-label="返回 Dashboard"
+              className="w-9 h-9 shrink-0 rounded-full bg-surface-2 hover:bg-surface-3 flex items-center justify-center text-ink-secondary hover:text-ink-primary transition-colors border border-hairline/20"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold text-ink-primary truncate">
+                {pd.name || code}
+              </h1>
+              <p className="text-ink-tertiary text-xs mt-0.5">
+                {pd.name ? `${code} · ` : ''}该票不在当日热度榜中，以下为付费群的历史观点
+              </p>
+            </div>
+          </div>
+
+          {from && (
+            <Link
+              to={`/kol/${from}/${code}`}
+              className={`inline-flex items-center gap-1.5 text-brand-blue text-xs ${FOCUS_RING}`}
+            >
+              <ArrowLeft size={13} /> 回到该大V 的观点
+            </Link>
+          )}
+
+          <PalaceStockSection code={code} data={pd} loading={false} />
+        </motion.div>
+      );
+    }
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -980,7 +1041,7 @@ export default function StockDetail() {
       )}
 
       {/* 大V 观点（Mind Palace） */}
-      {code && <PalaceStockSection code={code} />}
+      {code && <PalaceStockSection code={code} data={palace.data} loading={palace.loading} />}
     </motion.div>
   );
 }
