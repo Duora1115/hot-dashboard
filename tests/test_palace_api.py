@@ -97,6 +97,77 @@ def test_endpoints_after_seeding():
         assert meta.json()["coverage"]["groups"] == 1
 
 
+def _seed_two_groups(tmp: Path):
+    """两个群讨论同一只票（时间交错），返回 tmp。"""
+    from backend.palace_build import build_stock_index, stock_index_path, write_opinions
+
+    def op(ts, oid, text):
+        return {"ts": ts, "id": oid, "code": "300308", "name": "中际旭创",
+                "bull": oid != "a2", "bear": oid == "a2",
+                "actions": ["买入信号"], "sectors": ["CPO"], "text": text}
+
+    groups = {
+        "oc_a": {"name": "253_橙子不糊涂", "opinions": [
+            op("2026-07-06 09:30", "a1", "A 早上看多"),
+            op("2026-07-06 14:00", "a2", "A 尾盘转空"),
+        ]},
+        "oc_b": {"name": "006_帝凌枫", "opinions": [
+            op("2026-07-06 10:15", "b1", "B 盘中加仓"),
+        ]},
+    }
+    for chat_id, g in groups.items():
+        write_opinions(tmp, chat_id, g["opinions"])
+    stock_index_path(tmp).parent.mkdir(parents=True, exist_ok=True)
+    stock_index_path(tmp).write_text(json.dumps(
+        build_stock_index(groups), ensure_ascii=False), encoding="utf-8")
+    kols_index_path(tmp).write_text(json.dumps({
+        "generated_at": "2026-09-11T10:00:00+08:00",
+        "coverage": {"from": "2026-07-06", "to": "2026-07-06", "groups": 2, "missing_days": []},
+        "kols": {},
+    }, ensure_ascii=False), encoding="utf-8")
+    return tmp
+
+
+def _client_for(tmp: Path) -> TestClient:
+    server.data_dir = tmp
+    server.palace = PalaceStore(tmp)
+    server.palace.startup()
+    return TestClient(server.app)
+
+
+def test_stock_opinions_merges_groups_newest_first():
+    tmp = Path(tempfile.mkdtemp(prefix="hotdash-palace-test-"))
+    _seed_two_groups(tmp)
+
+    with _client_for(tmp) as c:
+        r = c.get("/api/palace/stocks/300308/opinions")
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "中际旭创"
+    assert body["group_count"] == 2
+    assert body["total_mentions"] == 3
+    assert [o["ts"] for o in body["opinions"]] == [
+        "2026-07-06 14:00", "2026-07-06 10:15", "2026-07-06 09:30",
+    ]
+    # 每条都带得出处的群，前端才能点回该大V 的个股页
+    assert body["opinions"][0]["chat_id"] == "oc_a"
+    assert body["opinions"][0]["group"] == "253_橙子不糊涂"
+    assert body["opinions"][1]["chat_id"] == "oc_b"
+    assert body["opinions"][1]["group"] == "006_帝凌枫"
+
+
+def test_stock_opinions_404_when_unknown():
+    tmp = Path(tempfile.mkdtemp(prefix="hotdash-palace-test-"))
+    _seed_two_groups(tmp)
+
+    with _client_for(tmp) as c:
+        r = c.get("/api/palace/stocks/999999/opinions")
+
+    assert r.status_code == 404
+    assert r.json()["detail"]
+
+
 def test_palace_endpoints_are_read_only(client):
     """写接口方法必须不被 palace 路由接受。"""
     assert client.post("/api/palace/kols").status_code == 405

@@ -402,3 +402,17 @@ export interface PalaceKolStockResponse {
   code: string;
   opinions: PalaceOpinion[];
 }
+
+/** 观点 + 出处群，用于个股页的跨群合并时间线。 */
+export interface PalaceStockOpinion extends PalaceOpinion {
+  chat_id: string;
+  group: string;
+}
+
+export interface PalaceStockOpinionsResponse {
+  code: string;
+  name: string;
+  group_count: number;
+  total_mentions: number;
+  opinions: PalaceStockOpinion[];
+}

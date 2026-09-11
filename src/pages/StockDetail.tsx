@@ -16,6 +16,7 @@ import {
   Thermometer,
   ArrowLeft,
   Users,
+  History,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -28,9 +29,9 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useStore } from '@/store/useStore';
-import { fetchStockMessages, fetchPalaceStock } from '@/lib/api';
-import type { StockItem, PalaceStockDetail } from '@/types/api';
-import { FOCUS_RING, ROW_GRID, biasText, readableText } from '@/lib/palace';
+import { fetchStockMessages, fetchPalaceStock, fetchPalaceStockOpinions } from '@/lib/api';
+import type { StockItem, PalaceStockDetail, PalaceStockOpinionsResponse } from '@/types/api';
+import { FOCUS_RING, ROW_GRID, biasText, readableText, splitGroupName } from '@/lib/palace';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
 /* ------------------------------------------------------------------ */
@@ -854,6 +855,142 @@ function PalaceStockSection({ code, data, loading }: {
   );
 }
 
+/* ---- 历史讨论：跨群观点正文时间线 ---- */
+
+/** 首屏条数；「加载更多」每次翻倍（最热的票有 500+ 条，一次渲染太重）。 */
+const OPINIONS_PAGE = 30;
+
+function HistoryDiscussion({ code }: { code: string }) {
+  const [data, setData] = useState<PalaceStockOpinionsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [limit, setLimit] = useState(OPINIONS_PAGE);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setData(null);
+    setLimit(OPINIONS_PAGE);
+    fetchPalaceStockOpinions(code)
+      .then((d) => {
+        if (!cancelled) setData(d);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
+  if (loading) {
+    return (
+      <div role="status" aria-live="polite"
+           className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5">
+        <span className="sr-only">正在加载历史讨论…</span>
+        <div className="h-4 w-24 bg-surface-2 rounded mb-3 animate-pulse" />
+        <div className="h-16 w-full bg-surface-2 rounded mb-2 animate-pulse" />
+        <div className="h-16 w-full bg-surface-2 rounded animate-pulse" />
+      </div>
+    );
+  }
+
+  const opinions = data?.opinions ?? [];
+
+  if (opinions.length === 0) {
+    return (
+      <div className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5">
+        <h3 className="text-ink-primary font-semibold text-base mb-3 flex items-center gap-2">
+          <History size={18} className="text-brand-cyan" />
+          历史讨论
+        </h3>
+        <p className="text-ink-tertiary text-xs">
+          还没有大V 讨论过这只票。观点来自接入的 25 个付费群，需要先跑完回补与索引。
+        </p>
+      </div>
+    );
+  }
+
+  const shown = opinions.slice(0, limit);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.5 }}
+      className="bg-surface-1 border border-hairline/10 rounded-[14px] p-4"
+    >
+      <h3 className="text-ink-primary font-semibold text-base mb-3 flex items-center gap-2">
+        <History size={18} className="text-brand-cyan" />
+        历史讨论
+        <span className="text-ink-tertiary text-xs font-normal tabular-nums">
+          {data?.group_count ?? 0} 个群 · 共 {data?.total_mentions ?? opinions.length} 条
+        </span>
+      </h3>
+
+      <div className="flex flex-col gap-3">
+        {shown.map((o, i) => {
+          const { no, label } = splitGroupName(o.group);
+          return (
+            <div key={`${o.chat_id}-${o.id}-${i}`} className="grid grid-cols-[76px_1fr] gap-3">
+              <div className="text-ink-tertiary text-[11px] tabular-nums pt-1">
+                {o.ts.slice(5, 16)}
+              </div>
+              <div className="rounded-[10px] bg-surface-2 border border-hairline/10 p-3 min-w-0">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5">
+                  <Link
+                    to={`/kol/${o.chat_id}/${code}`}
+                    className={`text-[11px] text-brand-blue hover:underline ${FOCUS_RING}`}
+                  >
+                    {no && <span className="text-ink-tertiary mr-1 tabular-nums">{no}</span>}
+                    {label}
+                  </Link>
+                  {o.bull && (
+                    <span className="px-2 py-0.5 rounded-md bg-brand-green/15 text-brand-green text-[10.5px]">
+                      看多
+                    </span>
+                  )}
+                  {o.bear && (
+                    <span className="px-2 py-0.5 rounded-md bg-brand-red/15 text-brand-red text-[10.5px]">
+                      看空
+                    </span>
+                  )}
+                  {o.actions.map((a) => (
+                    <span key={a} className="px-2 py-0.5 rounded-md bg-surface-3 text-ink-secondary text-[10.5px]">
+                      {a}
+                    </span>
+                  ))}
+                  {o.sectors.map((s) => (
+                    <span key={s} className="text-ink-tertiary text-[10.5px]">{s}</span>
+                  ))}
+                </div>
+                <p className="text-ink-secondary text-xs leading-relaxed whitespace-pre-wrap break-words">
+                  {readableText(o.text)}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {opinions.length > shown.length && (
+        <div className="pt-4 mt-1 border-t border-hairline/10 text-center">
+          <button
+            type="button"
+            onClick={() => setLimit((n) => n * 2)}
+            className={`px-4 py-1.5 rounded-md bg-surface-2 text-ink-secondary text-xs
+                        hover:text-ink-primary transition-colors ${FOCUS_RING}`}
+          >
+            加载更多（还有 {opinions.length - shown.length} 条）
+          </button>
+          <p className="text-ink-tertiary text-[11px] mt-2 tabular-nums">
+            已显示 {shown.length} / {opinions.length}
+          </p>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default function StockDetail() {
   const { code } = useParams<{ code: string }>();
   const [searchParams] = useSearchParams();
@@ -956,6 +1093,7 @@ export default function StockDetail() {
           )}
 
           <PalaceStockSection code={code} data={pd} loading={false} />
+          <HistoryDiscussion code={code} />
         </motion.div>
       );
     }
@@ -1049,6 +1187,9 @@ export default function StockDetail() {
 
       {/* 大V 观点（Mind Palace） */}
       {code && <PalaceStockSection code={code} data={palace.data} loading={palace.loading} />}
+
+      {/* 历史讨论：跨群观点正文时间线 */}
+      {code && <HistoryDiscussion code={code} />}
     </motion.div>
   );
 }

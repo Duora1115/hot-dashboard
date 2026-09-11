@@ -19,6 +19,7 @@ import type {
   PalaceOpinion,
   PalaceStockDetail,
   PalaceStockListResponse,
+  PalaceStockOpinionsResponse,
 } from '@/types/api';
 
 const API_BASE = '';
@@ -217,6 +218,17 @@ export async function fetchPalaceKolStock(
 export async function fetchPalaceStock(code: string): Promise<PalaceStockDetail | null> {
   try {
     return await fetchJson<PalaceStockDetail>(`/api/palace/stocks/${code}`);
+  } catch {
+    return null;
+  }
+}
+
+// GET /api/palace/stocks/{code}/opinions —— 跨群观点时间线（含正文）
+export async function fetchPalaceStockOpinions(
+  code: string,
+): Promise<PalaceStockOpinionsResponse | null> {
+  try {
+    return await fetchJson<PalaceStockOpinionsResponse>(`/api/palace/stocks/${code}/opinions`);
   } catch {
     return null;
   }

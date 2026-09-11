@@ -255,6 +255,19 @@ def api_palace_stock(code: str):
     return JSONResponse(result, headers=_palace_headers())
 
 
+@app.get("/api/palace/stocks/{code}/opinions")
+def api_palace_stock_opinions(code: str):
+    """该票的跨群观点时间线（含正文），时间倒序。
+
+    ``/api/palace/stocks/{code}`` 只给「谁讨论过」的汇总，正文要另外取——
+    前端合并时间线用这个。
+    """
+    result = palace.get_stock_opinions(code)
+    if result is None:
+        return _palace_404(f"股票 {code} 暂无大V观点")
+    return JSONResponse(result, headers=_palace_headers())
+
+
 def _palace_group_name(chat_id: str) -> str | None:
     """按 chat_id 从 config 反查群名；未知 chat_id 返回 None。
 

@@ -166,6 +166,34 @@ class PalaceStore:
         ops.sort(key=lambda o: o.get("ts", ""), reverse=True)
         return ops
 
+    def get_stock_opinions(self, code: str) -> dict | None:
+        """该票的跨群观点时间线（含正文），时间倒序。未收录返回 None。
+
+        正文按群存，这只票涉及几个群就要读几个群的观点文件（走 LRU）。每条
+        补上 ``chat_id`` 与群名，前端据此能标注出处、点回该大V 的个股页。
+        """
+        self._reload()
+        entry = self._stock_index.get(code)
+        if entry is None:
+            return None
+
+        groups = entry.get("groups") or {}
+        opinions: list[dict] = []
+        for chat_id, g in groups.items():
+            group_name = g.get("name") or chat_id
+            for o in self._load_opinions(chat_id):
+                if o.get("code") == code:
+                    opinions.append({**o, "chat_id": chat_id, "group": group_name})
+        opinions.sort(key=lambda o: o.get("ts", ""), reverse=True)
+
+        return {
+            "code": code,
+            "name": entry.get("name", ""),
+            "group_count": entry.get("group_count", len(groups)),
+            "total_mentions": entry.get("total_mentions", len(opinions)),
+            "opinions": opinions,
+        }
+
     def get_stock_kols(self, code: str) -> dict | None:
         """该票的跨群汇总。未收录返回 None。"""
         self._reload()
