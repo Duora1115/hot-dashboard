@@ -50,6 +50,28 @@ def load_ids(data_dir, chat_id: str) -> set[str]:
     return {row["id"] for row in iter_jsonl(archive_path(data_dir, chat_id)) if row.get("id")}
 
 
+def _dedupe(existing: set[str], pairs) -> list[dict]:
+    """按 id 去重：``pairs`` 是 (id, row) 序列，命中的 id 就地写进 ``existing``。"""
+    rows = []
+    for mid, row in pairs:
+        if not mid or mid in existing:
+            continue
+        existing.add(mid)
+        rows.append(row)
+    return rows
+
+
+def _write_rows(path: Path, rows: list[dict]) -> int:
+    """把已映射的档案行追加进 JSONL，返回写入条数。"""
+    if not rows:
+        return 0
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    return len(rows)
+
+
 def append_messages(data_dir, chat_id: str, group_name: str,
                     messages: list[dict], known_ids: set[str] | None = None) -> int:
     """把 lark-cli 原始消息追加进档案，返回实际写入条数。
@@ -64,27 +86,48 @@ def append_messages(data_dir, chat_id: str, group_name: str,
     path = archive_path(data_dir, chat_id)
     existing = known_ids if known_ids is not None else load_ids(data_dir, chat_id)
 
-    rows = []
+    pairs = []
     for m in messages:
         mid = m.get("message_id") or m.get("msg_id")
-        if not mid or mid in existing:
-            continue
-        existing.add(mid)
-        rows.append({
+        pairs.append((mid, {
             "id": mid,
             "ts": m.get("create_time", ""),
             "group": group_name,
             "sender": (m.get("sender") or {}).get("id", "") if isinstance(m.get("sender"), dict) else "",
             "text": m.get("content", ""),
-        })
+        }))
 
-    if not rows:
-        return 0
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "a", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
-    return len(rows)
+    return _write_rows(path, _dedupe(existing, pairs))
+
+
+def append_rows(data_dir, chat_id: str, group_name: str,
+                rows: list[dict], known_ids: set[str] | None = None) -> int:
+    """追加**已映射**的档案行（``{id, ts, sender, text}``），返回实际写入条数。
+
+    与 ``append_messages`` 的区别只在入参格式：那个吃 lark-cli 原始消息
+    （``message_id``/``create_time``/``sender.id``/``content``），这个吃档案层
+    既有的行格式。本地 archive 经 HTTP 推送到云端时走这条路径。
+
+    行来自网络边界，所以只取已知字段并强制类型——避免客户端往档案里塞进
+    下游解析不了的额外结构。``group`` 一律用服务端反查的名字。
+    """
+    path = archive_path(data_dir, chat_id)
+    existing = known_ids if known_ids is not None else load_ids(data_dir, chat_id)
+
+    pairs = []
+    for r in rows:
+        ts = r.get("ts")
+        sender = r.get("sender")
+        text = r.get("text")
+        pairs.append((r.get("id"), {
+            "id": r.get("id"),
+            "ts": ts if isinstance(ts, str) else "",
+            "group": group_name,
+            "sender": sender if isinstance(sender, str) else "",
+            "text": text if isinstance(text, str) else "",
+        }))
+
+    return _write_rows(path, _dedupe(existing, pairs))
 
 
 def iter_messages(data_dir, chat_id: str):

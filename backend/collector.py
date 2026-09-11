@@ -815,44 +815,64 @@ def _build_windows(date_str):
     return windows
 
 
+def cloud_base_url(cfg) -> str:
+    """云端 base_url；未启用或未配置地址时返回空串。"""
+    cloud_cfg = cfg.get("cloud", {})
+    if not cloud_cfg.get("enabled", False):
+        return ""
+    return str(cloud_cfg.get("base_url", "")).rstrip("/")
+
+
+def cloud_api_key(cfg) -> str:
+    """写接口鉴权 key，读取顺序与 server.py 的 _get_api_key 保持一致。"""
+    return os.getenv("HOT_API_KEY", "").strip() or str(cfg.get("server", {}).get("api_key", "")).strip()
+
+
+def post_to_cloud(cfg, path: str, payload, label: str = "", timeout=None) -> bool:
+    """POST 一个 JSON 到云端的 ``path``（自动带上写接口鉴权），成功返回 True。
+
+    ``path`` 形如 ``/api/upload/latest``。``timeout`` 缺省取 cloud.timeout。
+    失败只打印不抛异常——调用方多为推送脚本，一次失败不该中断整批。
+    """
+    import urllib.request, urllib.error
+
+    base_url = cloud_base_url(cfg)
+    if not base_url:
+        print("  ☁️ 云端同步未启用或未配置地址", flush=True)
+        return False
+
+    api_key = cloud_api_key(cfg)
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["X-API-Key"] = api_key
+
+    if timeout is None:
+        timeout = cfg.get("cloud", {}).get("timeout", 30)
+
+    req = urllib.request.Request(f"{base_url}{path}", data=data, headers=headers, method="POST")
+    try:
+        resp = urllib.request.urlopen(req, timeout=timeout)
+        print(f"  ☁️ {label} → 成功 ({resp.status}, {len(data)//1024}KB)", flush=True)
+        return True
+    except urllib.error.HTTPError as e:
+        print(f"  ☁️ {label} → HTTP {e.code}: {e.read().decode('utf-8','replace')[:200]}", flush=True)
+        return False
+    except Exception as e:
+        print(f"  ☁️ {label} → 失败: {e}", flush=True)
+        return False
+
+
 def push_to_cloud(cfg, date_str, data_dir=None):
     """推送数据到云端（latest + day）"""
     if data_dir is None:
         data_dir = Path(cfg["server"]["data_dir"])
 
-    cloud_cfg = cfg.get("cloud", {})
-    if not cloud_cfg.get("enabled", False):
-        print("  ☁️ 云端同步未启用", flush=True)
+    if not cloud_base_url(cfg):
+        print("  ☁️ 云端同步未启用或未配置地址", flush=True)
         return
 
-    base_url = cloud_cfg.get("base_url", "").rstrip("/")
-    if not base_url:
-        print("  ☁️ 云端地址未配置", flush=True)
-        return
-
-    timeout = cloud_cfg.get("timeout", 30)
-    push_mode = cloud_cfg.get("push_mode", "both")
-    import urllib.request, urllib.error
-
-    # 写接口鉴权 key（若有配置），与 server.py 的 _get_api_key 逻辑保持一致
-    api_key = os.getenv("HOT_API_KEY", "").strip() or str(cfg.get("server", {}).get("api_key", "")).strip()
-
-    def _push(url, payload, label):
-        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["X-API-Key"] = api_key
-        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-        try:
-            resp = urllib.request.urlopen(req, timeout=timeout)
-            print(f"  ☁️ {label} → 成功 ({resp.status}, {len(data)//1024}KB)", flush=True)
-            return True
-        except urllib.error.HTTPError as e:
-            print(f"  ☁️ {label} → HTTP {e.code}: {e.read().decode('utf-8','replace')[:200]}", flush=True)
-            return False
-        except Exception as e:
-            print(f"  ☁️ {label} → 失败: {e}", flush=True)
-            return False
+    push_mode = cfg.get("cloud", {}).get("push_mode", "both")
 
     from backend.jsonio import load_path as _load
 
@@ -860,7 +880,7 @@ def push_to_cloud(cfg, date_str, data_dir=None):
     if push_mode in ("both", "latest"):
         latest_file = data_dir / "latest.json"
         if latest_file.exists():
-            _push(f"{base_url}/api/upload/latest", _load(latest_file), "latest")
+            post_to_cloud(cfg, "/api/upload/latest", _load(latest_file), "latest")
         else:
             print(f"  ☁️ latest.json 不存在，跳过", flush=True)
 
@@ -868,7 +888,7 @@ def push_to_cloud(cfg, date_str, data_dir=None):
     if push_mode in ("both", "day"):
         day_file = data_dir / f"day_{date_str}.json"
         if day_file.exists():
-            _push(f"{base_url}/api/upload/day/{date_str}", _load(day_file), f"day_{date_str}")
+            post_to_cloud(cfg, f"/api/upload/day/{date_str}", _load(day_file), f"day_{date_str}")
         else:
             print(f"  ☁️ day_{date_str}.json 不存在，跳过", flush=True)
 

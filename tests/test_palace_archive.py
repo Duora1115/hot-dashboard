@@ -5,8 +5,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.palace_archive import (
-    append_messages, archive_path, iter_messages, load_ids, load_state, save_state,
+    append_messages, append_rows, archive_path, iter_messages, load_ids, load_state,
+    save_state,
 )
+
+
+def _row(mid, ts="2026-07-06 08:09", text="江波龙看多", sender="ou_aaa"):
+    """已映射格式的档案行（本地 archive 经 HTTP 推送时用的形状）。"""
+    return {"id": mid, "ts": ts, "sender": sender, "text": text}
 
 
 def _msg(mid, ts="2026-07-06 08:09", text="江波龙看多", sender="ou_aaa"):
@@ -54,6 +60,54 @@ def test_append_skips_message_without_id(tmp_path):
 def test_known_ids_is_updated_in_place(tmp_path):
     known = load_ids(tmp_path, "oc_1")
     append_messages(tmp_path, "oc_1", "253_橙子不糊涂", [_msg("om_1")], known_ids=known)
+
+    assert known == {"om_1"}
+
+
+def test_append_rows_writes_mapped_rows(tmp_path):
+    n = append_rows(tmp_path, "oc_1", "253_橙子不糊涂", [_row("om_1")])
+
+    assert n == 1
+    row = next(iter_messages(tmp_path, "oc_1"))
+    assert row == {"id": "om_1", "ts": "2026-07-06 08:09",
+                   "group": "253_橙子不糊涂", "sender": "ou_aaa", "text": "江波龙看多"}
+
+
+def test_append_rows_repush_is_idempotent(tmp_path):
+    """推送脚本会整批重推，重复的 id 必须只写一次。"""
+    rows = [_row("om_1"), _row("om_2")]
+    assert append_rows(tmp_path, "oc_1", "群", rows) == 2
+    assert append_rows(tmp_path, "oc_1", "群", rows) == 0
+    assert append_rows(tmp_path, "oc_1", "群", rows + [_row("om_3")]) == 1
+    assert load_ids(tmp_path, "oc_1") == {"om_1", "om_2", "om_3"}
+
+
+def test_append_rows_skips_rows_without_id(tmp_path):
+    n = append_rows(tmp_path, "oc_1", "群", [{"text": "无 id"}, {"id": "", "text": "空 id"}])
+
+    assert n == 0
+
+
+def test_append_rows_normalizes_untrusted_fields(tmp_path):
+    """行来自网络边界：只保留已知字段并强制类型，group 一律用服务端反查的名字。"""
+    n = append_rows(tmp_path, "oc_1", "服务端群名", [{
+        "id": "om_1",
+        "ts": 1234567890,
+        "sender": {"id": "ou_aaa"},
+        "text": None,
+        "group": "客户端伪造的群名",
+        "evil": "额外字段",
+    }])
+
+    assert n == 1
+    assert next(iter_messages(tmp_path, "oc_1")) == {
+        "id": "om_1", "ts": "", "group": "服务端群名", "sender": "", "text": "",
+    }
+
+
+def test_append_rows_known_ids_updated_in_place(tmp_path):
+    known = load_ids(tmp_path, "oc_1")
+    append_rows(tmp_path, "oc_1", "群", [_row("om_1")], known_ids=known)
 
     assert known == {"om_1"}
 

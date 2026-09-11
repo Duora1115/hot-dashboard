@@ -28,6 +28,8 @@ from backend.data_store import DataStore
 from backend.responses import ORJSONResponse
 from backend.jsonio import load_path, dump_path
 from backend.palace import PalaceStore
+from backend.palace_archive import append_rows
+from backend.palace_build import build_all
 
 # Alias so the rest of the file can stay unchanged.
 JSONResponse = ORJSONResponse
@@ -82,6 +84,23 @@ _PROTECTED_WRITE_PREFIXES = (
     "/api/daily-report/",
 )
 
+# palace 的写端点。刻意写精确路径而非 "/api/palace" 前缀：palace 其余路由是
+# 只读的，用前缀会把 POST /api/palace/kols 从 405 变成 401，丢掉"只读路由不
+# 接受 POST"这个不变量（tests/test_palace_api.py 有断言）。漏保护的兜底由
+# tests/test_security.py 的路由覆盖元测试承担——新增 palace 写端点而忘了登记
+# 会直接测试失败。
+_PALACE_WRITE_PATHS = (
+    "/api/palace/archive",
+    "/api/palace/rebuild",
+)
+
+_PROTECTED_WRITE_PREFIXES += _PALACE_WRITE_PATHS
+
+# 这些路径即使服务端未配 key 也一律拒绝写入。档案层是付费群原文，站点又是
+# 公网可达的，不能沿用"未配 key 就放行"的向后兼容约定——否则清空 key 会让
+# 任何人往档案里灌伪造发言。
+_STRICT_WRITE_PREFIXES = _PALACE_WRITE_PATHS
+
 
 def _get_api_key() -> str:
     """读取写接口鉴权 key；优先级：环境变量 HOT_API_KEY > 配置 server.api_key。
@@ -98,10 +117,10 @@ async def require_api_key(request: Request, call_next):
         path = request.url.path
         if path.startswith(_PROTECTED_WRITE_PREFIXES):
             expected = _get_api_key()
-            if expected:
-                provided = request.headers.get("x-api-key", "")
-                if provided != expected:
-                    return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+            provided = request.headers.get("x-api-key", "")
+            strict = path.startswith(_STRICT_WRITE_PREFIXES)
+            if (strict and not expected) or (expected and provided != expected):
+                return JSONResponse({"detail": "Unauthorized"}, status_code=401)
     return await call_next(request)
 
 cache_cfg = cfg.get("cache", {})
@@ -217,6 +236,50 @@ def api_palace_stock(code: str):
     if result is None:
         return _palace_404(f"股票 {code} 暂无大V观点")
     return JSONResponse(result, headers=_palace_headers())
+
+
+def _palace_group_name(chat_id: str) -> str | None:
+    """按 chat_id 从 config 反查群名；未知 chat_id 返回 None。
+
+    群名一律由服务端决定，不采信客户端传上来的值。
+    """
+    for g in (cfg.get("groups") or []):
+        if g.get("chat_id") == chat_id:
+            return g.get("name") or chat_id
+    return None
+
+
+@app.post("/api/palace/archive")
+def api_palace_archive(payload: dict = Body(...)):
+    """接收本地档案行（已映射格式 ``{id, ts, sender, text}``），按 id 去重追加。
+
+    本地冷启动产出的 data/archive/*.jsonl 被 .gitignore 挡在仓库之外，云端
+    git pull 拿不到，故由 scripts/sync.py --palace 经此接口推送。幂等：重复
+    推送同一批只写增量。
+    """
+    chat_id = str(payload.get("chat_id") or "").strip()
+    rows = payload.get("rows")
+    if not chat_id or not isinstance(rows, list):
+        raise HTTPException(400, "需要 chat_id（字符串）与 rows（数组）")
+
+    group_name = _palace_group_name(chat_id)
+    if group_name is None:
+        raise HTTPException(400, f"未知 chat_id：{chat_id}")
+
+    added = append_rows(data_dir, chat_id, group_name, rows)
+    return {"status": "ok", "chat_id": chat_id, "received": len(rows), "added": added}
+
+
+@app.post("/api/palace/rebuild")
+def api_palace_rebuild():
+    """从档案层重建观点与索引（本地实测 54k 条约 9.5 秒）。
+
+    PalaceStore 本身有 mtime 热加载，这里额外 force reload 让本次请求返回时
+    新索引已生效，推送脚本无需等待下一次轮询。
+    """
+    doc = build_all(data_dir, cfg)
+    palace._reload(force=True)
+    return {"status": "ok", "kols": len(doc["kols"]), "coverage": doc["coverage"]}
 
 
 @app.get("/api/status")

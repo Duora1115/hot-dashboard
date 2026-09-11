@@ -6,6 +6,7 @@
   python3 scripts/sync.py --latest        # 仅推送 latest
   python3 scripts/sync.py --day 2026-06-05 # 仅推送指定 day
   python3 scripts/sync.py --all           # 推送所有本地 day 文件
+  python3 scripts/sync.py --palace        # 推送观点宫殿档案层并触发云端重建
 """
 
 import sys
@@ -26,6 +27,8 @@ def main():
     parser.add_argument("--latest", action="store_true", help="仅推送 latest.json")
     parser.add_argument("--day", type=str, help="仅推送指定日期，如 2026-06-05")
     parser.add_argument("--all", action="store_true", help="推送所有本地 day 文件")
+    parser.add_argument("--palace", action="store_true",
+                        help="推送观点宫殿档案层（data/archive/*.jsonl）并触发云端重建索引")
     args = parser.parse_args()
 
     cfg = load_config()
@@ -37,6 +40,11 @@ def main():
     cfg["cloud"]["enabled"] = True
     if "base_url" not in cfg["cloud"]:
         cfg["cloud"]["base_url"] = "http://47.253.54.6:8765"
+
+    if args.palace:
+        from backend.palace_sync import push_archive
+        push_archive(cfg, data_dir)
+        return
 
     if args.all:
         for f in sorted(data_dir.glob("day_*.json")):
