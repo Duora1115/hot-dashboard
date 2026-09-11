@@ -3,6 +3,7 @@
 FastAPI 服务端：提供数据 API + 托管前端页面
 """
 
+import hashlib
 import logging
 import os
 import subprocess
@@ -136,14 +137,21 @@ store = DataStore(
 palace = PalaceStore(data_dir, lru_groups=cfg.get("palace", {}).get("lru_groups", 8))
 
 
-def _etag_for(date_str: str) -> str:
+def _etag_for(date_str: str, scope: str = "") -> str:
+    """``scope`` 用于响应体随查询参数变化的端点（如 stock-messages 按 code/time）。
+    不带 scope 时与其他按日期取 ETag 的端点保持一致。
+
+    scope 是查询参数拼出来的、含用户输入，不能直接进头部：``time`` 里的空格不符合
+    RFC 7232 的 etagc，CR/LF 更会让 h11 直接掐断连接。取摘要，只留十六进制。
+    """
     version = store.get_version(date_str)
-    return f'"{date_str}-v{version}"'
+    suffix = f"-{hashlib.sha1(scope.encode()).hexdigest()[:12]}" if scope else ""
+    return f'"{date_str}{suffix}-v{version}"'
 
 
-def _check_etag(request: Request, date_str: str) -> Response | None:
+def _check_etag(request: Request, date_str: str, scope: str = "") -> Response | None:
     """If client's If-None-Match matches, return 304. Otherwise None."""
-    etag = _etag_for(date_str)
+    etag = _etag_for(date_str, scope)
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers={"ETag": etag})
     return None
@@ -446,7 +454,10 @@ def _deduplicate_messages(messages: list) -> list:
 @app.get("/api/stock-messages/{date_str}")
 def api_stock_messages(date_str: str, request: Request, code: str, time: str = ""):
     """按需获取指定股票的消息原文（用索引定位，不扫描全部快照）。"""
-    not_modified = _check_etag(request, date_str)
+    target_time = time or ""
+    # 响应体随 code/time 变化，ETag 必须带上它们，否则不同股票会共用同一个 ETag。
+    scope = f"{code}|{target_time}"
+    not_modified = _check_etag(request, date_str, scope)
     if not_modified:
         return not_modified
     # 用索引定位包含该股票的快照
@@ -459,7 +470,6 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
         if not raw_snaps:
             raise HTTPException(404, f"日期 {date_str} 数据不存在")
 
-        target_time = time or ""
         snap = None
         for s in raw_snaps:
             if target_time and s["time"] == target_time:
@@ -479,11 +489,11 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
                         "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in deduped]
                     })
                 return JSONResponse(result, headers={
-                    "ETag": _etag_for(date_str),
+                    "ETag": _etag_for(date_str, scope),
                     "Cache-Control": _CACHE_POLICIES["stock_messages"],
                 })
         return JSONResponse([], headers={
-            "ETag": _etag_for(date_str),
+            "ETag": _etag_for(date_str, scope),
             "Cache-Control": _CACHE_POLICIES["stock_messages"],
         })
 
@@ -492,9 +502,12 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
     if not raw_snaps:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
 
-    target_time = time or ""
+    # 不指定时间就是「看今天最新的一份」。date_locs 按快照序号升序，而快照是累计窗口
+    # （compute_snapshot 收 cutoff 之前的全部消息），越晚越全；顺着取第一个会拿到当天
+    # 最早那份、只剩零星几条，与 /api/latest 的热度/提及数对不上。
+    locs = list(reversed(date_locs)) if not target_time else date_locs
     result = []
-    for _, snap_idx in date_locs:
+    for _, snap_idx in locs:
         if snap_idx >= len(raw_snaps):
             continue
         snap = raw_snaps[snap_idx]
@@ -510,7 +523,7 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
                         "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in deduped]
                     })
                 return JSONResponse(result, headers={
-                    "ETag": _etag_for(date_str),
+                    "ETag": _etag_for(date_str, scope),
                     "Cache-Control": _CACHE_POLICIES["stock_messages"],
                 })
 
@@ -529,11 +542,11 @@ def api_stock_messages(date_str: str, request: Request, code: str, time: str = "
                             "messages": [{"time": m["time"].split(" ")[1], "text": m["text"]} for m in deduped]
                         })
                     return JSONResponse(result, headers={
-                        "ETag": _etag_for(date_str),
+                        "ETag": _etag_for(date_str, scope),
                         "Cache-Control": _CACHE_POLICIES["stock_messages"],
                     })
     return JSONResponse([], headers={
-        "ETag": _etag_for(date_str),
+        "ETag": _etag_for(date_str, scope),
         "Cache-Control": _CACHE_POLICIES["stock_messages"],
     })
 

@@ -362,10 +362,17 @@ function BullBearAnalysis({ stock }: { stock: StockItem }) {
         />
       </div>
 
-      <div className="flex justify-between text-xs text-ink-tertiary mb-4">
+      <div className="flex justify-between text-xs text-ink-tertiary mb-1">
         <span>{bullPct.toFixed(0)}% 看多</span>
         <span>{bearPct.toFixed(0)}% 看空</span>
       </div>
+
+      {/* 百分比的分母是「带多空标记的条数」，不是全部提及——把口径和当日总量都
+          摆出来，别让人把「3 条看多」读成「22 条都在看多」。一条消息可能同时带
+          多空两个标记，两数之和未必小于总提及数，所以说成「其中 X 条」会是错的。 */}
+      <p className="text-xs text-ink-quaternary mb-4 tabular-nums">
+        占比按带多空标记的提及计算 · 当日共 {stock.mc} 条提及
+      </p>
 
       {/* Sentiment verdict */}
       <div className="pt-3 border-t border-hairline/10">
