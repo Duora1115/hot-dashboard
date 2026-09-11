@@ -21,7 +21,11 @@
 >
 > 所有夹具文件都落在 `data/` 下，被 `data/.gitignore` 的 `*.json` 规则覆盖，`git status` 实测干净。
 
-**冷启动实际结果：** 24 个群入库（不是 25）——`oc_fa0c016f11b1fa06a69517c77851e726`（080_K神会仅ls）因 `config/settings.yaml:58` 的 chat_id 与导出文件对不上被跳过（见 §4 R10）。`/api/palace/meta` 返回 `coverage: {from: 2026-07-11, to: 2026-09-11, groups: 24, missing_days: []}`。
+**冷启动实际结果：** 25 个群全部入库。`/api/palace/meta` 返回 `coverage: {from: 2026-07-11, to: 2026-09-11, groups: 25, missing_days: []}`。
+
+> 首次冷启动只入了 24 个群——080_K神会仅ls 因 `config/settings.yaml:58` 的 chat_id 有一位笔误、与导出文件对不上而被 `ingest_export.py` 跳过。该笔误已修正（见 §4 R10），修正后重新 ingest + build，080 补入 563 条消息 / 320 条观点 / 80 只票，总数达 25 群。
+>
+> 修正前后 `/kols` 卡片从 24 → 25，且 080 卡片指向修正后的 chat_id `oc_fa0c016f11b1fa06a16517c77851e726`。索引重读走的是 I1 的 mtime 热重载，**未重启后端**即生效。
 
 ---
 
@@ -54,17 +58,17 @@ python3 scripts/build_palace.py
 
 | # | 断言 | 结果 |
 |---|---|---|
-| A1 | 导出经 `ingest_export.py` 落入 `data/archive/*.jsonl` | ✅ 24 个文件 / 20 MB |
-| A2 | `build_palace.py` 生成索引与观点 | ✅ `data/palace/kols.json`、`stock_index.json`、`opinions/`（24 个文件）/ 44 MB |
-| A3 | `/api/palace/meta` 覆盖区间与导出窗口一致 | ✅ `2026-07-11 → 2026-09-11` |
+| A1 | 导出经 `ingest_export.py` 落入 `data/archive/*.jsonl` | ✅ 25 个文件 |
+| A2 | `build_palace.py` 生成索引与观点 | ✅ `data/palace/kols.json`、`stock_index.json`、`opinions/`（25 个文件） |
+| A3 | `/api/palace/meta` 覆盖区间与导出窗口一致 | ✅ `2026-07-11 → 2026-09-11`，`groups: 25` |
 | A4 | `missing_days` 不虚报 | ✅ `[]`（导出已逐日校验，确无缺日） |
 
 ### B. `/kols` 大V 列表
 
 | # | 断言 | 结果 |
 |---|---|---|
-| B1 | 卡片数与索引一致 | ✅ 24 张 |
-| B2 | 覆盖条显示真实区间 | ✅ `24 个群 · 覆盖 2026-07-11 → 2026-09-11` |
+| B1 | 卡片数与索引一致 | ✅ 25 张（含 080，指向修正后的 chat_id） |
+| B2 | 覆盖条显示真实区间 | ✅ `25 个群 · 覆盖 2026-07-11 → 2026-09-11` |
 | B3 | 不出现假的「缺失日」横幅 | ✅ 无 |
 | B4 | 索引为空时不显示「没有匹配「」的群」 | ✅ `emptyCopy:false`（数据非空，该分支未误触） |
 | B5 | 点卡片 → URL **replace** 成 `/kol/<chatId>/<首只票>` | ✅ → `/kol/oc_8182…/300308` |
@@ -106,11 +110,11 @@ python3 scripts/build_palace.py
 
 ---
 
-## 4. 本次验证暴露的两个待用户决策项
+## 4. 本次验证暴露的两个问题
 
 | # | 事项 | 现状 |
 |---|---|---|
-| R10 | `config/settings.yaml:58` 的 080 群 chat_id（`oc_fa0c016f…`）与离线导出对不上，导致该群未入库（24/25） | **未改动**。该文件与云端采集器共用，等确认后再改并单独回补该群。 |
+| R10 | `config/settings.yaml:58` 的 080 群 chat_id 有一位笔误：config `oc_fa0c016f11b1fa06a**69**517c77851e726` vs 飞书真实值 `oc_fa0c016f11b1fa06a**16**517c77851e726`。两者都是合法 32 位 hex，故**不报错、只静默收不到消息**——很可能云端采集器一直在漏采该群，不只是回补缺口。 | **已修**：config 已改为导出文件的真实值，重新 ingest + build 后 080 入库（563 消息 / 320 观点 / 80 票），总数 25 群。**注意：`config/settings.yaml` 与云端采集器共用，需在云端部署后实时采集才会一并修好。** |
 | R11 | 观点抽取覆盖率约 23.7% | 已裁定**本分支不改**：提召回的正确落点是只在 `palace_build.extract_opinions` 加宫殿专用名字匹配，不动实时快照管线。 |
 
 ---
