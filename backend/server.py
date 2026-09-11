@@ -210,6 +210,15 @@ def api_palace_kols():
     }, headers=_palace_headers())
 
 
+@app.get("/api/palace/stocks")
+def api_palace_stocks():
+    """全部收录票的跨群汇总，按提及数降序。"""
+    return JSONResponse({
+        "generated_at": palace.get_meta()["generated_at"],
+        "stocks": palace.list_stocks(),
+    }, headers=_palace_headers())
+
+
 @app.get("/api/palace/kols/{chat_id}")
 def api_palace_kol(chat_id: str):
     """单群画像 + 该群讨论过的股票。"""

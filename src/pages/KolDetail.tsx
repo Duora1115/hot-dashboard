@@ -12,6 +12,9 @@ type StockSortKey = 'count' | 'bias' | 'last';
 /** 表头与行共享同一套 class，保证列宽一致 */
 const ROW_BASE = `w-full text-left ${ROW_GRID}`;
 
+/** 首屏行数；「加载更多」每次翻倍。 */
+const PAGE = 50;
+
 function ProfileStrip({ kol }: { kol: PalaceKolDetail }) {
   const { bias, trading, breadth, top_sectors: sectors, session } = kol.style;
   const total = bias.bull + bias.bear;
@@ -133,6 +136,7 @@ export default function KolDetail() {
   const [sortKey, setSortKey] = useState<StockSortKey>('count');
   const [sortAsc, setSortAsc] = useState(false);
   const [opinions, setOpinions] = useState<PalaceOpinion[]>([]);
+  const [limit, setLimit] = useState(PAGE);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,6 +188,13 @@ export default function KolDetail() {
     });
     return sorted;
   }, [kol, sortKey, sortAsc]);
+
+  // 换群或换排序都从头看，别让上一次的「加载更多」把列表撑长。
+  useEffect(() => setLimit(PAGE), [chatId, sortKey, sortAsc]);
+
+  // 深链选中的票可能排在很后面，别让它被截断在场外——宁可多渲染几行。
+  const selectedIndex = code ? stocks.findIndex((s) => s.code === code) : -1;
+  const shown = Math.max(limit, selectedIndex + 1);
 
   const toggleSort = (key: StockSortKey) => {
     if (sortKey === key) setSortAsc((v) => !v);
@@ -273,7 +284,7 @@ export default function KolDetail() {
             <p className="text-ink-tertiary text-xs py-6 text-center">该群还没有可归因的观点。</p>
           ) : (
             <div className="flex flex-col">
-              {stocks.map((s) => {
+              {stocks.slice(0, shown).map((s) => {
                 const on = s.code === code;
                 return (
                   <button
@@ -311,6 +322,22 @@ export default function KolDetail() {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {stocks.length > shown && (
+            <div className="pt-4 mt-1 border-t border-hairline/10 text-center">
+              <button
+                type="button"
+                onClick={() => setLimit((n) => n * 2)}
+                className={`px-4 py-1.5 rounded-md bg-surface-2 text-ink-secondary text-xs
+                            hover:text-ink-primary transition-colors ${FOCUS_RING}`}
+              >
+                加载更多（还有 {stocks.length - shown} 只）
+              </button>
+              <p className="text-ink-tertiary text-[11px] mt-2 tabular-nums">
+                已显示 {shown} / {stocks.length}
+              </p>
             </div>
           )}
         </div>

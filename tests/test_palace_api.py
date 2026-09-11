@@ -30,8 +30,11 @@ def _seed(tmp: Path):
     opinions = [{"ts": "2026-07-06 08:09", "id": "om_1", "code": "301308", "name": "江波龙",
                  "bull": True, "bear": False, "actions": ["买入信号"],
                  "sectors": ["半导体"], "text": "江波龙 看多"}]
-    from backend.palace_build import write_opinions
+    from backend.palace_build import build_stock_index, stock_index_path, write_opinions
     write_opinions(tmp, "oc_1", opinions)
+    stock_index_path(tmp).write_text(json.dumps(
+        build_stock_index({"oc_1": {"name": "253_橙子不糊涂", "opinions": opinions}}),
+        ensure_ascii=False), encoding="utf-8")
     kols_index_path(tmp).write_text(json.dumps({
         "generated_at": "2026-09-11T10:00:00+08:00",
         "coverage": {"from": "2026-07-06", "to": "2026-07-06", "groups": 1, "missing_days": []},
@@ -79,7 +82,12 @@ def test_endpoints_after_seeding():
         kol = c.get("/api/palace/kols/oc_1")
         assert kol.status_code == 200
         assert kol.json()["stocks"][0]["code"] == "301308"
-        assert kol.json()["stocks"][0]["recent"][0]["text"] == "江波龙 看多"
+        assert kol.json()["stocks"][0]["count"] == 1
+        assert "recent" not in kol.json()["stocks"][0]
+
+        stocks = c.get("/api/palace/stocks")
+        assert stocks.status_code == 200
+        assert stocks.json()["stocks"][0]["code"] == "301308"
 
         timeline = c.get("/api/palace/kols/oc_1/stocks/301308")
         assert timeline.status_code == 200

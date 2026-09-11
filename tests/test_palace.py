@@ -60,7 +60,8 @@ def test_startup_loads_index(tmp_path):
     assert store.get_meta()["coverage"]["missing_days"] == ["2026-07-07"]
 
 
-def test_get_kol_aggregates_stocks_with_recent_three(tmp_path):
+def test_get_kol_aggregates_stocks(tmp_path):
+    """只出汇总：正文按单票走 get_kol_stock，这里不带 recent。"""
     ops = [_opinion("301308", f"2026-07-0{i} 08:09", bull=True) for i in range(1, 6)]
     ops.append(_opinion("300308", "2026-07-09 08:09", bear=True, name="中际旭创"))
     _make_store(tmp_path, {"oc_1": {"name": "群", "opinions": ops}})
@@ -74,8 +75,7 @@ def test_get_kol_aggregates_stocks_with_recent_three(tmp_path):
     assert top["bull"] == 5
     assert top["first_ts"] == "2026-07-01 08:09"
     assert top["last_ts"] == "2026-07-05 08:09"
-    assert len(top["recent"]) == 3
-    assert top["recent"][0]["ts"] == "2026-07-05 08:09", "recent 必须时间倒序"
+    assert "recent" not in top
 
 
 def test_get_kol_returns_none_for_unknown(tmp_path):
@@ -120,6 +120,52 @@ def test_get_stock_kols_sorts_groups_by_count(tmp_path):
     assert entry["total_mentions"] == 4
     assert [g["chat_id"] for g in entry["groups"]] == ["oc_1", "oc_2"]
     assert store.get_stock_kols("999999") is None
+
+
+def _write_stock_index(tmp_path, index):
+    stock_index_path(tmp_path).write_text(
+        json.dumps(index, ensure_ascii=False), encoding="utf-8")
+
+
+def test_list_stocks_projects_summary_and_sorts_by_mentions(tmp_path):
+    _make_store(tmp_path, {"oc_1": {"name": "群A", "opinions": []}})
+    _write_stock_index(tmp_path, {
+        "300308": {"name": "中际旭创", "group_count": 1, "total_mentions": 2,
+                   "last_ts": "2026-07-09 08:09",
+                   "groups": {"oc_1": {"name": "群A", "count": 2, "bull": 1, "bear": 1,
+                                       "actions": [], "last_ts": "2026-07-09 08:09"}}},
+        "301308": {"name": "江波龙", "group_count": 2, "total_mentions": 5,
+                   "last_ts": "2026-07-08 08:09",
+                   "groups": {
+                       "oc_1": {"name": "群A", "count": 3, "bull": 3, "bear": 0,
+                                "actions": [], "last_ts": "2026-07-08 08:09"},
+                       "oc_2": {"name": "群B", "count": 2, "bull": 1, "bear": 1,
+                                "actions": [], "last_ts": "2026-07-07 08:09"},
+                   }},
+    })
+    store = PalaceStore(tmp_path)
+    store.startup()
+
+    rows = store.list_stocks()
+    assert [s["code"] for s in rows] == ["301308", "300308"], "按提及数降序"
+    top = rows[0]
+    assert top["name"] == "江波龙"
+    assert top["group_count"] == 2 and top["total_mentions"] == 5
+    assert top["bull"] == 4 and top["bear"] == 1, "多空是各群之和"
+    assert top["last_ts"] == "2026-07-08 08:09"
+
+
+def test_list_stocks_drops_unnamed_codes(tmp_path):
+    """无名的代码是抽取正则从任意数字串里捞的噪声，不是股票。"""
+    _make_store(tmp_path, {"oc_1": {"name": "群A", "opinions": []}})
+    _write_stock_index(tmp_path, {
+        "999999": {"name": "", "group_count": 1, "total_mentions": 3, "groups": {}},
+        "301308": {"name": "江波龙", "group_count": 1, "total_mentions": 1, "groups": {}},
+    })
+    store = PalaceStore(tmp_path)
+    store.startup()
+
+    assert [s["code"] for s in store.list_stocks()] == ["301308"]
 
 
 def test_opinions_lru_evicts_oldest_group(tmp_path):

@@ -17,6 +17,7 @@ import type {
   PalaceMeta,
   PalaceOpinion,
   PalaceStockDetail,
+  PalaceStockListResponse,
 } from '@/types/api';
 
 const API_BASE = '';
@@ -163,6 +164,15 @@ export async function fetchPalaceKols(): Promise<PalaceKolListResponse> {
     return await fetchJson<PalaceKolListResponse>('/api/palace/kols');
   } catch {
     return { generated_at: '', kols: [] };
+  }
+}
+
+// GET /api/palace/stocks
+export async function fetchPalaceStocks(): Promise<PalaceStockListResponse> {
+  try {
+    return await fetchJson<PalaceStockListResponse>('/api/palace/stocks');
+  } catch {
+    return { generated_at: '', stocks: [] };
   }
 }
 

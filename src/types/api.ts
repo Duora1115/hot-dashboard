@@ -337,7 +337,6 @@ export interface PalaceKolStock {
   sectors: string[];
   first_ts: string;
   last_ts: string;
-  recent: PalaceOpinion[];
 }
 
 export interface PalaceKolDetail extends PalaceKol {
@@ -366,6 +365,22 @@ export interface PalaceStockDetail {
 export interface PalaceKolListResponse {
   generated_at: string;
   kols: PalaceKol[];
+}
+
+/** 列表页用的单票跨群汇总，比 PalaceStockDetail 少一层 groups。 */
+export interface PalaceStockSummary {
+  code: string;
+  name: string;
+  group_count: number;
+  total_mentions: number;
+  bull: number;
+  bear: number;
+  last_ts: string;
+}
+
+export interface PalaceStockListResponse {
+  generated_at: string;
+  stocks: PalaceStockSummary[];
 }
 
 export interface PalaceKolStockResponse {

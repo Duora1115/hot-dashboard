@@ -16,8 +16,6 @@ from backend.palace_build import iter_opinions, kols_index_path, stock_index_pat
 
 logger = logging.getLogger(__name__)
 
-RECENT_OPINIONS = 3
-
 
 class PalaceStore:
     """观点宫殿查询层。索引常驻内存，单群观点按 LRU 懒加载。"""
@@ -94,7 +92,11 @@ class PalaceStore:
                       key=lambda k: (-k.get("opinion_count", 0), k.get("name", "")))
 
     def get_kol(self, chat_id: str) -> dict | None:
-        """画像 + 该群讨论过的股票（按提及数降序，每票带最近 3 条观点）。"""
+        """画像 + 该群讨论过的股票（按提及数降序）。
+
+        只出汇总，不带观点正文：正文按单票走 get_kol_stock。早先每票附最近
+        3 条正文，前端从未消费，却占了响应体的九成（963KB 里的 864KB）。
+        """
         self._reload()
         kol = self._kols.get(chat_id)
         if kol is None:
@@ -110,7 +112,7 @@ class PalaceStore:
             s = stocks.setdefault(code, {
                 "code": code, "name": o.get("name", ""), "count": 0,
                 "bull": 0, "bear": 0, "actions": [], "sectors": [],
-                "first_ts": "", "last_ts": "", "recent": [],
+                "first_ts": "", "last_ts": "",
             })
             s["count"] += 1
             s["bull"] += 1 if o.get("bull") else 0
@@ -127,13 +129,33 @@ class PalaceStore:
                 if ts > s["last_ts"]:
                     s["last_ts"] = ts
 
-        for o in sorted(opinions, key=lambda x: x.get("ts", ""), reverse=True):
-            code = o.get("code", "")
-            if code in stocks and len(stocks[code]["recent"]) < RECENT_OPINIONS:
-                stocks[code]["recent"].append(o)
-
         return {**kol, "stocks": sorted(stocks.values(),
                                         key=lambda s: (-s["count"], s["code"]))}
+
+    def list_stocks(self) -> list[dict]:
+        """全部收录票的跨群汇总，按提及数降序。
+
+        从内存里的 stock_index 投影出列表页要的字段；多空是各群之和
+        （索引里只按群存）。没有名字的一律滤掉——那是抽取正则从任意数字串
+        里捞出来的噪声（999999、094459 之类），不是股票。
+        """
+        self._reload()
+        out = []
+        for code, e in self._stock_index.items():
+            name = e.get("name") or ""
+            if not name:
+                continue
+            groups = (e.get("groups") or {}).values()
+            out.append({
+                "code": code,
+                "name": name,
+                "group_count": e.get("group_count", 0),
+                "total_mentions": e.get("total_mentions", 0),
+                "bull": sum(g.get("bull", 0) for g in groups),
+                "bear": sum(g.get("bear", 0) for g in groups),
+                "last_ts": e.get("last_ts", ""),
+            })
+        return sorted(out, key=lambda s: (-s["total_mentions"], s["code"]))
 
     def get_kol_stock(self, chat_id: str, code: str) -> list[dict] | None:
         """该群对该票的完整观点时间线（含正文），时间倒序。未知群返回 None。"""

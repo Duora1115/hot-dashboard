@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  BarChart3,
   LayoutDashboard,
   PlayCircle,
   Layers,
@@ -25,6 +26,7 @@ const navItems = [
   { path: '/compare', label: '对比', icon: GitCompare },
   { path: '/chain', label: '产业链图谱', icon: Network },
   { path: '/kols', label: '大V', icon: Users },
+  { path: '/stocks', label: '股票', icon: BarChart3 },
 ];
 
 /** 详情页与列表页不同段（/kol/ vs /kols），故「大V」入口额外认领这些前缀。 */

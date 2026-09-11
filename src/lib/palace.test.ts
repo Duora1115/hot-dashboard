@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { biasText, filterKols, isStale, sortKols, splitGroupName } from './palace';
-import type { PalaceKol } from '@/types/api';
+import {
+  biasText, filterKols, filterStocks, isStale, sortKols, sortStocks, splitGroupName,
+} from './palace';
+import type { PalaceKol, PalaceStockSummary } from '@/types/api';
 
 function kol(name: string, over: Partial<PalaceKol> = {}): PalaceKol {
   return {
@@ -98,6 +100,71 @@ describe('filterKols', () => {
 
   it('无匹配返回空数组', () => {
     expect(filterKols([kol('253_橙子不糊涂')], '京东方')).toEqual([]);
+  });
+});
+
+function stock(code: string, over: Partial<PalaceStockSummary> = {}): PalaceStockSummary {
+  return {
+    code,
+    name: `名称${code}`,
+    group_count: 3,
+    total_mentions: 10,
+    bull: 6,
+    bear: 4,
+    last_ts: '2026-09-10 15:00',
+    ...over,
+  };
+}
+
+describe('sortStocks', () => {
+  it('按提及数降序', () => {
+    const a = stock('301308', { total_mentions: 5 });
+    const b = stock('300308', { total_mentions: 40 });
+
+    expect(sortStocks([a, b], 'mentions').map((s) => s.code)).toEqual(['300308', '301308']);
+  });
+
+  it('按群数降序', () => {
+    const a = stock('301308', { group_count: 9 });
+    const b = stock('300308', { group_count: 2 });
+
+    expect(sortStocks([a, b], 'groups').map((s) => s.code)).toEqual(['301308', '300308']);
+  });
+
+  it('按最近时间降序', () => {
+    const a = stock('301308', { last_ts: '2026-07-01 08:09' });
+    const b = stock('300308', { last_ts: '2026-09-10 15:00' });
+
+    expect(sortStocks([a, b], 'recent').map((s) => s.code)).toEqual(['300308', '301308']);
+  });
+
+  it('同分按代码，且不改动入参', () => {
+    const input = [stock('600658'), stock('000001')];
+    sortStocks(input, 'mentions');
+
+    expect(input.map((s) => s.code)).toEqual(['600658', '000001']);
+  });
+});
+
+describe('filterStocks', () => {
+  it('空查询返回全部', () => {
+    expect(filterStocks([stock('301308')], '  ')).toHaveLength(1);
+  });
+
+  it('按代码匹配', () => {
+    const list = [stock('301308', { name: '江波龙' }), stock('300308', { name: '中际旭创' })];
+
+    expect(filterStocks(list, '3013').map((s) => s.code)).toEqual(['301308']);
+  });
+
+  it('按名称匹配', () => {
+    const list = [stock('301308', { name: '江波龙' }), stock('300308', { name: '中际旭创' })];
+
+    expect(filterStocks(list, '中际').map((s) => s.code)).toEqual(['300308']);
+  });
+
+  it('无匹配返回空数组', () => {
+    expect(filterStocks([stock('301308')], '京东方')).toEqual([]);
   });
 });
 

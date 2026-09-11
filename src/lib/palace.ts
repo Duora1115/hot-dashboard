@@ -1,7 +1,10 @@
-import type { PalaceKol } from '@/types/api';
+import type { PalaceKol, PalaceStockSummary } from '@/types/api';
 
 /** /kols 的排序键 */
 export type KolSortKey = 'active' | 'opinion' | 'stocks';
+
+/** /stocks 的排序键 */
+export type StockSortKey = 'mentions' | 'groups' | 'recent';
 
 /** 全站统一的焦点环（spec §9.5 第 5 条） */
 export const FOCUS_RING =
@@ -47,6 +50,35 @@ export function filterKols(kols: PalaceKol[], query: string): PalaceKol[] {
   const q = query.trim().toLowerCase();
   if (!q) return kols;
   return kols.filter((k) => k.name.toLowerCase().includes(q));
+}
+
+/** 股票排序：按 key 降序，同分按代码。 */
+export function sortStocks(
+  stocks: PalaceStockSummary[],
+  key: StockSortKey,
+): PalaceStockSummary[] {
+  const weight = (s: PalaceStockSummary) =>
+    key === 'groups' ? s.group_count : s.total_mentions;
+  return [...stocks].sort((a, b) => {
+    // 「最近」按时间字符串比较即可（ISO 形如 2026-07-06 08:09，字典序即时间序）。
+    if (key === 'recent' && a.last_ts !== b.last_ts) {
+      return (b.last_ts || '').localeCompare(a.last_ts || '');
+    }
+    if (weight(b) !== weight(a)) return weight(b) - weight(a);
+    return a.code.localeCompare(b.code);
+  });
+}
+
+/** 股票搜索：代码或名称，均不区分大小写。 */
+export function filterStocks(
+  stocks: PalaceStockSummary[],
+  query: string,
+): PalaceStockSummary[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return stocks;
+  return stocks.filter(
+    (s) => s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q),
+  );
 }
 
 /** 多空的文字标签（spec §9.5 第 4 条：状态不只靠颜色）。 */
