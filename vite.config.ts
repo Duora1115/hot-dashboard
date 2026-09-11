@@ -3,7 +3,11 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
 export default defineConfig({
-  base: './',
+  // 必须是绝对根路径：'./' 会让 index.html 引用 ./assets/x.js，而浏览器在
+  // /kol/oc_xxx、/stock/301308 这类两段以上路径下会把它解析成
+  // /kol/assets/x.js → 404 → 入口脚本加载失败 → 白屏。站点本就挂在域名根下
+  // （API 也一律用 /api/... 绝对路径），根路径与之一致。
+  base: '/',
   plugins: [react()],
   build: {
     outDir: 'frontend/dist',
