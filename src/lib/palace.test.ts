@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  biasText, filterKols, filterStocks, isStale, sortKols, sortStocks, splitGroupName,
+  biasText, filterKols, filterStocks, isStale, readableText, sortKols, sortStocks,
+  splitGroupName,
 } from './palace';
 import type { PalaceKol, PalaceStockSummary } from '@/types/api';
 
@@ -180,5 +181,44 @@ describe('biasText', () => {
 
   it('接近时给 分歧', () => {
     expect(biasText(5, 5)).toBe('分歧');
+  });
+});
+
+describe('readableText', () => {
+  const EM = (label: string, code: string) =>
+    `[${label}](https://wap.eastmoney.com/quote/stock/0.${code}.html)`;
+
+  it('东方财富链接只留文字', () => {
+    expect(readableText(`反弹核心是${EM('旭创', '300308')}`)).toBe('反弹核心是旭创');
+  });
+
+  it('一行里多个链接都折掉', () => {
+    expect(readableText(`${EM('旭创', '300308')}，${EM('长光', '688048')}这类`))
+      .toBe('旭创，长光这类');
+  });
+
+  it('图片引用折成 [图片]', () => {
+    expect(readableText('![Image](img_v3_0215c_043aebaf-7594-4e08-b3c2)')).toBe('[图片]');
+  });
+
+  it('图片后面不留 ! —— 图片规则必须先于链接规则', () => {
+    expect(readableText('看看 ![Image](img_v3_abc)')).toBe('看看 [图片]');
+  });
+
+  it('非东方财富的链接同样折掉', () => {
+    expect(readableText('[雪球](https://xueqiu.com/123)上的讨论')).toBe('雪球上的讨论');
+  });
+
+  it('图文混排：换行与正文都保留', () => {
+    const src = `分歧中前行，边走边看\n![Image](img_v3_abc)\n${EM('旭创', '300308')}没动`;
+    expect(readableText(src)).toBe('分歧中前行，边走边看\n[图片]\n旭创没动');
+  });
+
+  it('没有链接的正文原样返回', () => {
+    expect(readableText('今天大盘很弱，注意风险')).toBe('今天大盘很弱，注意风险');
+  });
+
+  it('空串不炸', () => {
+    expect(readableText('')).toBe('');
   });
 });

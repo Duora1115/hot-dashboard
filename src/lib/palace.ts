@@ -81,6 +81,20 @@ export function filterStocks(
   );
 }
 
+/**
+ * 消息正文按纯文本渲染，markdown 会原样露出来——群里的票几乎都写成
+ * `[旭创](https://wap.eastmoney.com/quote/stock/0.300308.html)`，一条链接六十多
+ * 字符，满屏都是 URL。图片引用折成 `[图片]`，其余链接只留显示文字。
+ *
+ * 图片规则必须放在链接规则前面：`![Image](url)` 内部含 `[Image](url)`，先跑链接
+ * 规则会把它折成 `!Image`，那个 `!` 就去不掉了。
+ */
+export function readableText(text: string): string {
+  return text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '[图片]')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+}
+
 /** 多空的文字标签（spec §9.5 第 4 条：状态不只靠颜色）。 */
 export function biasText(bull: number, bear: number): string {
   const total = bull + bear;

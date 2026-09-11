@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, ArrowLeft, Clock } from 'lucide-react';
 import { fetchPalaceKol, fetchPalaceKolStock } from '@/lib/api';
-import { FOCUS_RING, ROW_GRID, biasText, splitGroupName } from '@/lib/palace';
+import { FOCUS_RING, ROW_GRID, biasText, readableText, splitGroupName } from '@/lib/palace';
 import type { PalaceKolDetail, PalaceKolStock, PalaceOpinion } from '@/types/api';
 
 /** 表头排序键 */
@@ -115,7 +115,7 @@ function Timeline({ opinions, name }: { opinions: PalaceOpinion[]; name: string 
                 <span key={s} className="text-ink-tertiary text-[10.5px]">{s}</span>
               ))}
             </div>
-            <p className="text-ink-secondary text-xs leading-relaxed whitespace-pre-wrap">{o.text}</p>
+            <p className="text-ink-secondary text-xs leading-relaxed whitespace-pre-wrap">{readableText(o.text)}</p>
           </div>
         </div>
       ))}

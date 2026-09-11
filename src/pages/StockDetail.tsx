@@ -30,7 +30,7 @@ import {
 import { useStore } from '@/store/useStore';
 import { fetchStockMessages, fetchPalaceStock } from '@/lib/api';
 import type { StockItem, PalaceStockDetail } from '@/types/api';
-import { FOCUS_RING, ROW_GRID, biasText } from '@/lib/palace';
+import { FOCUS_RING, ROW_GRID, biasText, readableText } from '@/lib/palace';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
 /* ------------------------------------------------------------------ */
@@ -586,7 +586,7 @@ function GroupMessages({ groups }: { groups: Array<{ g: string; c: number; m: Ar
                             {msg.t}
                           </span>
                           <p className="flex-1 min-w-0 text-sm text-ink-primary leading-relaxed whitespace-pre-wrap break-words">
-                            {msg.x}
+                            {readableText(msg.x)}
                           </p>
                         </motion.div>
                       ))}

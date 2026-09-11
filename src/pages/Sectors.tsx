@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { readableText } from '@/lib/palace';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Layers,
@@ -358,7 +359,7 @@ function SectorDetailDrawer({
                         {group.m.map((msg, mi) => (
                           <div key={mi} className="flex gap-2 text-xs">
                             <span className="text-ink-quaternary shrink-0">{msg.t}</span>
-                            <span className="text-ink-secondary">{msg.x}</span>
+                            <span className="text-ink-secondary">{readableText(msg.x)}</span>
                           </div>
                         ))}
                       </div>
