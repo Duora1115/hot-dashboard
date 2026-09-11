@@ -1,7 +1,5 @@
 /**
- * Recharts styling helpers — theme-aware via CSS variables.
- * Values are strings the browser resolves at paint time, so they auto-adapt
- * when .light / .dark toggles on <html>.
+ * Recharts styling helpers — reads the dark theme tokens via CSS variables.
  */
 
 export const chartTooltipStyle = {

@@ -5,10 +5,8 @@
 @tailwind utilities;
 
 /* ==================================================================
-   Theme tokens
-   ------------------------------------------------------------------
-   :root   → dark (default; also applied when .dark is on <html>)
-   .light  → auto-applied 07:00–19:00 Beijing time via inline script
+   Theme tokens — dark only. `.dark` is hardcoded on <html> in index.html
+   so the `dark:` utilities used by the shadcn components keep working.
    ================================================================== */
 
 @layer base {
@@ -83,72 +81,6 @@
     --brand-accent: var(--brand-blue);
 
     color-scheme: dark;
-  }
-
-  /* ============================================================
-     LIGHT — Apple systemColor light. Auto-applied 07–19 Beijing.
-     ============================================================ */
-  .light {
-    --background: 240 20% 98%;      /* #F9F9FB — off-white */
-    --foreground: 240 10% 10%;      /* #1A1A1E */
-    --card: 0 0% 100%;              /* pure white */
-    --card-foreground: 240 10% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 10%;
-    --primary: 211 100% 50%;        /* #007AFF */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 15% 95%;
-    --secondary-foreground: 240 10% 10%;
-    --muted: 240 15% 95%;
-    --muted-foreground: 240 4% 40%;
-    --accent: 240 15% 95%;
-    --accent-foreground: 240 10% 10%;
-    --destructive: 4 100% 58%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 211 100% 50%;
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 10% 10%;
-    --sidebar-primary: 211 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 15% 95%;
-    --sidebar-accent-foreground: 240 10% 10%;
-    --sidebar-border: 240 6% 90%;
-    --sidebar-ring: 211 100% 50%;
-
-    --surface-0: 240 20% 98%;       /* page       #F9F9FB */
-    --surface-1: 0 0% 100%;         /* card       #FFFFFF */
-    --surface-2: 240 20% 96%;       /* elevated   #F2F2F5 */
-    --surface-3: 240 15% 92%;       /* deep       #E7E7EC */
-
-    --text-primary: 240 10% 10%;    /* #1A1A1E */
-    --text-secondary: 240 4% 40%;   /* #616166 */
-    --text-tertiary: 240 4% 55%;    /* #86868C */
-    --text-quaternary: 240 6% 72%;  /* #B4B4BB */
-
-    /* Apple systemColor light — slightly higher chroma than dark variants. */
-    --brand-blue: 0 122 255;
-    --brand-green: 52 199 89;
-    --brand-red: 255 59 48;
-    --brand-yellow: 255 149 0;      /* light-mode "yellow" is really amber for legibility */
-    --brand-purple: 175 82 222;
-    --brand-cyan: 90 200 250;
-    --brand-orange: 255 149 0;
-    --brand-heat: 255 59 48;
-    --brand-primary: 0 122 255;
-
-    --hairline: 0 0 0;              /* black overlay on light */
-    --hover-bg: 0 0 0;
-    --vibrancy-bg: 255 255 255;
-
-    /* No grain in light mode — Apple's light UI is clean pixels. */
-    --grain-opacity: 0;
-    --grain-blend: normal;
-
-    --brand-accent: var(--brand-blue);
-
-    color-scheme: light;
   }
 
   html {

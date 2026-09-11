@@ -2,7 +2,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from './Navbar';
 import Footer from './Footer';
-import { useAutoTheme } from '@/hooks/useAutoTheme';
 
 // Apple-ish spring curve, snappier than the previous 0.35s ease.
 const pageTransition = {
@@ -12,7 +11,6 @@ const pageTransition = {
 };
 
 export default function Layout() {
-  useAutoTheme();
   const { pathname } = useLocation();
   return (
     <div className="noise-overlay min-h-[100dvh] flex flex-col bg-background text-foreground">
