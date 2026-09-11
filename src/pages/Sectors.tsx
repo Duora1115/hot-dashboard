@@ -393,7 +393,12 @@ function SectorDetailDrawer({
                           <Users size={12} className="text-ink-tertiary" />
                           <span className="text-xs font-medium text-ink-primary">{group.g}</span>
                         </div>
-                        <span className="text-xs text-ink-tertiary">{group.c}条消息</span>
+                        <span className="text-xs text-ink-tertiary">
+                          {group.c}条消息
+                          {group.m.length < group.c && (
+                            <span className="ml-1 opacity-70">· 显示前 {group.m.length} 条</span>
+                          )}
+                        </span>
                       </div>
                       <div className="space-y-1.5">
                         {group.m.map((msg, mi) => (
