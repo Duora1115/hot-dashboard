@@ -180,6 +180,15 @@
     backdrop-filter: blur(28px) saturate(180%);
   }
 
+  /* 窄屏底部要更实：移动端内容更密、字号更大，0.72 的底压不住，展开菜单时
+     下面的页面文字会透上来和菜单项叠在一起。桌面导航栏是 56px 细条、背景干净，
+     保持原有的通透感。md 断点 = 768px。 */
+  @media (max-width: 767px) {
+    .vibrancy {
+      background-color: rgb(var(--vibrancy-bg) / 0.92);
+    }
+  }
+
   /* Hairline — theme-aware overlay border */
   .hairline    { border: 1px solid rgb(var(--hairline) / 0.08); }
   .hairline-b  { border-bottom: 1px solid rgb(var(--hairline) / 0.08); }
