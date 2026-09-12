@@ -101,7 +101,21 @@ PY
 
 **这是存量缺陷，与本分支无关**（`git diff main..HEAD -- src/store/useStore.ts | grep refreshData` 无输出，`App.tsx` 也没被本分支改过），因此未纳入本轮修复，单独报给用户决定。修法是给 `refreshData` 加一行日期守卫：`if (latest.t.slice(0,10) !== get().currentDate) return;`
 
-### 模板（前端任务用）
+## 收尾后的三项遗留修复 — 2026-09-12
+
+合并进 `main` 之后，把上面记录的三条遗留问题一并修掉，各自独立提交。
+
+| # | 问题 | 修法 | 验证 | commit |
+|---|---|---|---|---|
+| 1 | `/api/dates` 的 ETag 是 `"dates-{日期数}-{总体积}"`，**看不见 `message_count`**。部署时 day 文件没变 → ETag 与部署前逐字节相同 → 浏览器带 `If-None-Match` 拿到 **304**，继续用那份含 5 个错误 `0` 的旧响应，**把 blocking 修复挡住** | ETag 纳入计数摘要：`"dates-{len}-{kb}-{sha1(date:count 排序后)[:12]}"`，复用文件里既有的摘要写法 | 重启后端实测：ETag 变为 `"dates-33-571544-68cefd33ea7f"`（旧的是 `"dates-33-571544"`）→ 与部署前不再相同；同一份数据两次请求 ETag **稳定**；`If-None-Match` 正确回 **304**。新增 `tests/test_dates_etag.py` 钉住两条性质（同数据→304、改计数→不再 304），后者在改之前报 `assert 304 == 200` | `77532de` |
+| 2 | `test_zero_total_resolution_is_cached` **测不到缓存**：它 monkeypatch `_load_day` 抛 `AssertionError`，但 `_resolve_message_count` 里 `except Exception` 把它吞了，于是删掉守卫它照样通过 | 改成 **调用计数器**（包装 `_load_day` 递增计数，断言第二次 `get_dates_info()` 不再触发），并新增一个「0 值日」固件真正走到解析路径 | 实现者用**两种删法**（删 `.add()`、删 `get_dates_info` 里的判据）分别证明守卫去掉后该测试**失败**，恢复后通过 | `5e45a81` |
+| 3 | `refreshData()` 只比时间先后、**不校验 `latest` 属于哪一天**。选中历史日期停在实时模式时，把今天的快照 `snaps[last] = latest` 拼进历史那天，聚合失真（实测 1,148 → 0 → 946）。**存量缺陷，与本轮改动无关** | 抽纯函数 `isSameDay(ts, date)` 到 `src/lib/dataState.ts` 并在 `refreshData` 里守卫，早退而不改写快照数组（`latestSnapshot` 本身照常更新） | 新增 4 条单测（同日/跨日/跨零点/null），前端测试 86 → 90 | `71ddd48` |
+
+三项修完后：后端 **218 passed**、前端 **90 passed**、`npm run build` 通过。
+
+**保留的次要项（未修，非阻断）**：`tests/test_dates_etag.py` 与仓库里其它 API 测试一样直接改写模块级 `server.data_dir`/`server.store` 而不复原；用 `monkeypatch` fixture 会更稳，但为与既有风格一致暂不改。
+
+### 逐条明细模板
 
 > 每条任务的执行者在下面追加一段：复验了哪个页面、点了什么、看到什么。截图路径写全。
 
