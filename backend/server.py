@@ -357,7 +357,16 @@ def api_dates(request: Request):
     """列出所有可用日期 — 匹配前端 DateInfo 类型"""
     result = store.get_dates_info()
     total_kb = sum(d.get("size_kb", 0) for d in result)
-    etag = f'"dates-{len(result)}-{int(total_kb)}"'
+    # 摘要必须含 message_count：它是响应体的一部分，且会在 day 文件一字未改时
+    # 因修复解析口径而变化。只摘要 len + 体积会让 ETag 与修复前逐字节相同，
+    # 浏览器继续命中 60s 缓存里的旧响应体，修复对用户不可见。@date 排序后拼接，
+    # 保证同样的数据得到同样的 ETag（否则缓存永不命中）。
+    count_sig = "|".join(
+        f"{d['date']}:{d.get('message_count', 0)}"
+        for d in sorted(result, key=lambda x: x["date"])
+    )
+    count_digest = hashlib.sha1(count_sig.encode()).hexdigest()[:12]
+    etag = f'"dates-{len(result)}-{int(total_kb)}-{count_digest}"'
     headers = {"ETag": etag, "Cache-Control": _CACHE_POLICIES["dates"]}
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=headers)
