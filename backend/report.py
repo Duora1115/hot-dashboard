@@ -5,6 +5,7 @@
 """
 
 from backend.indicators import compute_all
+from backend.textclean import news_title_summary
 
 
 class AnalysisGenerator:
@@ -268,11 +269,14 @@ def _extract_news_from_raw(raw_snapshots: list[dict], sentiment_by_time: dict[st
 
                     msg_time = m.get("time", "")
                     msg_time_part = msg_time.split(" ", 1)[1] if " " in msg_time else time_part
+                    title, summary = news_title_summary(text)
+                    if not title:
+                        continue
                     news.append({
                         "id": f"n{len(news)+1}",
                         "category": category,
-                        "title": text[:40],
-                        "summary": text[:80],
+                        "title": title,
+                        "summary": summary,
                         "impact": impact,
                         "source": group_name,
                         "time": msg_time_part,
