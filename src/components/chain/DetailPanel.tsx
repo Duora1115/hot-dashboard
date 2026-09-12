@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { isCandidate } from '@/lib/chain';
 import type { GraphNode } from '@/lib/chain';
 
 interface Props {
@@ -69,7 +70,7 @@ export default function DetailPanel({ node, nodes, onSelect, onClose }: Props) {
       {neighbors.length > 0 && (
         <>
           <div className="mt-4 mb-1 text-[10.5px] tracking-[0.09em] uppercase text-ink-quaternary">
-            同环节邻居
+            同环节
           </div>
           {neighbors.map((n) => (
             <button
@@ -80,7 +81,7 @@ export default function DetailPanel({ node, nodes, onSelect, onClose }: Props) {
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: n.color }} />
               <span className="flex-1 text-ink-primary">{n.name}</span>
               <span className={`font-mono text-[11.5px] ${n.listed ? 'text-ink-tertiary' : 'text-brand-yellow'}`}>
-                {n.listed ? n.peakSc : '未上榜'}
+                {n.listed ? n.peakSc : isCandidate(n, neighbors) ? '补涨候选' : '未上榜'}
               </span>
             </button>
           ))}

@@ -210,3 +210,15 @@ export function candidateCodes(nodes: GraphNode[], selectedId: string | null): S
   }
   return out;
 }
+
+/**
+ * 补涨候选 = 自己没上榜，但同环节里有人上榜。
+ * 移动端列表（ChainList）有这个徽章，右侧详情面板（DetailPanel）没有，
+ * 而页面帮助文案写的是「同环节里未上榜的票会被标成 补涨候选」，两处口径要一致。
+ */
+export function isCandidate(
+  node: { listed: boolean },
+  peers: Array<{ listed: boolean }>,
+): boolean {
+  return !node.listed && peers.some((p) => p.listed);
+}

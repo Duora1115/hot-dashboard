@@ -6,6 +6,7 @@ import {
   buildPalette,
   buildSupplyArcs,
   candidateCodes,
+  isCandidate,
   nodeRadius,
 } from './chain';
 import type { ChainData, ChainSegment } from './chain';
@@ -119,6 +120,20 @@ describe('candidateCodes', () => {
     });
     // 002281 未上榜；选中它不应把同环节的未上榜票标成候选
     expect(candidateCodes(nodes, '002281').size).toBe(0);
+  });
+});
+
+describe('isCandidate', () => {
+  it('未上榜、且同环节里有已上榜的票 → 补涨候选', () => {
+    expect(isCandidate({ listed: false }, [{ listed: true }, { listed: false }])).toBe(true);
+  });
+
+  it('自己已上榜就不是候选', () => {
+    expect(isCandidate({ listed: true }, [{ listed: true }])).toBe(false);
+  });
+
+  it('同环节没有已上榜的票，就没有「补」的对象', () => {
+    expect(isCandidate({ listed: false }, [{ listed: false }])).toBe(false);
   });
 });
 

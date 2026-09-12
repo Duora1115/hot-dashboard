@@ -1006,7 +1006,7 @@ export default function Report() {
         className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5 text-center space-y-2"
       >
         <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-ink-tertiary">
-          <span>数据来源：25个飞书投资群实时采集</span>
+          <span>数据来源：{data.activeGroups.total}个飞书投资群实时采集</span>
           <span className="hidden sm:inline">|</span>
           <span>生成时间：2026-01-15 15:05:23</span>
         </div>
@@ -1056,7 +1056,7 @@ function ReportHeader({ data }: { data: ReportData }) {
         transition={{ delay: 0.18, duration: 0.4 }}
         className="text-[15px] md:text-[17px] text-ink-secondary max-w-2xl leading-relaxed mb-8"
       >
-        基于 25 个飞书投资群多维数据分析
+        基于 {data.activeGroups.total} 个飞书投资群多维数据分析
       </motion.p>
 
       {/* Key metrics — clean row, no decorative frames */}

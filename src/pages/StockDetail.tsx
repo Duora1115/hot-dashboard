@@ -109,7 +109,7 @@ function StockHeader({ stock }: { stock: StockItem }) {
         whileHover={{ x: -3 }}
       >
         <ChevronLeft size={16} />
-        返回 Dashboard
+        返回仪表盘
       </motion.button>
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -1117,7 +1117,7 @@ export default function StockDetail() {
           className="flex items-center gap-2 px-4 py-2 bg-surface-2 hover:bg-surface-3 text-ink-secondary hover:text-ink-primary rounded-[10px] text-sm font-medium transition-colors border border-hairline/20"
         >
           <ChevronLeft size={16} />
-          返回 Dashboard
+          返回仪表盘
         </button>
       </motion.div>
     );
