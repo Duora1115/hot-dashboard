@@ -81,7 +81,7 @@ export default function DetailPanel({ node, nodes, onSelect, onClose }: Props) {
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: n.color }} />
               <span className="flex-1 text-ink-primary">{n.name}</span>
               <span className={`font-mono text-[11.5px] ${n.listed ? 'text-ink-tertiary' : 'text-brand-yellow'}`}>
-                {n.listed ? n.peakSc : isCandidate(n, neighbors) ? '补涨候选' : '未上榜'}
+                {n.listed ? n.peakSc : isCandidate(n, [node, ...neighbors]) ? '补涨候选' : '未上榜'}
               </span>
             </button>
           ))}

@@ -135,6 +135,30 @@ describe('isCandidate', () => {
   it('同环节没有已上榜的票，就没有「补」的对象', () => {
     expect(isCandidate({ listed: false }, [{ listed: false }])).toBe(false);
   });
+
+  it('调用点语义：peers 要传「含锚点的同环节全集」，锚点唯一上榜时也算候选', () => {
+    // 光模块里只有锚点 300308 上榜，300502 / 002281 都未上榜
+    const nodes = buildNodes(DATA, {
+      '300308': { peakSc: 92, listed: true, mentions: 9, bull: 4, bear: 1 },
+    });
+    const anchor = nodes.find((n) => n.id === '300308');
+    expect(anchor).toBeDefined();
+    if (!anchor) return;
+
+    // DetailPanel 里 neighbors 的定义：同环节、去掉锚点
+    const segment = nodes.filter((n) => n.segment === anchor.segment);
+    const neighbors = segment.filter((n) => n.id !== anchor.id);
+    const cands = candidateCodes(nodes, anchor.id);
+    expect(cands.size).toBeGreaterThan(0); // 保证该用例不是空转
+
+    for (const n of neighbors) {
+      // 含锚点的全集 → 与 ChainList / candidateCodes 口径一致
+      expect(isCandidate(n, segment)).toBe(cands.has(n.id));
+      expect(isCandidate(n, [anchor, ...neighbors])).toBe(true);
+      // 只传 neighbors（漏掉锚点）会漏判「锚点唯一上榜」的情形
+      expect(isCandidate(n, neighbors)).toBe(false);
+    }
+  });
 });
 
 describe('nodeRadius', () => {

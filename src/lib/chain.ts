@@ -215,6 +215,12 @@ export function candidateCodes(nodes: GraphNode[], selectedId: string | null): S
  * 补涨候选 = 自己没上榜，但同环节里有人上榜。
  * 移动端列表（ChainList）有这个徽章，右侧详情面板（DetailPanel）没有，
  * 而页面帮助文案写的是「同环节里未上榜的票会被标成 补涨候选」，两处口径要一致。
+ *
+ * 契约：peers 必须是**含所选锚点在内的同环节全集**。
+ * 判据是「给定本环节的上榜情况，这只票算不算补涨候选」——锚点往往就是本环节
+ * 唯一上榜的那只票，若 peers 漏掉锚点（例如只传 DetailPanel 的 neighbors，
+ * 而 neighbors 不含锚点），「锚点唯一上榜」这一最常见的情形会被漏判成「未上榜」，
+ * 与 ChainList / candidateCodes 的口径就会不一致。调用点请传 `[node, ...neighbors]`。
  */
 export function isCandidate(
   node: { listed: boolean },
