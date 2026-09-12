@@ -129,6 +129,35 @@ def data_dir_zero_total(tmp_path):
     return tmp_path
 
 
+@pytest.fixture
+def data_dir_unresolvable(tmp_path):
+    """peek 读 0，且 snapshots 里也没有可兜底的条数 —— 解析后仍是 0。
+
+    ``_msg_counts_resolved`` 存在的意义正是这种日子：解析结果落定成 0，若不留
+    记号，每次 ``get_dates_info`` 都会把同一份文件重读一遍。`data_dir_zero_total`
+    （解析成 1110）咬不到这个守卫，因为 ``_msg_counts`` 非 0 本身就会跳过重解析。
+    """
+    day = {
+        "date": "2026-06-11",
+        "total_msgs": 0,
+        "snapshots": [
+            {
+                "time": "2026-06-11 09:30",
+                "total_messages": 0,
+                "active_groups": 0,
+                "overall_sentiment": "中性",
+                "sentiment_detail": {},
+                "action_summary": {},
+                "top10_stocks": [],
+                "top8_sectors": [],
+            }
+        ],
+    }
+    with open(tmp_path / "day_2026-06-11.json", "w", encoding="utf-8") as f:
+        json.dump(day, f, ensure_ascii=False)
+    return tmp_path
+
+
 class TestDataStore:
     def test_startup_loads_recent_days(self, data_dir):
         store = DataStore(data_dir, max_hot_days=14)
@@ -309,20 +338,32 @@ class TestDataStore:
         store.get_dates_info()
         assert set(store._days) == set(), "解析完 0 值日应立刻释放，不该常驻"
 
-    def test_zero_total_resolution_is_cached(self, data_dir_zero_total, monkeypatch):
-        """解析结果写回 _msg_counts，后续 get_dates_info 不该再走加载路径。"""
-        store = DataStore(data_dir_zero_total, eager_load_days=0)
+    def test_zero_total_resolution_is_cached(self, data_dir_unresolvable, monkeypatch):
+        """解析结果已落定（哪怕落定成 0）的日期，后续 get_dates_info 不该再解析。
+
+        信号用调用计数器，不用抛异常：``_resolve_message_count`` 里是
+        ``except Exception``，patch ``_load_day`` 抛 AssertionError 会被吞掉后照
+        样返回缓存值 —— 那种写法删掉 ``_msg_counts_resolved`` 守卫也照样通过，
+        等于没测。这里断言第二次 ``get_dates_info`` 没再碰 ``_load_day``。
+        """
+        store = DataStore(data_dir_unresolvable, eager_load_days=0)
         store.startup()
         store.get_dates_info()
 
-        assert store._msg_counts["2026-06-11"] == 1110
+        assert store._msg_counts["2026-06-11"] == 0
+        assert "2026-06-11" in store._msg_counts_resolved
 
-        def boom(*args, **kwargs):
-            raise AssertionError("已解析过的 0 值日不该再次加载")
+        calls = []
+        real_load = store._load_day
 
-        monkeypatch.setattr(store, "_load_day", boom)
+        def counting_load(*args, **kwargs):
+            calls.append(args[0] if args else kwargs.get("date_str"))
+            return real_load(*args, **kwargs)
+
+        monkeypatch.setattr(store, "_load_day", counting_load)
         info = {d["date"]: d for d in store.get_dates_info()}
-        assert info["2026-06-11"]["message_count"] == 1110
+        assert info["2026-06-11"]["message_count"] == 0
+        assert calls == [], "已解析过的 0 值日不该再次加载"
 
     def test_get_snapshot_single(self, data_dir):
         store = DataStore(data_dir)
