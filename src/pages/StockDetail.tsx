@@ -1072,7 +1072,7 @@ export default function StockDetail() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/')}
-              aria-label="返回 Dashboard"
+              aria-label="返回仪表盘"
               className="w-9 h-9 shrink-0 rounded-full bg-surface-2 hover:bg-surface-3 flex items-center justify-center text-ink-secondary hover:text-ink-primary transition-colors border border-hairline/20"
             >
               <ChevronLeft size={18} />

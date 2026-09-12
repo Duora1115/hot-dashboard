@@ -202,6 +202,7 @@ function StatusBar({ snapshot }: { snapshot: Snapshot }) {
           {/* Refresh button */}
           <button
             onClick={() => loadDate(currentDate)}
+            aria-label="重新加载当日数据"
             className="p-1.5 rounded-lg text-ink-tertiary hover:text-ink-secondary hover:bg-surface-2 transition-colors"
           >
             <RefreshCw size={16} />
@@ -272,7 +273,7 @@ const tabs = [
 
 function TabNav({ activeTab, onTabChange }: { activeTab: string; onTabChange: (t: string) => void }) {
   return (
-    <div className="flex items-center justify-center gap-1 bg-surface-1 rounded-[10px] p-1 border border-hairline/10">
+    <div className="hidden sm:flex items-center justify-center gap-1 bg-surface-1 rounded-[10px] p-1 border border-hairline/10">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
         const Icon = tab.icon;
@@ -786,6 +787,8 @@ function MobileBottomNav({ activeTab, onTabChange }: { activeTab: string; onTabC
             <button
               key={tab.key}
               onClick={() => onTabChange(tab.key)}
+              aria-label={tab.label}
+              aria-current={isActive ? 'true' : undefined}
               className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${
                 isActive ? 'text-brand-blue' : 'text-ink-tertiary'
               }`}

@@ -617,8 +617,9 @@ function TimelineController({
         {/* Skip to start */}
         <button
           onClick={() => onSetIndex(0)}
-          className="p-2 rounded-full text-ink-secondary hover:text-ink-primary hover:bg-surface-2 transition-colors shrink-0"
+          aria-label="跳到开头"
           title="跳到开头"
+          className="p-2 rounded-full text-ink-secondary hover:text-ink-primary hover:bg-surface-2 transition-colors shrink-0"
         >
           <SkipBack size={20} />
         </button>
@@ -626,6 +627,7 @@ function TimelineController({
         {/* Play / Pause */}
         <motion.button
           onClick={onTogglePlay}
+          aria-label={isPlaying ? '暂停' : '播放'}
           whileTap={{ scale: 0.92 }}
           className="w-10 h-10 rounded-full bg-brand-blue flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0"
         >
@@ -657,8 +659,9 @@ function TimelineController({
         {/* Skip to end */}
         <button
           onClick={() => onSetIndex(snapshots.length - 1)}
-          className="p-2 rounded-full text-ink-secondary hover:text-ink-primary hover:bg-surface-2 transition-colors shrink-0"
+          aria-label="跳到结尾"
           title="跳到结尾"
+          className="p-2 rounded-full text-ink-secondary hover:text-ink-primary hover:bg-surface-2 transition-colors shrink-0"
         >
           <SkipForward size={20} />
         </button>
