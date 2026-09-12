@@ -231,6 +231,24 @@ class TestDataStore:
         store.get_dates_info()
         assert set(store._days) == loaded_after_startup, "get_dates_info 不该触发任何懒加载"
 
+    def test_update_day_refreshes_message_count(self, data_dir):
+        """collector 每次写盘都调 update_day；_msg_counts 不刷新会整天报旧值。"""
+        store = DataStore(data_dir)
+        store.startup()
+        info = {d["date"]: d for d in store.get_dates_info()}
+        assert info["2026-07-06"]["message_count"] == 100
+
+        # 采集端改写同一天，条数变化
+        day1 = json.loads((data_dir / "day_2026-07-06.json").read_text(encoding="utf-8"))
+        day1["total_msgs"] = 250
+        with open(data_dir / "day_2026-07-06.json", "w", encoding="utf-8") as f:
+            json.dump(day1, f, ensure_ascii=False)
+
+        store.update_day("2026-07-06")
+
+        info = {d["date"]: d for d in store.get_dates_info()}
+        assert info["2026-07-06"]["message_count"] == 250
+
     def test_get_snapshot_single(self, data_dir):
         store = DataStore(data_dir)
         store.startup()

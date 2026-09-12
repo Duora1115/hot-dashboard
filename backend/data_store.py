@@ -208,6 +208,7 @@ class DataStore:
             if date_str not in self._dates:
                 self._dates = sorted(self._days.keys())
             self._dates_info[date_str] = round(path.stat().st_size / 1024, 1)
+            self._msg_counts[date_str] = self._peek_message_count(path)
             self._evict_if_needed()
         except Exception as e:
             logger.warning(f"更新 {date_str} 失败: {e}")
