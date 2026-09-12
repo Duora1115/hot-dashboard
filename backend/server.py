@@ -685,30 +685,21 @@ def api_report(date_str: str, request: Request):
     if day_data is None:
         raise HTTPException(404, f"日期 {date_str} 数据不存在")
 
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from concurrent.futures import ThreadPoolExecutor
 
-    market_idx = []
     adv_dec = None
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = {
-            executor.submit(fetch_indices): "indices",
-            executor.submit(fetch_advance_decline): "advance_decline",
-        }
-        for future in as_completed(futures):
-            try:
-                result = future.result(timeout=3)
-                if futures[future] == "indices":
-                    market_idx = result
-                else:
-                    adv_dec = result
-            except Exception:
-                pass
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(fetch_advance_decline)
+        try:
+            adv_dec = future.result(timeout=3)
+        except Exception:
+            pass
 
     # Raw snapshots (with gd) are needed for news extraction + sector analysis.
     # They come from the raw LRU cache; a miss triggers a single disk read.
     raw_snaps = store.get_raw_snapshots(date_str)
-    result = generate_report(date_str, day_data, market_idx, adv_dec,
+    result = generate_report(date_str, day_data, adv_dec,
                              raw_snapshots=raw_snaps,
                              prev_message_count=_prev_message_count(date_str),
                              active_group_count=len(cfg.get("groups", [])))

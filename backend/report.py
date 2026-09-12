@@ -327,7 +327,16 @@ def _active_groups(snapshots: list[dict], total: int | None) -> dict:
     return {"active": active, "total": int(total or 0)}
 
 
-def generate_report(date_str: str, day_data: dict, market_indices: list[dict] | None = None,
+def _advance_decline_or_none(advance_decline: dict | None) -> dict | None:
+    """真实源拿不到就返回 None。
+
+    旧实现在这里用「看多条数 × 30 / 看空条数 × 30」编一组涨跌家数，结果 2026-09-11
+    页面显示「93.8% 上涨」，而同一页的大盘指数是 −1.18%。编造的市场宽度比留白有害。
+    """
+    return advance_decline or None
+
+
+def generate_report(date_str: str, day_data: dict,
                     advance_decline: dict | None = None,
                     raw_snapshots: list[dict] | None = None,
                     prev_message_count: int | None = None,
@@ -361,24 +370,8 @@ def generate_report(date_str: str, day_data: dict, market_indices: list[dict] | 
         "act": last_snap.get("act", {}),
     })
 
-    # --- marketIndices ---
-    market_indices = market_indices or []
-
     # --- advanceDecline ---
-    if advance_decline:
-        ad = advance_decline
-    else:
-        # 从 stk 数据估算
-        bu_total = sum(s.get("bu", 0) for s in last_snap.get("stk", []))
-        be_total = sum(s.get("be", 0) for s in last_snap.get("stk", []))
-        est_total = bu_total + be_total
-        est_rising_pct = (bu_total / est_total * 100) if est_total > 0 else 50
-        ad = {
-            "rising": int(bu_total * 30), "falling": int(be_total * 30),
-            "unchanged": max(0, 5100 - int((bu_total + be_total) * 30)),
-            "limitUp": max(0, bu_total // 3), "limitDown": max(0, be_total // 5),
-            "risingPercent": round(est_rising_pct, 1),
-        }
+    ad = _advance_decline_or_none(advance_decline)
 
     # --- volumeData ---
     volume_data = compute_volume_data(snapshots, meta.get("message_count", 0), prev_message_count)
@@ -504,7 +497,6 @@ def generate_report(date_str: str, day_data: dict, market_indices: list[dict] | 
 
     return {
         "date": date_str,
-        "marketIndices": market_indices,
         "advanceDecline": ad,
         "volumeData": volume_data,
         "activeGroups": _active_groups(snapshots, active_group_count),
@@ -537,7 +529,7 @@ def _fallback_technical(snap: dict) -> dict:
 def _empty_report(date_str: str) -> dict:
     """空数据时的默认报告"""
     return {
-        "date": date_str, "marketIndices": [], "advanceDecline": None,
+        "date": date_str, "advanceDecline": None,
         "volumeData": {"totalVolume": 0, "prevVolume": None, "changePercent": None,
                        "hourlyData": [], "peakHour": "-", "peakVolume": 0, "summary": "暂无数据"},
         "activeGroups": {"active": 0, "total": 0},

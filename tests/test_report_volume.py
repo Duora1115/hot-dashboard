@@ -61,3 +61,38 @@ def test_active_groups_uses_last_snapshot_and_configured_total():
 
 def test_active_groups_falls_back_to_zero():
     assert _active_groups([], total=25) == {"active": 0, "total": 25}
+
+
+from backend.report import _advance_decline_or_none, generate_report
+
+
+def test_no_estimate_when_source_missing():
+    """旧实现会拿「看多条数 × 30」编一个涨跌家数出来——那会和指数 −1.18% 打架。"""
+    assert _advance_decline_or_none(None) is None
+
+
+def test_real_source_passes_through():
+    real = {"rising": 1200, "falling": 420, "unchanged": 3480,
+            "limitUp": 13, "limitDown": 2, "risingPercent": 74.1}
+    assert _advance_decline_or_none(real) == real
+
+
+def _day_data_with_one_snapshot():
+    return {"meta": {"message_count": 5}, "snapshots": [
+        {"t": "2026-09-11 09:30", "msg": 5, "grp": 2, "sent": "偏多",
+         "sd": {"bu": 3, "be": 1, "ne": 1}, "sec": [], "stk": [], "act": {}},
+    ]}
+
+
+def test_report_has_no_market_indices_key(monkeypatch):
+    """marketIndices 是没人渲染的死数据，返回体里不该再有这个键。"""
+    monkeypatch.setattr("backend.market.fetch_kline", lambda *a, **k: [])
+    r = generate_report("2026-09-11", _day_data_with_one_snapshot(), advance_decline=None)
+    assert "marketIndices" not in r
+
+
+def test_report_advance_decline_is_none_when_source_missing(monkeypatch):
+    """源码返回 None 时必须留白，不能估算出「93.8% 上涨」。"""
+    monkeypatch.setattr("backend.market.fetch_kline", lambda *a, **k: [])
+    r = generate_report("2026-09-11", _day_data_with_one_snapshot(), advance_decline=None)
+    assert r.get("advanceDecline") is None

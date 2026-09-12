@@ -219,7 +219,6 @@ export interface SentimentTimelineItem {
 
 export interface ReportData {
   date: string;
-  marketIndices: MarketIndex[];
   advanceDecline: AdvanceDecline | null;
   volumeData: VolumeData;
   activeGroups: { active: number; total: number };

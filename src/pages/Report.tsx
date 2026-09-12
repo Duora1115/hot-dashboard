@@ -45,7 +45,7 @@ import ReadingProgress from '@/components/ReadingProgress';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
 const EMPTY_REPORT: ReportData = {
-  date: '', marketIndices: [], advanceDecline: null,
+  date: '', advanceDecline: null,
   volumeData: { totalVolume: 0, prevVolume: null, changePercent: null, hourlyData: [], peakHour: '--', peakVolume: 0, summary: '' },
   activeGroups: { active: 0, total: 0 },
   hotSectors: [], hotStocks: [], newsItems: [],
@@ -396,41 +396,13 @@ export default function Report() {
       {/* ============================================================ */}
       <SectionWrapper id="market" loading={loading} skeletonHeight="200px">
         <SectionTitle icon={BarChart3} title="大盘分析" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 gap-4 md:gap-6">
           {/* Sentiment Gauge */}
           <motion.div
             variants={staggerChild}
             className="bg-surface-1 border border-hairline/10 rounded-[14px] p-5 md:p-6 flex flex-col items-center justify-center"
           >
             <SentimentGauge data={data.sentimentData} />
-          </motion.div>
-
-          {/* Intraday Chart */}
-          <motion.div
-            variants={staggerChild}
-            className="lg:col-span-2 bg-surface-1 border border-hairline/10 rounded-[14px] p-5 md:p-6"
-          >
-            <h3 className="text-sm font-medium text-ink-secondary mb-4">指数分时走势</h3>
-            <div className="h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.volumeData.hourlyData.map(h => ({ time: h.time, value: h.volume }))}>
-                  <defs>
-                    <linearGradient id="indexGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0A84FF" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#0A84FF" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#28282E" />
-                  <XAxis dataKey="time" stroke="#5A5A64" fontSize={11} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis domain={['dataMin - 10', 'dataMax + 10']} stroke="#5A5A64" fontSize={11} tickLine={false} axisLine={false} width={50} />
-                  <Tooltip
-                    contentStyle={chartTooltipStyle}
-                    labelStyle={chartTooltipLabelStyle}
-                  />
-                  <Area type="monotone" dataKey="value" stroke="#0A84FF" strokeWidth={2} fill="url(#indexGradient)" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
           </motion.div>
         </div>
 
@@ -452,7 +424,8 @@ export default function Report() {
       {/*  SECTION 3: Advance / Decline Statistics                     */}
       {/* ============================================================ */}
       <SectionWrapper id="statistics" loading={loading} skeletonHeight="60px">
-        {data.advanceDecline && <>
+        {data.advanceDecline ? (
+          <>
         <SectionTitle icon={Activity} title="涨跌统计" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <StatCard label="上涨家数" value={data.advanceDecline.rising} color="#30D158" suffix="家" />
@@ -490,7 +463,12 @@ export default function Report() {
             <span className="text-brand-red">跌 {data.advanceDecline.falling} 家</span>
           </div>
         </motion.div>
-        </>}
+          </>
+        ) : (
+          <p className="text-sm text-ink-tertiary py-6 text-center">
+            涨跌家数暂不可用（数据源未返回）
+          </p>
+        )}
       </SectionWrapper>
 
       {/* ============================================================ */}
