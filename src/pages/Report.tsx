@@ -46,7 +46,7 @@ import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
 const EMPTY_REPORT: ReportData = {
   date: '', marketIndices: [], advanceDecline: null,
-  volumeData: { totalVolume: 0, prevVolume: 0, changePercent: 0, hourlyData: [], peakHour: '--', peakVolume: 0, summary: '' },
+  volumeData: { totalVolume: 0, prevVolume: null, changePercent: null, hourlyData: [], peakHour: '--', peakVolume: 0, summary: '' },
   hotSectors: [], hotStocks: [], newsItems: [],
   sentimentData: { overall: '--', overallLabel: 'neutral', bullPercent: 0, bearPercent: 0, neutralPercent: 0, extremeEuphoria: 0, extremePessimism: 0, drivers: [], alert: null },
   technicalData: { observations: [], supportLevels: [], resistanceLevels: [], patterns: [], indicatorSummaries: [], signals: [] },
@@ -507,16 +507,22 @@ export default function Report() {
               {data.volumeData.totalVolume.toLocaleString()}
             </span>
             <div className="flex items-center gap-1 mt-2">
-              {data.volumeData.changePercent > 0 ? (
-                <ArrowUp size={14} className="text-brand-green" />
+              {data.volumeData.changePercent === null ? (
+                <span className="text-xs text-ink-tertiary">较昨日暂无数据</span>
               ) : (
-                <ArrowDown size={14} className="text-brand-red" />
+                <>
+                  {data.volumeData.changePercent > 0 ? (
+                    <ArrowUp size={14} className="text-brand-green" />
+                  ) : (
+                    <ArrowDown size={14} className="text-brand-red" />
+                  )}
+                  <span className={`text-sm font-medium ${data.volumeData.changePercent > 0 ? 'text-brand-green' : 'text-brand-red'}`}>
+                    {data.volumeData.changePercent > 0 ? '+' : ''}
+                    {data.volumeData.changePercent.toFixed(1)}%
+                  </span>
+                  <span className="text-xs text-ink-tertiary">vs 昨日</span>
+                </>
               )}
-              <span className={`text-sm font-medium ${data.volumeData.changePercent > 0 ? 'text-brand-green' : 'text-brand-red'}`}>
-                {data.volumeData.changePercent > 0 ? '+' : ''}
-                {data.volumeData.changePercent.toFixed(1)}%
-              </span>
-              <span className="text-xs text-ink-tertiary">vs 昨日</span>
             </div>
             <div className="mt-4 text-xs text-ink-tertiary">
               峰值时段: <span className="text-ink-primary">{data.volumeData.peakHour}</span>

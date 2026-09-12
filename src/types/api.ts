@@ -129,8 +129,8 @@ export interface AdvanceDecline {
 
 export interface VolumeData {
   totalVolume: number;
-  prevVolume: number;
-  changePercent: number;
+  prevVolume: number | null;
+  changePercent: number | null;
   hourlyData: Array<{ time: string; volume: number }>;
   peakHour: string;
   peakVolume: number;

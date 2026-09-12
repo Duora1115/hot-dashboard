@@ -657,6 +657,20 @@ def api_market_advance_decline(request: Request):
     return JSONResponse(result, headers={"Cache-Control": _CACHE_POLICIES["market"]})
 
 
+def _prev_message_count(date_str: str) -> int | None:
+    """上一个「有消息」的日期的消息总数，用于晨报的「较昨日」。"""
+    for d in store.get_dates_info():          # 已按日期倒序
+        if d["date"] >= date_str:
+            continue
+        count = d.get("message_count")
+        if count:                              # Task 6 之后 /api/dates 会带上它，届时零成本
+            return count
+        day = store.get_day(d["date"])
+        if day and day.get("meta", {}).get("message_count"):
+            return day["meta"]["message_count"]
+    return None
+
+
 @app.get("/api/report/{date_str}")
 def api_report(date_str: str, request: Request):
     """生成晨报数据（带派生缓存，TTL 5min）。"""
@@ -694,7 +708,10 @@ def api_report(date_str: str, request: Request):
     # Raw snapshots (with gd) are needed for news extraction + sector analysis.
     # They come from the raw LRU cache; a miss triggers a single disk read.
     raw_snaps = store.get_raw_snapshots(date_str)
-    result = generate_report(date_str, day_data, market_idx, adv_dec, raw_snapshots=raw_snaps)
+    result = generate_report(date_str, day_data, market_idx, adv_dec,
+                             raw_snapshots=raw_snaps,
+                             prev_message_count=_prev_message_count(date_str),
+                             active_group_count=len(cfg.get("groups", [])))
 
     daily_report_file = data_dir / f"daily_report_{date_str}.json"
     if daily_report_file.exists():

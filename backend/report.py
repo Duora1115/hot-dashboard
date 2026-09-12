@@ -283,9 +283,49 @@ def _extract_news_from_raw(raw_snapshots: list[dict], sentiment_by_time: dict[st
     return news
 
 
+def compute_volume_data(snapshots: list[dict], message_count: int,
+                        prev_message_count: int | None = None) -> dict:
+    """当日消息量口径。
+
+    ``snap["msg"]`` 是**当日累计值**（最后一个快照 = 全天总数），所以：
+    - 总量直接取 ``meta.message_count``，不能对快照求和（求和会得到 60 倍虚高值）；
+    - 分时按**相邻快照增量**累计，否则曲线的形状只反映「那个小时采了几次」。
+    """
+    hourly: dict[str, int] = {}
+    prev = 0
+    for snap in snapshots:
+        t = snap.get("t", "")
+        hour = t.split(" ")[1][:2] + ":00" if " " in t else "00:00"
+        cur = int(snap.get("msg", 0) or 0)
+        delta = cur - prev
+        if delta < 0:          # 跨天重置 / 脏数据，按当前累计值兜底
+            delta = cur
+        prev = cur
+        hourly[hour] = hourly.get(hour, 0) + delta
+
+    hourly_data = [{"time": k, "volume": v} for k, v in sorted(hourly.items())]
+    peak = max(hourly_data, key=lambda x: x["volume"]) if hourly_data else {"time": "-", "volume": 0}
+    change = None
+    if prev_message_count:
+        change = round((message_count - prev_message_count) / prev_message_count * 100, 1)
+    summary = (f"今日消息总量{message_count:,}条，高峰时段{peak['time']}（{peak['volume']:,}条/小时）。"
+               if message_count else "今日暂无消息数据。")
+    return {
+        "totalVolume": int(message_count),
+        "prevVolume": prev_message_count,
+        "changePercent": change,
+        "hourlyData": hourly_data,
+        "peakHour": peak["time"],
+        "peakVolume": peak["volume"],
+        "summary": summary,
+    }
+
+
 def generate_report(date_str: str, day_data: dict, market_indices: list[dict] | None = None,
                     advance_decline: dict | None = None,
-                    raw_snapshots: list[dict] | None = None) -> dict:
+                    raw_snapshots: list[dict] | None = None,
+                    prev_message_count: int | None = None,
+                    active_group_count: int | None = None) -> dict:
     """Build the morning report dict.
 
     ``day_data`` is the compressed in-memory copy (no ``gd``).
@@ -335,23 +375,7 @@ def generate_report(date_str: str, day_data: dict, market_indices: list[dict] | 
         }
 
     # --- volumeData ---
-    hourly: dict[str, int] = {}
-    for snap in snapshots:
-        t = snap.get("t", "")
-        hour = t.split(" ")[1][:2] + ":00" if " " in t else "00:00"
-        hourly[hour] = hourly.get(hour, 0) + snap.get("msg", 0)
-    hourly_data = [{"time": k, "volume": v} for k, v in sorted(hourly.items())]
-    peak = max(hourly_data, key=lambda x: x["volume"]) if hourly_data else {"time": "-", "volume": 0}
-    total_vol = sum(s.get("msg", 0) for s in snapshots)
-    volume_data = {
-        "totalVolume": total_vol,
-        "prevVolume": 0,
-        "changePercent": 0,
-        "hourlyData": hourly_data,
-        "peakHour": peak["time"],
-        "peakVolume": peak["volume"],
-        "summary": f"今日消息总量{total_vol:,}条，高峰时段{peak['time']}（{peak['volume']:,}条/小时）。",
-    }
+    volume_data = compute_volume_data(snapshots, meta.get("message_count", 0), prev_message_count)
 
     # --- Pre-compute per-snapshot sector/stock name maps once so heat history
     #     and lookups are O(snapshots) instead of O(sectors × snapshots).
@@ -507,7 +531,7 @@ def _empty_report(date_str: str) -> dict:
     """空数据时的默认报告"""
     return {
         "date": date_str, "marketIndices": [], "advanceDecline": None,
-        "volumeData": {"totalVolume": 0, "prevVolume": 0, "changePercent": 0,
+        "volumeData": {"totalVolume": 0, "prevVolume": None, "changePercent": None,
                        "hourlyData": [], "peakHour": "-", "peakVolume": 0, "summary": "暂无数据"},
         "hotSectors": [], "hotStocks": [], "newsItems": [],
         "sentimentData": {"overall": "暂无数据", "overallLabel": "neutral",
