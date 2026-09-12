@@ -188,7 +188,7 @@ function StatusBar({ snapshot }: { snapshot: Snapshot }) {
                         }`}
                       >
                         <span className="font-mono">{d.date}</span>
-                        <span className="text-ink-tertiary ml-2 text-xs">
+                        <span className="text-ink-secondary ml-2 text-xs">
                           {d.message_count > 0 ? `${d.message_count.toLocaleString()} 条` : '暂无数据'}
                         </span>
                       </button>
