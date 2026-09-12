@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { pickAlert } from './sentiment';
 
 describe('pickAlert', () => {
-  // 2026-09-10 的真实数字：两条互斥横幅同时挂出来
-  it('两个都高且差距小于阈值时都不报（剧烈分歧）', () => {
-    expect(pickAlert(82, 10, 5)).toBeNull();
+  // 2026-09-10 的真实数字：82 : 10 ≈ 8:1，是亢奋明显占优。
+  // 原来的缺陷是两条横幅同时挂出，而不是该不该报。
+  it('2026-09-10 的 82/10 报亢奋（差距远超阈值）', () => {
+    expect(pickAlert(82, 10, 5)).toEqual({ kind: 'euphoria', text: '市场极度亢奋，注意追高风险' });
   });
 
   it('亢奋明显占优时报亢奋', () => {
@@ -26,5 +27,11 @@ describe('pickAlert', () => {
 
   it('都不过阈值但差值大也不报（避免噪声）', () => {
     expect(pickAlert(4, 0, 5)).toBeNull();
+  });
+
+  // 真正的剧烈分歧：两个都高，但势均力敌（差 2 < 阈值），保持沉默。
+  // 这条才真正钉住「差值不够就不喊」，而不是「两个都非零就不喊」。
+  it('两边都过阈值但差距小于阈值时不报（剧烈分歧）', () => {
+    expect(pickAlert(40, 38, 5)).toBeNull();
   });
 });
