@@ -312,6 +312,9 @@ function SentimentDistribution({ sd }: { sd: { bu: number; be: number; ne: numbe
 
 function ExtremeAlerts({ eh, el, monthExtremeHigh, monthExtremeLow }: { eh: number; el: number; monthExtremeHigh: number; monthExtremeLow: number }) {
   const alertLevel = getAlertLevel(eh, el);
+  // 与横幅同一判据，只是这张卡原先的灵敏度是 > 3。只收窄「建议性文案」，
+  // 不改数字本身：82 和 10 是统计事实，无论哪边占优都要照常渲染。
+  const extremeAlert = pickAlert(eh, el, 3);
 
   return (
     <div className="space-y-4">
@@ -342,7 +345,7 @@ function ExtremeAlerts({ eh, el, monthExtremeHigh, monthExtremeLow }: { eh: numb
         </div>
         <div className="text-xs text-ink-tertiary space-y-1">
           <p>最近: 09:35 ({eh > 0 ? `${eh}次` : '无'})</p>
-          {eh > 3 && (
+          {extremeAlert?.kind === 'euphoria' && (
             <p className="text-brand-purple flex items-center gap-1">
               <AlertTriangle size={12} />
               市场可能过热，注意回调风险
@@ -370,7 +373,7 @@ function ExtremeAlerts({ eh, el, monthExtremeHigh, monthExtremeLow }: { eh: numb
         </div>
         <div className="text-xs text-ink-tertiary space-y-1">
           <p>最近: 09:15 ({el > 0 ? `${el}次` : '无'})</p>
-          {el > 3 && (
+          {extremeAlert?.kind === 'panic' && (
             <p className="text-ink-secondary flex items-center gap-1">
               <Info size={12} />
               或存在反弹窗口

@@ -34,4 +34,14 @@ describe('pickAlert', () => {
   it('两边都过阈值但差距小于阈值时不报（剧烈分歧）', () => {
     expect(pickAlert(40, 38, 5)).toBeNull();
   });
+
+  // 回归：差值守卫只对「两边都高」生效。单边过阈值时不能因为差值小就沉默，
+  // 否则 (8,4) 这种「独苗信号」会被吞掉 —— 那是把旧 bug 换成了新 bug。
+  it('只有单边过阈值时，差值小也必须报（不过度抑制）', () => {
+    expect(pickAlert(8, 4, 5)).toEqual({ kind: 'euphoria', text: '市场极度亢奋，注意追高风险' });
+  });
+
+  it('差距恰好等于阈值时报大的一方（边界）', () => {
+    expect(pickAlert(10, 5, 5)).toEqual({ kind: 'euphoria', text: '市场极度亢奋，注意追高风险' });
+  });
 });
