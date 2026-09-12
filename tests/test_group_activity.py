@@ -119,3 +119,41 @@ def test_rows_stay_aligned_with_sorted_groups(client_dup_group):
 
     assert body["groups"] == sorted(body["groups"])
     assert len(body["cells"]) == len(body["groups"])
+
+
+def test_group_activity_is_derived_cached(client, monkeypatch):
+    """原始 day 文件约是压缩后的 10 倍，同一日期第二次请求必须命中派生缓存。"""
+    calls = []
+    real = server.store.group_activity
+
+    def counting(date_str):
+        calls.append(date_str)
+        return real(date_str)
+
+    monkeypatch.setattr(server.store, "group_activity", counting)
+
+    first = client.get(f"/api/day/{DATE}/group-activity").json()
+    second = client.get(f"/api/day/{DATE}/group-activity").json()
+
+    assert second == first
+    assert calls == [DATE], "第二次请求应命中 TTL 派生缓存，不该再全量解析原始快照"
+
+
+def test_group_activity_cache_invalidated_on_update(client, monkeypatch):
+    """update_day 后缓存必须失效，否则热力图会一直显示旧矩阵。"""
+    client.get(f"/api/day/{DATE}/group-activity")
+
+    calls = []
+    real = server.store.group_activity
+
+    def counting(date_str):
+        calls.append(date_str)
+        return real(date_str)
+
+    monkeypatch.setattr(server.store, "group_activity", counting)
+
+    # 改盘并刷新该日 → 派生缓存按日期整段失效
+    server.store.update_day(DATE)
+    client.get(f"/api/day/{DATE}/group-activity")
+
+    assert calls == [DATE], "更新后应重新计算，而不是回旧缓存"

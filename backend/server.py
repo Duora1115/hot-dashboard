@@ -433,12 +433,21 @@ def api_day_meta(date_str: str, request: Request):
 
 @app.get("/api/day/{date_str}/group-activity")
 def api_day_group_activity(date_str: str, request: Request):
-    """群活跃度热力图的计数矩阵。压缩快照里没有 gd，只能从原始快照现算。"""
+    """群活跃度热力图的计数矩阵。压缩快照里没有 gd，只能从原始快照现算。
+
+    原始 day 文件约是压缩后的 10 倍，每次请求都全量 parse 太重；带 TTL 派生
+    缓存（与 /api/day 的 day 缓存一致）。``update_day`` 会按日期整段失效。
+    """
+    cached = store.derived_cache.get("group_activity", date_str)
+    if cached is not None:
+        return JSONResponse(cached, headers={"Cache-Control": _CACHE_POLICIES["day"]})
     if store.get_day(date_str) is None:
+        # 空日期不进缓存，避免不存在的日期也占一个 key
         return JSONResponse({"date": date_str, "groups": [], "slots": [],
                              "cells": [], "sentiment": {}},
                             headers={"Cache-Control": _CACHE_POLICIES["day"]})
     result = store.group_activity(date_str)
+    store.derived_cache.set("group_activity", date_str, result, ttl=300)
     return JSONResponse(result, headers={"Cache-Control": _CACHE_POLICIES["day"]})
 
 
