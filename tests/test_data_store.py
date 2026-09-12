@@ -216,6 +216,21 @@ class TestDataStore:
         assert info[0]["date"] == "2026-07-07"  # reversed order
         assert "size_kb" in info[0]
 
+    def test_dates_info_includes_message_count(self, data_dir):
+        store = DataStore(data_dir)
+        store.startup()
+        info = {d["date"]: d for d in store.get_dates_info()}
+        assert info["2026-07-06"]["message_count"] == 100
+        assert "size_kb" in info["2026-07-06"], "size_kb 保留，前端还有别处可能用到"
+
+    def test_message_count_read_does_not_load_the_day(self, data_dir):
+        """get_dates_info 不能把整天读进内存 —— 35 天 × 30MB 会让首屏崩掉。"""
+        store = DataStore(data_dir)
+        store.startup()
+        loaded_after_startup = set(store._days)     # startup 只预热 eager_load_days 天（默认 1）
+        store.get_dates_info()
+        assert set(store._days) == loaded_after_startup, "get_dates_info 不该触发任何懒加载"
+
     def test_get_snapshot_single(self, data_dir):
         store = DataStore(data_dir)
         store.startup()

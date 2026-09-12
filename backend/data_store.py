@@ -6,6 +6,7 @@ DataStore — 4 层数据架构：
 """
 
 import logging
+import re
 import time
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -92,6 +93,7 @@ class DataStore:
         self._latest: dict | None = None
         self._dates: list[str] = []
         self._dates_info: dict[str, float] = {}
+        self._msg_counts: dict[str, int] = {}
         self._last_access: dict[str, int] = {}
         self._access_counter: int = 0
 
@@ -108,6 +110,7 @@ class DataStore:
         for path in day_files:
             date_str = path.stem.replace("day_", "")
             self._dates_info[date_str] = round(path.stat().st_size / 1024, 1)
+            self._msg_counts[date_str] = self._peek_message_count(path)
 
         all_dates = sorted(self._dates_info.keys())
 
@@ -233,9 +236,33 @@ class DataStore:
     def get_dates(self) -> list[str]:
         return sorted(self._dates_info.keys())
 
+    @staticmethod
+    def _peek_message_count(path: Path) -> int:
+        """从 day 文件开头读 total_msgs，不解析整个文件。
+
+        采集端把 total_msgs 写在 snapshots 之前（文件第 3 行），读 256 字节足够。
+        读不到就返回 0 —— 空日期本来就该被前端当成「没数据」。
+        """
+        try:
+            with path.open("rb") as fh:
+                head = fh.read(256).decode("utf-8", "ignore")
+        except OSError:
+            return 0
+        m = re.search(r'"total_msgs"\s*:\s*(\d+)', head)
+        return int(m.group(1)) if m else 0
+
     def get_dates_info(self) -> list[dict]:
+        """日期列表 + 体积 + 消息条数。
+
+        message_count 供前端日期下拉显示「1,187 条」与「跳过没有数据的日子」用 ——
+        原来只给 size_kb，下拉里显示的是一串对用户毫无意义的 MB。
+        """
         return [
-            {"date": d, "size_kb": self._dates_info.get(d, 0)}
+            {
+                "date": d,
+                "size_kb": self._dates_info.get(d, 0),
+                "message_count": self._msg_counts.get(d, 0),
+            }
             for d in sorted(self._dates_info.keys(), reverse=True)
         ]
 
