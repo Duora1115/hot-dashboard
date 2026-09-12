@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Snapshot, DateInfo, ApiStatus, DayData } from '@/types/api';
 import { fetchStatus, fetchDates, fetchLatest, fetchDayFull } from '@/lib/api';
 import { aggregateSnapshots } from '@/lib/aggregate';
+import { isSameDay } from '@/lib/dataState';
 
 interface AppState {
   // Global data
@@ -185,6 +186,11 @@ export const useStore = create<AppState>((set, get) => ({
         if (latest) set({ currentSnapshot: latest });
         return;
       }
+
+      // latest 是全局最新快照（今天）。选中历史日期并停在实时模式时，它必然比
+      // 那天的末尾快照新，拼进 snaps 会把今天的数字混进历史那天的聚合里。
+      // 此时直接返回：上面已 set 过 latestSnapshot，最新快照本身照常更新。
+      if (!isSameDay(latest.t, get().currentDate)) return;
 
       const snaps = [...dayData.snapshots];
       const last = snaps[snaps.length - 1];
