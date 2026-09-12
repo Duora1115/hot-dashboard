@@ -354,7 +354,7 @@ def generate_report(date_str: str, day_data: dict,
     """
     snapshots = day_data.get("snapshots", [])
     if not snapshots:
-        return _empty_report(date_str)
+        return _empty_report(date_str, active_group_count=active_group_count)
 
     first_snap = snapshots[0]
     last_snap = snapshots[-1]
@@ -530,13 +530,17 @@ def _fallback_technical(snap: dict) -> dict:
     }
 
 
-def _empty_report(date_str: str) -> dict:
-    """空数据时的默认报告"""
+def _empty_report(date_str: str, active_group_count: int | None = None) -> dict:
+    """空数据时的默认报告。
+
+    ``total`` 用配置的接入群总数（``active_group_count``），active 恒为 0 ——
+    硬编码 ``total: 0`` 会让空数据日渲染成「基于 0 个飞书投资群」，与 F5 同类。
+    """
     return {
         "date": date_str, "advanceDecline": None,
         "volumeData": {"totalVolume": 0, "prevVolume": None, "changePercent": None,
                        "hourlyData": [], "peakHour": "-", "peakVolume": 0, "summary": "暂无数据"},
-        "activeGroups": {"active": 0, "total": 0},
+        "activeGroups": {"active": 0, "total": int(active_group_count or 0)},
         "hotSectors": [], "hotStocks": [], "newsItems": [],
         "sentimentData": {"overall": "暂无数据", "overallLabel": "neutral",
                           "bullPercent": 0, "bearPercent": 0, "neutralPercent": 0,

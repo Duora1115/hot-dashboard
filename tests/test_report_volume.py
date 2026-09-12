@@ -96,3 +96,17 @@ def test_report_advance_decline_is_none_when_source_missing(monkeypatch):
     monkeypatch.setattr("backend.market.fetch_kline", lambda *a, **k: [])
     r = generate_report("2026-09-11", _day_data_with_one_snapshot(), advance_decline=None)
     assert r.get("advanceDecline") is None
+
+
+from backend.report import _empty_report
+
+
+def test_empty_report_uses_configured_group_total():
+    """空数据日不能把接入群总数硬编码成 0（「基于 0 个飞书投资群」）。"""
+    r = _empty_report("2026-09-11", active_group_count=25)
+    assert r["activeGroups"] == {"active": 0, "total": 25}
+
+
+def test_generate_report_empty_day_keeps_group_total():
+    r = generate_report("2026-09-11", {"snapshots": []}, active_group_count=25)
+    assert r["activeGroups"] == {"active": 0, "total": 25}
