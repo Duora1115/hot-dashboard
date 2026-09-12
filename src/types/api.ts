@@ -63,6 +63,7 @@ export interface DayData {
 export interface DateInfo {
   date: string;
   size_kb: number;
+  message_count: number;
 }
 
 export interface ApiStatus {

@@ -101,7 +101,10 @@ export const useStore = create<AppState>((set, get) => ({
         fetchLatest().catch(() => null),
       ]);
 
-      const latestDate = status.current_date || (dates.length > 0 ? dates[0].date : '');
+      // 今天还没有数据时，回退到最近一个有数据的日子 —— 否则首屏是一堆 0。
+      const nonEmpty = dates.filter((d) => (d.message_count ?? 0) > 0);
+      const latestDate =
+        nonEmpty.length > 0 ? nonEmpty[0].date : status.current_date || dates[0]?.date || '';
 
       set({
         apiStatus: status,

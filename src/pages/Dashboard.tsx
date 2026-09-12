@@ -16,6 +16,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
+import { hasContent, pickDefaultDate } from '@/lib/dataState';
 import type { Snapshot, StockItem, SectorItem } from '@/types/api';
 
 /* ------------------------------------------------------------------ */
@@ -803,10 +804,14 @@ function MobileBottomNav({ activeTab, onTabChange }: { activeTab: string; onTabC
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('stocks');
   const currentSnapshot = useStore((s) => s.currentSnapshot);
+  const currentDate = useStore((s) => s.currentDate);
+  const availableDates = useStore((s) => s.availableDates);
+  const setCurrentDate = useStore((s) => s.setCurrentDate);
+  const loadDate = useStore((s) => s.loadDate);
   const loading = useStore((s) => s.loading);
   const error = useStore((s) => s.error);
 
-  if (!currentSnapshot) {
+  if (!currentSnapshot || !hasContent(currentSnapshot)) {
     if (loading) {
       return (
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -817,14 +822,26 @@ export default function Dashboard() {
         </div>
       );
     }
+    const fallback = pickDefaultDate(availableDates)[0];
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="text-center space-y-2">
-          <p className="text-ink-tertiary text-lg">暂无数据</p>
+          <p className="text-ink-tertiary text-lg">当日暂无数据</p>
+          <p className="text-ink-quaternary text-sm">
+            {currentDate} 还没有采集到消息，通常是开市前。
+          </p>
           {error && <p className="text-red-400 text-sm">{error}</p>}
+          {fallback && fallback !== currentDate && (
+            <button
+              onClick={() => { setCurrentDate(fallback); loadDate(fallback); }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+            >
+              查看 {fallback}
+            </button>
+          )}
           <button
             onClick={() => useStore.getState().init()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+            className="px-4 py-2 ml-2 bg-surface-3 text-ink-secondary rounded-lg hover:text-ink-primary transition-colors"
           >
             重新加载
           </button>

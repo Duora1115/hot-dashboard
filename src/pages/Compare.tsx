@@ -28,6 +28,7 @@ import {
 } from 'recharts';
 import { useStore } from '@/store/useStore';
 import { fetchDayFull } from '@/lib/api';
+import { pickDefaultDate } from '@/lib/dataState';
 import type { DayData, Snapshot } from '@/types/api';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 import { ACTION_KEYS, buySellRatio, normalizeActionCounts } from '@/lib/actions';
@@ -113,7 +114,8 @@ export default function Compare() {
   // Initialize selected dates from available dates once loaded
   useEffect(() => {
     if (availableDates.length >= 2 && selectedDates.length === 0) {
-      setSelectedDates([availableDates[0].date, availableDates[1].date]);
+      const defaults = pickDefaultDate(availableDates, 2);
+      if (defaults.length > 0) setSelectedDates(defaults);
     }
   }, [availableDates]);
 

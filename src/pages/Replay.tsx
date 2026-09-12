@@ -29,6 +29,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useStore } from '@/store/useStore';
+import { hasContent } from '@/lib/dataState';
 import type { Snapshot, StockItem, SectorItem } from '@/types/api';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
@@ -814,10 +815,10 @@ export default function Replay() {
 
   const displaySnapshot = currentSnapshot ?? snapshots[replayIndex] ?? snapshots[snapshots.length - 1];
 
-  if (!displaySnapshot) {
+  if (!displaySnapshot || !hasContent(displaySnapshot)) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-ink-tertiary">暂无回放数据，请先选择日期</p>
+        <p className="text-ink-tertiary">当日暂无回放数据，请换一个日期</p>
       </div>
     );
   }
