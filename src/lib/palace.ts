@@ -112,7 +112,7 @@ export function toGroupDetails(groups: SectorGroupMessages[]): GroupDetail[] {
 /** 多空的文字标签（spec §9.5 第 4 条：状态不只靠颜色）。 */
 export function biasText(bull: number, bear: number): string {
   const total = bull + bear;
-  if (total === 0) return '分歧';
+  if (total === 0) return '—';   // 没有样本 ≠ 多空分歧
   const ratio = bull / total;
   if (ratio >= 0.65) return '偏多';
   if (ratio <= 0.35) return '偏空';

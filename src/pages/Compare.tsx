@@ -28,7 +28,7 @@ import {
 } from 'recharts';
 import { useStore } from '@/store/useStore';
 import { fetchDayFull } from '@/lib/api';
-import { pickDefaultDate } from '@/lib/dataState';
+import { hasContent, pickDefaultDate } from '@/lib/dataState';
 import type { DayData, Snapshot } from '@/types/api';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 import { ACTION_KEYS, buySellRatio, normalizeActionCounts } from '@/lib/actions';
@@ -278,10 +278,10 @@ export default function Compare() {
                   <div className="w-px h-6 bg-hairline/20" />
                   <div>
                     <div
-                      className="text-sm font-semibold"
-                      style={{ color: getDateColor(i) }}
+                      className={`text-sm font-semibold ${hasContent(day.snapshot) ? '' : 'text-ink-quaternary'}`}
+                      style={hasContent(day.snapshot) ? { color: getDateColor(i) } : undefined}
                     >
-                      {day.sentiment}
+                      {hasContent(day.snapshot) ? day.sentiment : '—'}
                     </div>
                     <div className="text-[10px] text-ink-tertiary">情绪</div>
                   </div>
@@ -426,7 +426,12 @@ function StockCompareTable({ days }: { days: CompareDayData[] }) {
                 {day.date.slice(5)}
               </th>
             ))}
-            <th className="text-center px-4 py-3 font-medium text-ink-tertiary">持续性</th>
+            <th
+              className="text-center px-4 py-3 font-medium text-ink-tertiary"
+              title="每个圆点对应一个日期列（颜色见上方表头），实心 = 当日上榜"
+            >
+              持续性
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -530,7 +535,12 @@ function SectorCompareTable({ days }: { days: CompareDayData[] }) {
                 {day.date.slice(5)}
               </th>
             ))}
-            <th className="text-center px-4 py-3 font-medium text-ink-tertiary">持续性</th>
+            <th
+              className="text-center px-4 py-3 font-medium text-ink-tertiary"
+              title="每个圆点对应一个日期列（颜色见上方表头），实心 = 当日上榜"
+            >
+              持续性
+            </th>
           </tr>
         </thead>
         <tbody>

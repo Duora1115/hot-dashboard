@@ -203,10 +203,6 @@ describe('toGroupDetails', () => {
 });
 
 describe('biasText', () => {
-  it('多空都为零时给 分歧', () => {
-    expect(biasText(0, 0)).toBe('分歧');
-  });
-
   it('偏多与偏空', () => {
     expect(biasText(8, 2)).toBe('偏多');
     expect(biasText(1, 4)).toBe('偏空');
@@ -253,5 +249,17 @@ describe('readableText', () => {
 
   it('空串不炸', () => {
     expect(readableText('')).toBe('');
+  });
+});
+
+describe('biasText 无样本', () => {
+  it('0 比 0 返回 —，不说成「分歧」', () => {
+    expect(biasText(0, 0)).toBe('—');
+  });
+
+  it('有样本时行为不变', () => {
+    expect(biasText(5, 0)).toBe('偏多');
+    expect(biasText(0, 5)).toBe('偏空');
+    expect(biasText(5, 5)).toBe('分歧');
   });
 });
