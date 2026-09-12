@@ -90,6 +90,45 @@ def data_dir(tmp_path):
     return tmp_path
 
 
+@pytest.fixture
+def data_dir_zero_total(tmp_path):
+    """total_msgs 落盘为 0，但快照里有真实 total_messages 的日子。
+
+    线上 33 个 day 文件里有 5 个是这种形态（如 2026-06-11 读 0 而实际 1110）。
+    peek 只看文件头的字面 0，day loader 会用 snapshots[-1]["total_messages"] 兜底，
+    于是 /api/dates 与 /api/day 对同一天报出两个数。
+    """
+    day = {
+        "date": "2026-06-11",
+        "total_msgs": 0,
+        "snapshots": [
+            {
+                "time": "2026-06-11 09:30",
+                "total_messages": 500,
+                "active_groups": 3,
+                "overall_sentiment": "偏多",
+                "sentiment_detail": {"bull": 1, "bear": 0, "neutral": 0, "extreme_high": 0, "extreme_low": 0},
+                "action_summary": {},
+                "top10_stocks": [],
+                "top8_sectors": [],
+            },
+            {
+                "time": "2026-06-11 15:00",
+                "total_messages": 1110,
+                "active_groups": 5,
+                "overall_sentiment": "偏多",
+                "sentiment_detail": {"bull": 2, "bear": 1, "neutral": 1, "extreme_high": 0, "extreme_low": 0},
+                "action_summary": {},
+                "top10_stocks": [],
+                "top8_sectors": [],
+            },
+        ],
+    }
+    with open(tmp_path / "day_2026-06-11.json", "w", encoding="utf-8") as f:
+        json.dump(day, f, ensure_ascii=False)
+    return tmp_path
+
+
 class TestDataStore:
     def test_startup_loads_recent_days(self, data_dir):
         store = DataStore(data_dir, max_hot_days=14)
@@ -248,6 +287,42 @@ class TestDataStore:
 
         info = {d["date"]: d for d in store.get_dates_info()}
         assert info["2026-07-06"]["message_count"] == 250
+
+    def test_zero_total_msgs_agrees_with_day_meta(self, data_dir_zero_total):
+        """total_msgs 落盘为 0（表示未知）时，/api/dates 的条数必须等于 /api/day 的 meta。"""
+        store = DataStore(data_dir_zero_total, eager_load_days=0)
+        store.startup()
+
+        info = {d["date"]: d for d in store.get_dates_info()}
+        day = store.get_day("2026-06-11")
+
+        assert info["2026-06-11"]["message_count"] == day["meta"]["message_count"]
+        assert info["2026-06-11"]["message_count"] == 1110, \
+            "0 是未知而非空，应回落到 snapshots[-1]['total_messages']"
+
+    def test_zero_total_resolution_does_not_keep_day_in_memory(self, data_dir_zero_total):
+        """解析 0 值日条数时不能把整天留在内存 —— /api/dates 仍须保持惰性。"""
+        store = DataStore(data_dir_zero_total, eager_load_days=0)
+        store.startup()
+        assert "2026-06-11" not in store._days
+
+        store.get_dates_info()
+        assert set(store._days) == set(), "解析完 0 值日应立刻释放，不该常驻"
+
+    def test_zero_total_resolution_is_cached(self, data_dir_zero_total, monkeypatch):
+        """解析结果写回 _msg_counts，后续 get_dates_info 不该再走加载路径。"""
+        store = DataStore(data_dir_zero_total, eager_load_days=0)
+        store.startup()
+        store.get_dates_info()
+
+        assert store._msg_counts["2026-06-11"] == 1110
+
+        def boom(*args, **kwargs):
+            raise AssertionError("已解析过的 0 值日不该再次加载")
+
+        monkeypatch.setattr(store, "_load_day", boom)
+        info = {d["date"]: d for d in store.get_dates_info()}
+        assert info["2026-06-11"]["message_count"] == 1110
 
     def test_get_snapshot_single(self, data_dir):
         store = DataStore(data_dir)

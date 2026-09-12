@@ -94,6 +94,9 @@ class DataStore:
         self._dates: list[str] = []
         self._dates_info: dict[str, float] = {}
         self._msg_counts: dict[str, int] = {}
+        # 已经由 _resolve_message_count 落定口径的日期；防止 0 值日每次
+        # get_dates_info 都被重新解析一遍。
+        self._msg_counts_resolved: set[str] = set()
         self._last_access: dict[str, int] = {}
         self._access_counter: int = 0
 
@@ -208,7 +211,10 @@ class DataStore:
             if date_str not in self._dates:
                 self._dates = sorted(self._days.keys())
             self._dates_info[date_str] = round(path.stat().st_size / 1024, 1)
-            self._msg_counts[date_str] = self._peek_message_count(path)
+            # 刚 _load_day 过，meta.message_count 已含 peek 缺失的 snapshots 兜底，
+            # 直接用它，避免 total_msgs:0 的日子被 peek 又打回 0。
+            self._msg_counts[date_str] = self._days[date_str]["meta"]["message_count"]
+            self._msg_counts_resolved.add(date_str)
             self._evict_if_needed()
         except Exception as e:
             logger.warning(f"更新 {date_str} 失败: {e}")
@@ -242,7 +248,8 @@ class DataStore:
         """从 day 文件开头读 total_msgs，不解析整个文件。
 
         采集端把 total_msgs 写在 snapshots 之前（文件第 3 行），读 256 字节足够。
-        读不到就返回 0 —— 空日期本来就该被前端当成「没数据」。
+        读不到就返回 0 —— 但对「找到了 total_msgs、值却是 0」的日子，0 只表示
+        **未知**，得由 ``_resolve_message_count`` 按 day loader 的口径兜底。
         """
         try:
             with path.open("rb") as fh:
@@ -252,12 +259,50 @@ class DataStore:
         m = re.search(r'"total_msgs"\s*:\s*(\d+)', head)
         return int(m.group(1)) if m else 0
 
+    def _resolve_message_count(self, date_str: str) -> int:
+        """peek 到 0 时按 ``_load_day`` 的口径解析真实条数并写回缓存。
+
+        ``_load_day`` 有 ``snapshots[-1]["total_messages"]`` 的兜底，``_peek``
+        没有，这就是 /api/dates 与 /api/day 对同一天报两个数的根因。解析结果
+        写回 ``_msg_counts``（并记入 ``_msg_counts_resolved``），每个进程每
+        天最多解析一次。
+
+        解析完若该日此前不在内存里，立刻释放 —— /api/dates 不能因为兜底就把
+        33 天 × 30MB 整天读进内存。
+        """
+        was_loaded = date_str in self._days
+        if not was_loaded:
+            path = self.data_dir / f"day_{date_str}.json"
+            if not path.exists():
+                self._msg_counts_resolved.add(date_str)
+                return self._msg_counts.get(date_str, 0)
+            try:
+                self._load_day(date_str, path)
+            except Exception as e:
+                logger.warning(f"解析 {date_str} 消息条数失败: {e}")
+                self._msg_counts_resolved.add(date_str)
+                return self._msg_counts.get(date_str, 0)
+
+        count = self._days[date_str]["meta"]["message_count"]
+        if not was_loaded:
+            self._days.pop(date_str, None)
+            self._last_access.pop(date_str, None)
+        self._msg_counts[date_str] = count
+        self._msg_counts_resolved.add(date_str)
+        return count
+
     def get_dates_info(self) -> list[dict]:
         """日期列表 + 体积 + 消息条数。
 
         message_count 供前端日期下拉显示「1,187 条」与「跳过没有数据的日子」用 ——
         原来只给 size_kb，下拉里显示的是一串对用户毫无意义的 MB。
+
+        peek 到 0 的日子（total_msgs 缺失/为 0）会惰性解析一次，保证与
+        /api/day 的 meta.message_count 口径一致；解析结果缓存后不再重复。
         """
+        for d in self._dates_info:
+            if self._msg_counts.get(d, 0) == 0 and d not in self._msg_counts_resolved:
+                self._resolve_message_count(d)
         return [
             {
                 "date": d,
