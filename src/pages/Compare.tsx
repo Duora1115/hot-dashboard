@@ -30,6 +30,7 @@ import { useStore } from '@/store/useStore';
 import { fetchDayFull } from '@/lib/api';
 import type { DayData, Snapshot } from '@/types/api';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
+import { ACTION_KEYS, buySellRatio, normalizeActionCounts } from '@/lib/actions';
 
 /* ------------------------------------------------------------------ */
 /*  Transform DayData → CompareDayData                                 */
@@ -822,11 +823,10 @@ function SectorPersistenceAnalysis({ days }: { days: CompareDayData[] }) {
 /* ---- Action Signal Compare ---- */
 function ActionSignalCompare({ days }: { days: CompareDayData[] }) {
   const chartData = useMemo(() => {
-    const actions = ['买入', '卖出', '持有', '风险'];
-    return actions.map((action) => {
+    return ACTION_KEYS.map((action) => {
       const point: Record<string, string | number> = { action };
       days.forEach((day, i) => {
-        point[`day${i}`] = day.actionCounts[action] ?? 0;
+        point[`day${i}`] = normalizeActionCounts(day.actionCounts)[action];
       });
       return point;
     });
@@ -866,9 +866,7 @@ function ActionSignalCompare({ days }: { days: CompareDayData[] }) {
       {days.length >= 2 && (
         <div className="mt-4 pt-4 border-t border-hairline/10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           {days.map((day, i) => {
-            const buyCount = day.actionCounts['买入'] ?? 0;
-            const sellCount = day.actionCounts['卖出'] ?? 0;
-            const ratio = sellCount > 0 ? (buyCount / sellCount).toFixed(1) : '∞';
+            const ratio = buySellRatio(normalizeActionCounts(day.actionCounts));
             return (
               <motion.div
                 key={day.date}
@@ -881,7 +879,7 @@ function ActionSignalCompare({ days }: { days: CompareDayData[] }) {
                 <div>
                   <div className="text-xs text-ink-tertiary">{day.date}</div>
                   <div className="text-sm text-ink-primary">
-                    买/卖比: <span className="font-semibold text-brand-blue">{ratio}</span>
+                    买/卖比: <span className="font-semibold text-brand-blue">{ratio === null ? '—' : ratio.toFixed(1)}</span>
                   </div>
                 </div>
               </motion.div>
