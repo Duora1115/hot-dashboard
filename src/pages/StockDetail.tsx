@@ -883,6 +883,11 @@ function HistoryDiscussion({ code }: { code: string }) {
     };
   }, [code]);
 
+  const opinions = useMemo(
+    () => dedupeNearDuplicates(data?.opinions ?? []),
+    [data?.opinions],
+  );
+
   if (loading) {
     return (
       <div role="status" aria-live="polite"
@@ -894,11 +899,6 @@ function HistoryDiscussion({ code }: { code: string }) {
       </div>
     );
   }
-
-  const opinions = useMemo(
-    () => dedupeNearDuplicates(data?.opinions ?? []),
-    [data?.opinions],
-  );
 
   if (opinions.length === 0) {
     return (
