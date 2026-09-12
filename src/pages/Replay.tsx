@@ -815,7 +815,11 @@ export default function Replay() {
 
   const displaySnapshot = currentSnapshot ?? snapshots[replayIndex] ?? snapshots[snapshots.length - 1];
 
-  if (!displaySnapshot || !hasContent(displaySnapshot)) {
+  // 回放是逐帧看的，单帧为空是正常的；判据必须落在「整天有没有任何一帧有内容」，
+  // 否则拖到空帧整页被替换，连时间轴控制器一起消失，再也拖不回去。
+  const dayHasData = snapshots.some(hasContent);
+
+  if (!displaySnapshot || !dayHasData) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <p className="text-ink-tertiary">当日暂无回放数据，请换一个日期</p>
