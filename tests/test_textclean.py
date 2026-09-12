@@ -41,6 +41,12 @@ def test_truncated_link_whose_text_is_a_url_is_dropped():
         == "橙子不糊涂的科技花园"
 
 
+def test_truncated_link_does_not_swallow_following_lines():
+    """截断链接的 ``[^)]*`` 会匹配换行，把后面几行正文一起吃掉 —— 那是内容丢失。"""
+    raw = "看[中百](https://wap.eastmoney.com/quote\n明天再说，这票还有戏\n第三行"
+    assert clean_message_text(raw) == "看中百\n明天再说，这票还有戏\n第三行"
+
+
 def test_keeps_plain_text_untouched():
     assert clean_message_text("中百这个拉板的话新华还有救") == "中百这个拉板的话新华还有救"
 

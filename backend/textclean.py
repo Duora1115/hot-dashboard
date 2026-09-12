@@ -19,7 +19,8 @@ _EDIT_HEADER_RE = re.compile(r"^\s*\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?\s
 _LECTURER_RE = re.compile(r"^\s*【[^】]{1,6}】\s*\S{0,20}?\s*\d{4}\s+\d{2}\s+\d{2}\s+\d{2}:\d{2}:\d{2}\s*")
 _HEADING_RE = re.compile(r"^\s*#{1,6}\s+", re.MULTILINE)
 # `[中百](https://…` 截断：有方括号、有左圆括号，但到行尾都没有右圆括号。
-_TRUNCATED_MD_LINK = re.compile(r"\[([^\]]+)\]\([^)]*$", re.MULTILINE)
+# 用 `[^\n)]*` 而非 `[^)]*`：后者会匹配换行，把后面几行正文一起吞掉。
+_TRUNCATED_MD_LINK = re.compile(r"\[([^\]]+)\]\([^\n)]*$", re.MULTILINE)
 # `[https://…` 连右方括号都没有（发帖端把链接截断了）——整段丢，留着也是一串地址。
 _TRUNCATED_BARE_URL = re.compile(r"\[https?://[^\]\s]{0,200}$", re.MULTILINE | re.IGNORECASE)
 

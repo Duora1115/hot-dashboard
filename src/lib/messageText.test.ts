@@ -25,6 +25,11 @@ describe('cleanMessageText', () => {
     expect(cleanMessageText('看[中百](https://wap.eastmoney.com/quote')).toBe('看中百');
   });
 
+  it('截断链接不吞掉后续行（[^)] 会匹配换行）', () => {
+    expect(cleanMessageText('看[中百](https://wap.eastmoney.com/quote\n明天再说，这票还有戏\n第三行'))
+      .toBe('看中百\n明天再说，这票还有戏\n第三行');
+  });
+
   it('剥掉 markdown 标题记号与显示文字是 URL 的截断链接', () => {
     expect(cleanMessageText('### 橙子不糊涂的科技花园[https://wap.eastmoney.'))
       .toBe('橙子不糊涂的科技花园');

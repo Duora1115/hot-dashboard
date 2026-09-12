@@ -3,7 +3,8 @@ import { readableText } from './palace';
 const EDIT_HEADER = /^\s*\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?\s*(?:\[编辑\])?\s*$/gm;
 const LECTURER_PREFIX = /^\s*【[^】]{1,6}】\s*\S{0,20}?\s*\d{4}\s+\d{2}\s+\d{2}\s+\d{2}:\d{2}:\d{2}\s*/;
 const HEADING = /^\s*#{1,6}\s+/gm;
-const TRUNCATED_MD_LINK = /\[([^\]]+)\]\([^)]*$/gm;
+// 用 [^\n)]* 而非 [^)]*：后者会匹配换行，把后面几行正文一起吞掉。
+const TRUNCATED_MD_LINK = /\[([^\]]+)\]\([^\n)]*$/gm;
 const TRUNCATED_BARE_URL = /\[https?:\/\/[^\]\s]{0,200}$/gim;
 
 /**
