@@ -431,6 +431,17 @@ def api_day_meta(date_str: str, request: Request):
     })
 
 
+@app.get("/api/day/{date_str}/group-activity")
+def api_day_group_activity(date_str: str, request: Request):
+    """群活跃度热力图的计数矩阵。压缩快照里没有 gd，只能从原始快照现算。"""
+    if store.get_day(date_str) is None:
+        return JSONResponse({"date": date_str, "groups": [], "slots": [],
+                             "cells": [], "sentiment": {}},
+                            headers={"Cache-Control": _CACHE_POLICIES["day"]})
+    result = store.group_activity(date_str)
+    return JSONResponse(result, headers={"Cache-Control": _CACHE_POLICIES["day"]})
+
+
 @app.get("/api/day/{date_str}/snapshots")
 def api_day_snapshots(date_str: str, request: Request, start: int = 0, count: int = 0):
     """按需获取指定范围的快照数据（懒加载）。

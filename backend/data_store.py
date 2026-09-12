@@ -294,5 +294,43 @@ class DataStore:
             logger.warning(f"读取原始数据 {date_str} 失败: {e}")
             return []
 
+    def group_activity(self, date_str: str) -> dict:
+        """「群 × 时间槽」消息计数矩阵，供情绪页热力图使用。
+
+        gd 在压缩快照里被剥掉了，这里回原始快照现算。只回计数，不回消息原文。
+        """
+        snaps = self.get_raw_snapshots(date_str)
+        groups: list[str] = []
+        slots: list[str] = []
+        seen_group: set[str] = set()
+        counts: dict[tuple[str, str], int] = {}
+        sentiment: dict[str, str] = {}
+
+        for snap in snaps:
+            t = snap.get("time", "")
+            slot = t.split(" ", 1)[1] if " " in t else t
+            if slot and slot not in slots:
+                slots.append(slot)
+            sent = snap.get("overall_sentiment", "")
+            for sec in snap.get("top8_sectors", []):
+                for gd in sec.get("group_details", []):
+                    name = gd.get("group", "")
+                    if not name:
+                        continue
+                    if name not in seen_group:
+                        seen_group.add(name)
+                        groups.append(name)
+                    # 同一快照里同一群可能出现在多个板块，取最大值而不是累加：
+                    # 累加会把「板块数」混进「消息数」。
+                    key = (name, slot)
+                    counts[key] = max(counts.get(key, 0), int(gd.get("count", 0)))
+                    if sent:
+                        sentiment[name] = sent
+
+        groups.sort()
+        cells = [[counts.get((g, s), 0) for s in slots] for g in groups]
+        return {"date": date_str, "groups": groups, "slots": slots,
+                "cells": cells, "sentiment": sentiment}
+
     def get_version(self, date_str: str) -> int:
         return self.derived_cache.get_version(date_str)
