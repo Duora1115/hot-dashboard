@@ -27,9 +27,10 @@ import {
   Cell,
 } from 'recharts';
 import { useStore } from '@/store/useStore';
-import type { Snapshot } from '@/types/api';
+import type { GroupActivityResponse } from '@/types/api';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 import { pickAlert, type SentimentAlert } from '@/lib/sentiment';
+import { fetchGroupActivity } from '@/lib/api';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -61,12 +62,8 @@ function getAlertLevel(eh: number, el: number) {
 }
 
 interface GroupHeatCell {
-  group: string;
   msgCount: number;
-  sent: string; // overall sentiment at that snapshot
-  bu: number;
-  be: number;
-  ne: number;
+  sent: string; // 该群在当日最后一条快照里的整体情绪
 }
 
 function getGroupCellColor(cell: GroupHeatCell | undefined) {
@@ -84,37 +81,6 @@ function getGroupCellColor(cell: GroupHeatCell | undefined) {
   }
   // 观望为主
   return { bg: 'bg-brand-yellow', opacity: 0.15 + intensity * 0.4, pulse: false };
-}
-
-/* ------------------------------------------------------------------ */
-/*  Build group heatmap from real snapshots                             */
-/* ------------------------------------------------------------------ */
-
-function buildGroupHeatmap(
-  snapshots: Snapshot[],
-  groups: string[]
-): GroupHeatCell[][] {
-  // rows = groups, cols = snapshot indices
-  return groups.map((groupName) =>
-    snapshots.map((snap) => {
-      let msgCount = 0;
-      for (const sec of snap.sec) {
-        for (const gd of sec.gd ?? []) {
-          if (gd.g === groupName) {
-            msgCount += gd.c;
-          }
-        }
-      }
-      return {
-        group: groupName,
-        msgCount,
-        sent: snap.sent,
-        bu: snap.sd.bu,
-        be: snap.sd.be,
-        ne: snap.sd.ne,
-      };
-    })
-  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -498,6 +464,7 @@ export default function Sentiment() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const currentDate = useStore((s) => s.currentDate);
   const [extremeStats, setExtremeStats] = useState({ month_extreme_high: 0, month_extreme_low: 0 });
+  const [groupActivity, setGroupActivity] = useState<GroupActivityResponse | null>(null);
 
   useEffect(() => {
     if (!dayFullLoaded) loadDayFull();
@@ -511,6 +478,15 @@ export default function Sentiment() {
     }
   }, [currentDate]);
 
+  useEffect(() => {
+    if (!currentDate) return;
+    let cancelled = false;
+    fetchGroupActivity(currentDate)
+      .then((r) => { if (!cancelled) setGroupActivity(r); })
+      .catch(() => { if (!cancelled) setGroupActivity(null); });
+    return () => { cancelled = true; };
+  }, [currentDate]);
+
   const sd = currentSnapshot?.sd || { bu: 62, be: 13, ne: 25, eh: 3, el: 1 };
   const total = sd.bu + sd.be + sd.ne;
   const alertLevel = getAlertLevel(sd.eh, sd.el);
@@ -521,12 +497,6 @@ export default function Sentiment() {
     setIsRefreshing(true);
     setTimeout(() => setIsRefreshing(false), 800);
   }, []);
-
-  // Time labels from real snapshots
-  const timeSlots = useMemo(
-    () => snapshots.map((s) => s.t.split(' ')[1] ?? s.t),
-    [snapshots]
-  );
 
   // Chart data from real snapshots
   const areaData = useMemo(() => {
@@ -539,25 +509,6 @@ export default function Sentiment() {
       极度悲观: s.sd.el,
     }));
   }, [snapshots]);
-
-  // Collect unique group names across all snapshots' sector group_details
-  const groups = useMemo(() => {
-    const set = new Set<string>();
-    for (const snap of snapshots) {
-      for (const sec of snap.sec) {
-        for (const gd of sec.gd ?? []) {
-          set.add(gd.g);
-        }
-      }
-    }
-    return Array.from(set).sort();
-  }, [snapshots]);
-
-  // Group heatmap: rows = groups, cols = snapshot time slots
-  const groupHeatRows = useMemo(
-    () => buildGroupHeatmap(snapshots, groups),
-    [snapshots, groups]
-  );
 
   return (
     <div className="space-y-6">
@@ -796,7 +747,7 @@ export default function Sentiment() {
           <MessageCircle size={18} className="text-brand-cyan" />
           群活跃度热力图
         </h2>
-        {groups.length === 0 ? (
+        {!groupActivity || groupActivity.groups.length === 0 ? (
           <div className="text-center py-8 text-ink-tertiary text-sm">暂无群消息数据</div>
         ) : (
           <div className="overflow-x-auto">
@@ -804,34 +755,37 @@ export default function Sentiment() {
               {/* Time header */}
               <div className="flex items-center mb-1">
                 <div className="w-20 shrink-0" />
-                {timeSlots.map((t) => (
+                {groupActivity.slots.map((t) => (
                   <div key={t} className="flex-1 text-center text-[10px] text-ink-quaternary font-mono">
                     {t}
                   </div>
                 ))}
               </div>
               {/* Heatmap rows */}
-              {groups.map((group, gi) => (
+              {groupActivity.groups.map((group, gi) => (
                 <div key={group} className="flex items-center mb-[2px]">
                   <div className="w-20 shrink-0 pr-2 text-right text-xs text-ink-secondary truncate">
                     {group}
                   </div>
                   <div className="flex-1 flex gap-[2px]">
-                    {timeSlots.map((t, ti) => {
-                      const cell = groupHeatRows[gi]?.[ti];
+                    {groupActivity.slots.map((t, ti) => {
+                      const sent = groupActivity.sentiment[group] ?? '';
+                      const cell: GroupHeatCell = {
+                        msgCount: groupActivity.cells[gi]?.[ti] ?? 0,
+                        sent,
+                      };
                       const style = getGroupCellColor(cell);
-                      const msgCount = cell?.msgCount ?? 0;
                       return (
                         <div
                           key={t}
                           className={`flex-1 aspect-[2/3] rounded-sm relative group cursor-pointer transition-opacity hover:opacity-80 ${style.bg} ${style.pulse ? 'animate-pulse' : ''}`}
                           style={{ opacity: style.opacity }}
-                          title={`${group} ${t} · 消息:${msgCount} · ${cell?.sent ?? ''}`}
+                          title={`${group} ${t} · 消息:${cell.msgCount} · ${sent}`}
                         >
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-surface-3 rounded text-[10px] text-ink-primary whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10 shadow-lg">
                             {group} {t}
                             <br />
-                            消息: {msgCount} · {cell?.sent ?? '-'}
+                            消息: {cell.msgCount} · {sent || '-'}
                           </div>
                         </div>
                       );

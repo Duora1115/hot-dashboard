@@ -11,6 +11,7 @@ import type {
   ReportData,
   SentimentTimelineItem,
   ExtremeStats,
+  GroupActivityResponse,
   DailyReport,
   PalaceKolListResponse,
   PalaceKolDetail,
@@ -140,6 +141,11 @@ export async function fetchSentimentTimeline(date: string): Promise<SentimentTim
 // GET /api/day/{date}/extreme-stats
 export async function fetchExtremeStats(date: string): Promise<ExtremeStats> {
   return fetchJson<ExtremeStats>(`/api/day/${date}/extreme-stats`);
+}
+
+// GET /api/day/{date}/group-activity
+export async function fetchGroupActivity(date: string): Promise<GroupActivityResponse> {
+  return fetchJson<GroupActivityResponse>(`/api/day/${date}/group-activity`);
 }
 
 // GET /api/daily-report/{date}

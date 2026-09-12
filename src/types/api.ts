@@ -239,6 +239,16 @@ export interface ExtremeStats {
   month_extreme_low: number;
 }
 
+/* ---- 群活跃度热力图 (Group Activity Heatmap) ---- */
+
+export interface GroupActivityResponse {
+  date: string;
+  groups: string[];
+  slots: string[];
+  cells: number[][];
+  sentiment: Record<string, string>;
+}
+
 /* ---- 社群观点大日报 (Daily Report) ---- */
 
 export interface MarketConsensus {
