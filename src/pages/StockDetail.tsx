@@ -31,7 +31,8 @@ import {
 import { useStore } from '@/store/useStore';
 import { fetchStockMessages, fetchPalaceStock, fetchPalaceStockOpinions } from '@/lib/api';
 import type { StockItem, PalaceStockDetail, PalaceStockOpinionsResponse } from '@/types/api';
-import { FOCUS_RING, ROW_GRID, biasText, readableText, splitGroupName } from '@/lib/palace';
+import { FOCUS_RING, ROW_GRID, biasText, splitGroupName } from '@/lib/palace';
+import { cleanMessageText, dedupeNearDuplicates } from '@/lib/messageText';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 
 /* ------------------------------------------------------------------ */
@@ -575,7 +576,7 @@ function GroupMessages({ groups }: { groups: Array<{ g: string; c: number; m: Ar
                     className="overflow-hidden"
                   >
                     <div className="px-4 pb-3 space-y-0">
-                      {group.m.map((msg, mi) => (
+                      {group.m.filter((m) => cleanMessageText(m.x).length > 0).map((msg, mi) => (
                         <motion.div
                           key={mi}
                           initial={{ opacity: 0, x: -10 }}
@@ -587,7 +588,7 @@ function GroupMessages({ groups }: { groups: Array<{ g: string; c: number; m: Ar
                             {msg.t}
                           </span>
                           <p className="flex-1 min-w-0 text-sm text-ink-primary leading-relaxed whitespace-pre-wrap break-words">
-                            {readableText(msg.x)}
+                            {cleanMessageText(msg.x)}
                           </p>
                         </motion.div>
                       ))}
@@ -894,7 +895,10 @@ function HistoryDiscussion({ code }: { code: string }) {
     );
   }
 
-  const opinions = data?.opinions ?? [];
+  const opinions = useMemo(
+    () => dedupeNearDuplicates(data?.opinions ?? []),
+    [data?.opinions],
+  );
 
   if (opinions.length === 0) {
     return (
@@ -964,7 +968,7 @@ function HistoryDiscussion({ code }: { code: string }) {
                   ))}
                 </div>
                 <p className="text-ink-secondary text-xs leading-relaxed whitespace-pre-wrap break-words">
-                  {readableText(o.text)}
+                  {cleanMessageText(o.text)}
                 </p>
               </div>
             </div>

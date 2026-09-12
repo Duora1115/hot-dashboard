@@ -43,6 +43,7 @@ import type { ReportData, HotStockDetail, NewsItem, SentimentTimelineItem } from
 import { useStore } from '@/store/useStore';
 import ReadingProgress from '@/components/ReadingProgress';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
+import { cleanMessageText } from '@/lib/messageText';
 
 const EMPTY_REPORT: ReportData = {
   date: '', advanceDecline: null,
@@ -1320,8 +1321,10 @@ function NewsCard({ news }: { news: NewsItem }) {
           {news.time}
         </span>
       </div>
-      <h4 className="text-sm font-medium text-ink-primary mb-1">{news.title}</h4>
-      <p className="text-xs text-ink-secondary leading-relaxed">{news.summary}</p>
+      <h4 className="text-sm font-medium text-ink-primary mb-1">{cleanMessageText(news.title)}</h4>
+      {cleanMessageText(news.summary) && (
+        <p className="text-xs text-ink-secondary leading-relaxed">{cleanMessageText(news.summary)}</p>
+      )}
       <p className="text-[10px] text-ink-quaternary mt-2">来源: {news.source}</p>
     </motion.div>
   );
