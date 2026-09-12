@@ -29,6 +29,7 @@ import {
 import { useStore } from '@/store/useStore';
 import type { Snapshot } from '@/types/api';
 import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
+import { pickAlert, type SentimentAlert } from '@/lib/sentiment';
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -403,7 +404,7 @@ function ExtremeAlerts({ eh, el, monthExtremeHigh, monthExtremeLow }: { eh: numb
 /*  SentimentInsights                                                  */
 /* ------------------------------------------------------------------ */
 
-function SentimentInsights({ sd }: { sd: { bu: number; be: number; ne: number; eh: number; el: number } }) {
+function SentimentInsights({ sd, alert }: { sd: { bu: number; be: number; ne: number; eh: number; el: number }; alert: SentimentAlert | null }) {
   const total = sd.bu + sd.be + sd.ne;
   const bullRatio = total > 0 ? (sd.bu / total) * 100 : 0;
   const bearRatio = total > 0 ? (sd.be / total) * 100 : 0;
@@ -437,7 +438,7 @@ function SentimentInsights({ sd }: { sd: { bu: number; be: number; ne: number; e
       });
     }
 
-    if (sd.eh > 3) {
+    if (alert?.kind === 'euphoria') {
       items.push({
         icon: <Flame size={16} className="text-brand-purple shrink-0 mt-0.5" />,
         text: '情绪极度亢奋，注意追高风险，警惕获利回吐压力。',
@@ -445,7 +446,7 @@ function SentimentInsights({ sd }: { sd: { bu: number; be: number; ne: number; e
       });
     }
 
-    if (sd.el > 3) {
+    if (alert?.kind === 'panic') {
       items.push({
         icon: <Snowflake size={16} className="text-ink-tertiary shrink-0 mt-0.5" />,
         text: '情绪极度悲观，或存在反弹机会，关注超跌品种。',
@@ -460,7 +461,7 @@ function SentimentInsights({ sd }: { sd: { bu: number; be: number; ne: number; e
     });
 
     return items;
-  }, [sd, bullRatio, bearRatio]);
+  }, [sd, alert, bullRatio, bearRatio]);
 
   return (
     <div className="space-y-4">
@@ -510,6 +511,8 @@ export default function Sentiment() {
   const sd = currentSnapshot?.sd || { bu: 62, be: 13, ne: 25, eh: 3, el: 1 };
   const total = sd.bu + sd.be + sd.ne;
   const alertLevel = getAlertLevel(sd.eh, sd.el);
+  // 唯一判据：横幅与「情绪洞察」都消费这一个 alert，见 src/lib/sentiment.ts
+  const alert = useMemo(() => pickAlert(sd.eh, sd.el), [sd.eh, sd.el]);
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
@@ -688,30 +691,21 @@ export default function Sentiment() {
           </div>
         </div>
 
-        {/* Warning banners */}
+        {/* Warning banner —— 亢奋与悲观互斥，见 src/lib/sentiment.ts */}
         <AnimatePresence>
-          {sd.eh > 5 && (
+          {alert && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand-purple/10 border border-brand-purple/30"
+              className={`mt-4 flex items-center gap-2 px-4 py-2.5 rounded-lg border ${
+                alert.kind === 'euphoria'
+                  ? 'bg-brand-purple/10 border-brand-purple/30 text-brand-purple'
+                  : 'bg-brand-red/10 border-brand-red/30 text-brand-red'
+              }`}
             >
-              <AlertTriangle size={16} className="text-brand-purple shrink-0" />
-              <span className="text-sm text-brand-purple">市场极度亢奋，注意追高风险</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <AnimatePresence>
-          {sd.el > 5 && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand-red/10 border border-brand-red/30"
-            >
-              <AlertTriangle size={16} className="text-brand-red shrink-0" />
-              <span className="text-sm text-brand-red">市场极度悲观，或存在反弹机会</span>
+              <AlertTriangle size={16} className="shrink-0" />
+              <span className="text-sm">{alert.text}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -880,7 +874,7 @@ export default function Sentiment() {
           <Lightbulb size={18} />
           情绪洞察
         </h2>
-        <SentimentInsights sd={sd} />
+        <SentimentInsights sd={sd} alert={alert} />
       </motion.div>
     </div>
   );
