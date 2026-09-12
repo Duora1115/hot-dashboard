@@ -1,0 +1,1 @@
+function o(t){return t?(t.msg??0)>0||(t.grp??0)>0||(t.stk?.length??0)>0||(t.sec?.length??0)>0:!1}function s(t,r=1){const n=t.filter(e=>(e.message_count??0)>0);return(n.length>0?n:t).slice(0,r).map(e=>e.date)}export{o as h,s as p};

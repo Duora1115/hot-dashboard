@@ -1106,20 +1106,29 @@ import { describe, expect, it } from 'vitest';
 import { pickAlert } from './sentiment';
 
 describe('pickAlert', () => {
-  // 2026-09-10 的真实数字：两条互斥横幅同时挂出来
-  it('两个都高且差距小于阈值时都不报（剧烈分歧）', () => {
-    expect(pickAlert(82, 10, 5)).toBeNull();
+  // 2026-09-10 的真实数字：eh=82、el=10，原页面两条互斥横幅同时挂出来。
+  // 82 比 10 是 8:1，亢奋明显占优 —— 该报「亢奋」，不是都不报。
+  it('一方明显占优时报那一方', () => {
+    expect(pickAlert(82, 10, 5)).toEqual({ kind: 'euphoria', text: '市场极度亢奋，注意追高风险' });
   });
 
-  it('亢奋明显占优时报亢奋', () => {
-    expect(pickAlert(82, 3, 5)).toEqual({ kind: 'euphoria', text: '市场极度亢奋，注意追高风险' });
+  it('势均力敌时都不报（这才是「剧烈分歧」）', () => {
+    expect(pickAlert(40, 38, 5)).toBeNull();
+  });
+
+  it('只有一边过阈值时，差值小也要报 —— 不能被「差值」规则吞掉', () => {
+    expect(pickAlert(8, 4, 5)).toEqual({ kind: 'euphoria', text: '市场极度亢奋，注意追高风险' });
+  });
+
+  it('边界：差值恰好等于阈值时要报', () => {
+    expect(pickAlert(10, 5, 5)).toEqual({ kind: 'euphoria', text: '市场极度亢奋，注意追高风险' });
   });
 
   it('悲观明显占优时报悲观', () => {
     expect(pickAlert(2, 40, 5)).toEqual({ kind: 'panic', text: '市场极度悲观，或存在反弹机会' });
   });
 
-  it('一高一低不会同时报两条', () => {
+  it('亢奋小幅占优但仍过阈值时报亢奋', () => {
     const a = pickAlert(30, 1, 5);
     expect(a?.kind).toBe('euphoria');
   });
@@ -1148,18 +1157,28 @@ const EUPHORIA_TEXT = '市场极度亢奋，注意追高风险';
 const PANIC_TEXT = '市场极度悲观，或存在反弹机会';
 
 /**
- * 亢奋与悲观**互斥**。
+ * 亢奋与悲观**互斥** —— 一个判据，三个消费方（横幅、洞察、极值附注）。
  *
- * 原来 `Sentiment.tsx` 里是两个独立条件（`eh > 5`、`el > 5`），2026-09-10
- * （eh=82 / el=10）两条横幅同时挂出，页面自相矛盾。
+ * 原来 `Sentiment.tsx` 里是三处独立条件（`eh > 5`、`el > 5` 各渲染一条横幅；
+ * 极值卡片里 `eh > 3`、`el > 3` 各渲染一条附注），2026-09-10（eh=82 / el=10）
+ * 横幅与附注都成对挂出，页面自相矛盾。
  *
- * 规则：两个数都要过阈值，且差值绝对值也要过阈值，才报数值大的一方；
- * 否则一条都不报 —— eh 与 el 同时高在真实市场里是「剧烈分歧」，
- * 此时沉默比两条都喊更诚实。
+ * 规则三层，顺序不能换：
+ * 1. 两边都没过阈值 → 不报（本来就没话说）；
+ * 2. **两边都过阈值**且差值没过阈值 → 不报（势均力敌，这才是「剧烈分歧」）；
+ * 3. 否则报数值大的那一方。
+ *
+ * 第 2 条的「两边都过阈值」不能省。只按差值判会吞掉单边信号：eh=8 / el=4
+ * 差值 4 < 5，会连原本该显示的亢奋横幅一起吞掉 —— 那是拿新 bug 换旧 bug。
+ *
+ * eh=82 / el=10 是 8:1：只有 rule 3 命中，报「亢奋」。原缺陷是两条同时出现，
+ * 不是报了一条。
  */
 export function pickAlert(euphoria: number, pessimism: number, threshold = 5): SentimentAlert | null {
-  if (euphoria < threshold && pessimism < threshold) return null;
-  if (Math.abs(euphoria - pessimism) < threshold) return null;
+  const euphoriaHot = euphoria >= threshold;
+  const pessimismHot = pessimism >= threshold;
+  if (!euphoriaHot && !pessimismHot) return null;
+  if (euphoriaHot && pessimismHot && Math.abs(euphoria - pessimism) < threshold) return null;
   return euphoria > pessimism
     ? { kind: 'euphoria', text: EUPHORIA_TEXT }
     : { kind: 'panic', text: PANIC_TEXT };
@@ -1477,7 +1496,7 @@ Expected: 12 passed
 
 （顶部 `import { cleanMessageText } from '@/lib/messageText';`）
 
-2. `src/pages/StockDetail.tsx` 的「历史讨论」（`CrossGroupTimeline`，858 行起，正文来自 `const opinions = data?.opinions ?? []`，第 897 行）：去重后再切片，正文清洗：
+2. `src/pages/StockDetail.tsx` 的「历史讨论」（`HistoryDiscussion` 组件）：去重后再切片，正文清洗：
 
 ```tsx
   const opinions = useMemo(
@@ -1486,7 +1505,9 @@ Expected: 12 passed
   );
 ```
 
-（第 897 行原为 `const opinions = data?.opinions ?? [];`。`opinions` 的元素就是 `{ ts, group, text, id, chat_id, ... }`，天然满足 `DurableMessage`，不用重新映射。）
+⚠️ **这段 `useMemo` 必须放在 `if (loading) { return … }` 早退之前**（紧跟在取数的 `useEffect` 之后）。原来的那行 `const opinions = data?.opinions ?? []` 不是 hook，放哪儿都行；改成 `useMemo` 之后放在早退后面就是 rules-of-hooks 违规：`loading` 初始为 `true`，首渲染走 4 个 hook 后早退，取数完成后再渲染变成 5 个 hook，React 抛 "Rendered more hooks than during the previous render"（#310），个股页的历史讨论卡片必崩。**单测（node 环境无 React 渲染器）与 `tsc -b` 都抓不到这个。**
+
+（`opinions` 的元素就是 `{ ts, group, text, id, chat_id, ... }`，天然满足 `DurableMessage`，不用重新映射。）
 
 下面第 913 行的 `const shown = opinions.slice(0, limit);` 不用改 —— 去重后的数组长度会一起反映到「共 N 条」和「加载更多」的计数上，这正是想要的效果。
 
@@ -1700,10 +1721,15 @@ Expected: 7 passed
 
 （`setCurrentDate` / `loadDate` 从 store 取，页面已有这些 selector；没有就补上。）
 
-3. `src/pages/Replay.tsx` 第 819 行的守卫改成：
+3. `src/pages/Replay.tsx` 第 819 行的守卫 —— **判据是「这一天有没有数据」，不是「当前这一帧有没有数据」**：
 
 ```tsx
-  if (!displaySnapshot || !hasContent(displaySnapshot)) {
+  // 回放是逐帧看的，单帧为空是正常的（采集抖动/去重回归，见 aggregate.ts 的注释）；
+  // 判据必须落在「整天的快照里有没有任何一帧有内容」，否则拖到空帧整页会被替换掉，
+  // 连时间轴控制器一起消失 —— 用户再也拖不回有数据的帧。
+  const dayHasData = snapshots.some(hasContent);
+
+  if (!displaySnapshot || !dayHasData) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <p className="text-ink-tertiary">当日暂无回放数据，请换一个日期</p>
@@ -1711,6 +1737,8 @@ Expected: 7 passed
     );
   }
 ```
+
+⚠️ Dashboard 不受这条影响：它渲染的是 `aggregateSnapshots` 聚合后的全天视图，聚合结果为空 ⟺ 整天空，所以那里的 `!hasContent(currentSnapshot)` 本来就是天级判据。
 
 4. `src/pages/Compare.tsx:113-117` 的默认选择改为：
 
@@ -1982,7 +2010,9 @@ git commit -m "fix(web): 无样本不给情绪结论，对比表补持续性图�
                         </span>
 ```
 
-（原为 `className="text-ink-quaternary ml-2 text-xs"` 且显示 `({(d.size_kb / 1024).toFixed(1)} MB)`。换成 `text-ink-tertiary` 是为了把对比度从约 2.8:1 提到 ≥4.5:1。）
+（原为 `className="text-ink-quaternary ml-2 text-xs"` 且显示 `({(d.size_kb / 1024).toFixed(1)} MB)`。）
+
+⚠️ **颜色必须用 `text-ink-secondary`，不是 `text-ink-tertiary`**。下拉面板自己画了 `bg-surface-2`（`rgb(28,28,33)`）、选中行是 `bg-surface-3`（`rgb(39,39,48)`），按这个真实背景算：`ink-quaternary` 2.41:1 → `ink-tertiary` 3.51:1（**仍不达 AA 的 4.5:1**）→ `ink-secondary` 6.86:1（选中行 5.98:1，达标）。走查时按页面底色量出的 2.8:1 是错的，别照着推。
 
 - [ ] **Step 2: 跑构建**
 
@@ -2059,9 +2089,11 @@ export function isCandidate(
 
 ```tsx
               <span className={`font-mono text-[11.5px] ${n.listed ? 'text-ink-tertiary' : 'text-brand-yellow'}`}>
-                {n.listed ? n.peakSc : (isCandidate(n, neighbors) ? '补涨候选' : '未上榜')}
+                {n.listed ? n.peakSc : (isCandidate(n, [node, ...neighbors]) ? '补涨候选' : '未上榜')}
               </span>
 ```
+
+⚠️ **必须把锚点 `node` 并进 `peers`**。`DetailPanel` 的 `neighbors` 是「同环节里**除选中节点之外**的节点」，而 `candidateCodes`（ChainList / GraphCanvas 在用）的判据是「**选中节点**已上榜 → 它同环节里未上榜的票是补涨候选」。只传 `neighbors` 的话锚点永远不在 `peers` 里 —— 当选中节点是该环节**唯一**上榜的票时，移动端列表打「补涨候选」而面板仍显示「未上榜」，**F19 的症状原样还在**。三条孤立测谓词的单测抓不到这个，必须在调用点传对集合。
 
 并在文件顶部 `import { isCandidate } from '@/lib/chain';`。同时把该面板的小标题「同环节邻居」改成「同环节」。
 

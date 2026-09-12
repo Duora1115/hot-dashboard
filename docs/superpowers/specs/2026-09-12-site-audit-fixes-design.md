@@ -114,7 +114,15 @@
 
 - 位置：`src/pages/Dashboard.tsx:190` `({(d.size_kb / 1024).toFixed(1)} MB)`。
 - 对用户来说「35.9 MB」没有意义，他要的是「这天有多少条消息」。
-- 该文字 `rgb(88,88,95)` 在 `rgb(9,9,11)` 背景上对比度约 **2.8:1**，低于 WCAG AA 小字号要求的 4.5:1。
+- 对比度不足：该文字用 `text-ink-quaternary`（`hsl(240 4% 36%)` = `rgb(88,88,95)`）。⚠️ **走查时量的背景是页面底色 `surface-0`（`#0A0A0D`），得到约 2.8:1 —— 这是错的**：下拉面板自己画了 `bg-surface-2`（`hsl(240 8% 12%)` = `rgb(28,28,33)`），选中行还是 `bg-surface-3`（`rgb(39,39,48)`）。按真实背景重算：
+
+  | token | 在 surface-2 上 | 在 surface-3（选中行）上 |
+  |---|---|---|
+  | `ink-quaternary`（原） | 2.41:1 | 2.10:1 |
+  | `ink-tertiary` | 3.51:1 | 3.06:1 |
+  | `ink-secondary` | **6.86:1** | **5.98:1** |
+
+  结论没变（太低），但**要换到 `ink-secondary` 才过 AA 的 4.5:1**；`ink-tertiary` 看着像提升、实际仍不达标。
 
 ### F17 [P2] 个股页「历史讨论」同秒近重复消息
 
@@ -182,7 +190,12 @@ export function hasContent(snap: Snapshot | null | undefined): boolean
 export function pickDefaultDate(dates: DateInfo[], isNonEmpty: (d: string) => boolean): string
 ```
 
-`Dashboard.tsx` / `Replay.tsx` 的守卫改成 `if (!currentSnapshot || !hasContent(currentSnapshot))` → 渲染「当日暂无数据」空状态，并给一个「查看最近有数据的一天」按钮（调用 `loadDate(pickDefaultDate(...))`）。
+**判据要落在「这一天有没有数据」，不是「当前这个快照有没有数据」**，两个页面的层级并不相同：
+
+- `Dashboard.tsx` 渲染的是 `aggregateSnapshots` 聚合后的**全天视图**，聚合为空 ⟺ 整天空 —— 所以 `!hasContent(currentSnapshot)` 本身就是天级判据，直接用。
+- `Replay.tsx` 是**逐帧**看的，`displaySnapshot` 是用户拖到的那一帧。单帧为空是正常的（`aggregate.ts` 注释：「任意单个快照可能为空或异常（采集抖动、去重回归等）」），实测本机 25 个 day 文件里有 20 个至少含一个全空帧（多数在 index 0，也有中段的）。所以判据必须是 `snapshots.some(hasContent)`：整天没数据才显示空状态，否则照常渲染那一帧。**若按帧判，拖到空帧会整页被替换 —— 连同时间轴控制器一起消失，用户再也拖不回有数据的帧。**
+
+两处都渲染「当日暂无数据」空状态；Dashboard 另给一个「查看最近有数据的一天」按钮（调用 `loadDate(pickDefaultDate(...))`）。
 
 `store.init()` 现在取 `status.current_date || dates[0].date`（`src/store/useStore.ts:113`）。改为：若当前日期无数据（`/api/day/{date}` 的 `meta.message_count === 0`），回退到最近一个 `message_count > 0` 的日期；一个都没有才用 `current_date`。
 
@@ -240,7 +253,21 @@ export type SentimentAlert = { kind: 'euphoria' | 'panic'; text: string } | null
 export function pickAlert(euphoria: number, pessimism: number, threshold = 5): SentimentAlert
 ```
 
-  规则：`|eh - el| < threshold` → `null`（两边都别喊）；否则报数值大的一方。`eh`/`el` 同时高在真实市场里是「剧烈分歧」，此时**两条都不发**比两条都发更诚实。`Sentiment.tsx:693/706` 与洞察条目（`:441/:450`）都改走这个函数。
+  规则三层，顺序不能换（`hot(x) := x >= threshold`）：
+  1. `!hot(eh) && !hot(el)` → 不报（本来就没话说）；
+  2. **`hot(eh) && hot(el)` 且 `|eh - el| < threshold`** → 不报（两边都高且势均力敌，这才是「剧烈分歧」）；
+  3. 否则报数值大的那一方。
+
+  ⚠️ 第 2 条的 `hot(eh) && hot(el)` 限定条件是必须的，不能只写 `|eh - el| < threshold`：后者会把「只有一边刚过线」的情况也吞掉（`eh=8, el=4` → 差值 4 < 5 → 沉默），而这类单边信号原来（`eh > 5`）是会显示横幅的 —— 那等于用一个新 bug 换掉旧 bug。
+
+  以 2026-09-10 为例（`eh=82`、`el=10`）：82 比 10 是 8:1，亢奋明显占优，**该报「亢奋」而不是都不报** —— 原缺陷是「两条同时出现」，不是「报了一条」。
+
+  消费方有三个，都走这一个判据：
+  - `Sentiment.tsx:693/706` 的两条横幅（合并成一个 `<AnimatePresence>`）；
+  - 洞察条目（`:441/:450`）；
+  - **`ExtremeAlerts` 的两条附注**（`:348` 的「市场可能过热，注意回调风险」与 `:376` 的「或存在反弹窗口」）—— 它们原来各自按 `eh > 3` / `el > 3` 独立渲染，`eh=82/el=10` 时同样会同时挂出两条相反的提示，与横幅是同一个毛病。极值**数字**本身（「极度亢奋 82」「极度悲观 10」）是统计事实，照常都显示；只把**附注文字**收敛到占优的一方。
+
+  不改 `getAlertLevel`（`:57-60`）：它驱动的是顶部状态点，语义是「存在极端读数」（事实），与「哪一方占优」（判断）是两回事，`(40,38)` 时点报警而横幅沉默是合理的。
 - **F12**：`biasText(0, 0)` 改为返回 `'—'`（`src/lib/palace.ts:113`），调用方按「无样本」渲染；对比页的情绪列同步。
 - **F13**：对比表末列加图例（`● 连续在榜 / ● 新进 / ● 掉榜`），文案与配色跟上表头。
 - **F16**：`/api/dates` 增加 `message_count`（见 §4.8），前端日期下拉把 `(35.9 MB)` 换成 `1,187 条`；文字色从 `text-ink-quaternary` 提到 `text-ink-tertiary`，保证 ≥4.5:1。

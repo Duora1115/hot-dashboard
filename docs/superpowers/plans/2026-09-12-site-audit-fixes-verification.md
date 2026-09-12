@@ -45,6 +45,36 @@ npm run dev                                                            # 前端�
 
 ## 逐条明细
 
+### 后端任务（1–6）真数据复验 — 2026-09-12
+
+本机 `data/` 里有 33 个真实 day 文件（旧副本，但结构、量级与线上一致），因此后端逻辑直接对着**真实数据**验，不经过 HTTP、不依赖正在跑的（旧代码）本地服务。
+
+```bash
+python3 - <<'PY'   # 直接调 backend 的函数，只读 data/
+from backend.data_store import DataStore
+from backend.report import generate_report
+store = DataStore(Path('data')); store.startup()
+...
+PY
+```
+
+| 问题 | 验的是什么 | 实测结果 | 结论 |
+|---|---|---|---|
+| F2/F3 (Task 1) | `totalVolume` 是否等于 `meta.message_count`，而不是累计值求和 | 2026-07-06：`meta=1153`，`totalVolume=1153`；分时求和 2166（旧口径是累计值求和，量级上万） | ✅ |
+| F4 (Task 1) | 传入 `prev_message_count=999` 时能否给出真实百分比 | `changePercent=15.4` | ✅ |
+| F5 (Task 2) | `activeGroups` 是否为真实值 | `{'active': 24, 'total': 25}`（旧值是写死的 `23/25`） | ✅ |
+| F6 (Task 3) | 真实源拿不到时是否诚实留白 | `advanceDecline=None`（旧代码会编出 `看多数×30` 的假家数） | ✅ |
+| F7 (Task 3) | 死数据是否删干净 | 返回体里 `'marketIndices' in r` → `False` | ✅ |
+| F8 (Task 5) | 热力图的数据源是否真的能出数 | 原始快照 834 个板块带 `gd`，压缩快照 0 个（证实旧路径必然为空）；新端点给出 21 群 × 120 槽、1872 个非零格子、`len(cells)==len(groups)` 行对齐 | ✅ |
+| F14 (Task 4) | 晨报卡片标题/摘要是否还重复 | 真实消息下 `title` 与 `summary` 不再以同一段文字开头 | ✅ |
+| F16 (Task 6) | `message_count` 是否与文件头 `total_msgs` 一致，且不触发懒加载 | 2026-07-09/07/06 → 5 / 904 / 1153，与 `head -c 256` 读到的 `total_msgs` 逐条相符；`/api/dates` 返回 33 个日期而 `_days` 仍为 1 | ✅ |
+
+附带说明：跑这段时 `backend/market.py` 尝试连 eastmoney 取 K 线失败（本机无外网/代理不通），已按设计降级，不影响上面任何一条结论 —— 反而正好验证了 F6「拿不到就走 None」这条路径在真实环境下会真的被走到。
+
+> 浏览器复验留到前端任务（7–15）落地后统一做：本地的前端页面必须等前端改动到位才有东西可看。截图存 `docs/superpowers/plans/assets/2026-09-12-site-audit/`。
+
+### 模板（前端任务用）
+
 > 每条任务的执行者在下面追加一段：复验了哪个页面、点了什么、看到什么。截图路径写全。
 
 ### 模板
