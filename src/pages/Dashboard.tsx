@@ -188,7 +188,9 @@ function StatusBar({ snapshot }: { snapshot: Snapshot }) {
                         }`}
                       >
                         <span className="font-mono">{d.date}</span>
-                        <span className="text-ink-quaternary ml-2 text-xs">({(d.size_kb / 1024).toFixed(1)} MB)</span>
+                        <span className="text-ink-tertiary ml-2 text-xs">
+                          {d.message_count > 0 ? `${d.message_count.toLocaleString()} 条` : '暂无数据'}
+                        </span>
                       </button>
                     ))}
                   </motion.div>
