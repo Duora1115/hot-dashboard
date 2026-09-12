@@ -63,3 +63,26 @@ def test_news_single_line_gives_empty_summary():
     title, summary = news_title_summary("一句话消息")
     assert title == "一句话消息"
     assert summary == ""
+
+
+def test_sector_analysis_cleans_discussion_points():
+    """板块分析的「群内关注焦点」走的是 *_extract_news_from_raw* 之外的兄弟路径：
+    原来直接切原始正文，采集元数据与裸链接会原样进用户可见文案。
+    每条样本要在拼接**之前**清洗，元数据才会在 join 出的字符串中段也消失。"""
+    from backend.report import AnalysisGenerator
+
+    lecturer = "【讲师】 胖大叔 2026 09 11 11:14:35 拉大光，砸小光和pcb"
+    linked = "看[中百](https://wap.eastmoney.com/quote/stock/1.600857.html)封死"
+    clean = "中百这个拉板的话新华还有救"
+
+    sector = {
+        "n": "半导体", "mc": 3, "gc": 2, "sc": 100,
+        "gd": [
+            {"g": "甲群", "c": 2, "m": [{"x": clean}, {"x": lecturer}]},
+            {"g": "乙群", "c": 1, "m": [{"x": linked}]},
+        ],
+    }
+    out = AnalysisGenerator().generate_sector_analysis(sector, [])
+    assert "【讲师】" not in out, out
+    assert "](http" not in out, out
+    assert clean in out, "纯净正文不能被过度清洗掉"

@@ -5,7 +5,7 @@
 """
 
 from backend.indicators import compute_all
-from backend.textclean import news_title_summary
+from backend.textclean import clean_message_text, news_title_summary
 
 
 class AnalysisGenerator:
@@ -27,7 +27,7 @@ class AnalysisGenerator:
         discussion_points = []
         for g in gd[:3]:
             for m in g.get("m", [])[:2]:
-                text = m.get("x", "")
+                text = clean_message_text(m.get("x", ""))
                 if text and len(text) > 5:
                     discussion_points.append(text[:30])
 
