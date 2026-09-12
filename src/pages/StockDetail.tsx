@@ -576,7 +576,11 @@ function GroupMessages({ groups }: { groups: Array<{ g: string; c: number; m: Ar
                     className="overflow-hidden"
                   >
                     <div className="px-4 pb-3 space-y-0">
-                      {group.m.filter((m) => cleanMessageText(m.x).length > 0).map((msg, mi) => (
+                      {dedupeNearDuplicates(
+                        group.m
+                          .map((m) => ({ ts: m.t, group: group.g, text: m.x }))
+                          .filter((m) => cleanMessageText(m.text).length > 0),
+                      ).map((msg, mi) => (
                         <motion.div
                           key={mi}
                           initial={{ opacity: 0, x: -10 }}
@@ -585,10 +589,10 @@ function GroupMessages({ groups }: { groups: Array<{ g: string; c: number; m: Ar
                           className="flex items-start gap-3 py-2.5 border-l-2 border-hairline/10 hover:border-brand-blue hover:bg-surface-2/50 pl-3 transition-colors rounded-r-md"
                         >
                           <span className="text-[11px] font-mono text-ink-tertiary shrink-0 w-10 pt-0.5">
-                            {msg.t}
+                            {msg.ts}
                           </span>
                           <p className="flex-1 min-w-0 text-sm text-ink-primary leading-relaxed whitespace-pre-wrap break-words">
-                            {cleanMessageText(msg.x)}
+                            {cleanMessageText(msg.text)}
                           </p>
                         </motion.div>
                       ))}
