@@ -321,6 +321,12 @@ def compute_volume_data(snapshots: list[dict], message_count: int,
     }
 
 
+def _active_groups(snapshots: list[dict], total: int | None) -> dict:
+    """当日活跃群 / 接入群总数。前端原来把 "23/25" 写死在 Report.tsx 里。"""
+    active = int(snapshots[-1].get("grp", 0)) if snapshots else 0
+    return {"active": active, "total": int(total or 0)}
+
+
 def generate_report(date_str: str, day_data: dict, market_indices: list[dict] | None = None,
                     advance_decline: dict | None = None,
                     raw_snapshots: list[dict] | None = None,
@@ -501,6 +507,7 @@ def generate_report(date_str: str, day_data: dict, market_indices: list[dict] | 
         "marketIndices": market_indices,
         "advanceDecline": ad,
         "volumeData": volume_data,
+        "activeGroups": _active_groups(snapshots, active_group_count),
         "hotSectors": hot_sectors,
         "hotStocks": hot_stocks,
         "newsItems": news_items,
@@ -533,6 +540,7 @@ def _empty_report(date_str: str) -> dict:
         "date": date_str, "marketIndices": [], "advanceDecline": None,
         "volumeData": {"totalVolume": 0, "prevVolume": None, "changePercent": None,
                        "hourlyData": [], "peakHour": "-", "peakVolume": 0, "summary": "暂无数据"},
+        "activeGroups": {"active": 0, "total": 0},
         "hotSectors": [], "hotStocks": [], "newsItems": [],
         "sentimentData": {"overall": "暂无数据", "overallLabel": "neutral",
                           "bullPercent": 0, "bearPercent": 0, "neutralPercent": 0,

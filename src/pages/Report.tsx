@@ -47,6 +47,7 @@ import { chartTooltipStyle, chartTooltipLabelStyle } from '@/lib/chart';
 const EMPTY_REPORT: ReportData = {
   date: '', marketIndices: [], advanceDecline: null,
   volumeData: { totalVolume: 0, prevVolume: null, changePercent: null, hourlyData: [], peakHour: '--', peakVolume: 0, summary: '' },
+  activeGroups: { active: 0, total: 0 },
   hotSectors: [], hotStocks: [], newsItems: [],
   sentimentData: { overall: '--', overallLabel: 'neutral', bullPercent: 0, bearPercent: 0, neutralPercent: 0, extremeEuphoria: 0, extremePessimism: 0, drivers: [], alert: null },
   technicalData: { observations: [], supportLevels: [], resistanceLevels: [], patterns: [], indicatorSummaries: [], signals: [] },
@@ -1088,7 +1089,7 @@ function ReportHeader({ data }: { data: ReportData }) {
       >
         <HeaderMetric label="市场情绪" value={data.sentimentData.overall} accent="#30D158" />
         <HeaderMetric label="总消息" value={data.volumeData.totalVolume.toLocaleString()} accent="#0A84FF" />
-        <HeaderMetric label="活跃群" value="23/25" accent="#BF5AF2" />
+        <HeaderMetric label="活跃群" value={`${data.activeGroups.active}/${data.activeGroups.total}`} accent="#BF5AF2" />
         <HeaderMetric label="热点股 / 板块" value={`${data.hotStocks.length} / ${data.hotSectors.length}`} accent="#FFD60A" />
       </motion.div>
     </motion.header>

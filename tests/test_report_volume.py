@@ -48,3 +48,16 @@ def test_negative_delta_falls_back_to_cumulative():
     r = compute_volume_data([_snap("2026-09-10 00:25", 5), _snap("2026-09-10 00:30", 2)],
                             message_count=2, prev_message_count=None)
     assert r["hourlyData"] == [{"time": "00:00", "volume": 7}]
+
+
+from backend.report import _active_groups
+
+
+def test_active_groups_uses_last_snapshot_and_configured_total():
+    snaps = [{"t": "2026-09-10 00:25", "msg": 3, "grp": 1},
+             {"t": "2026-09-10 23:55", "msg": 1187, "grp": 24}]
+    assert _active_groups(snaps, total=25) == {"active": 24, "total": 25}
+
+
+def test_active_groups_falls_back_to_zero():
+    assert _active_groups([], total=25) == {"active": 0, "total": 25}

@@ -222,6 +222,7 @@ export interface ReportData {
   marketIndices: MarketIndex[];
   advanceDecline: AdvanceDecline | null;
   volumeData: VolumeData;
+  activeGroups: { active: number; total: number };
   hotSectors: HotSectorDetail[];
   hotStocks: HotStockDetail[];
   newsItems: NewsItem[];
