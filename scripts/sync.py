@@ -13,6 +13,7 @@
 import sys
 import os
 import json
+import math
 import time
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -32,12 +33,17 @@ def stamp_path(data_dir) -> Path:
 
 
 def read_stamp(data_dir):
-    """读上次成功同步时间。缺失 / 读不了 / 空 / 非数字一律当「从未同步」，返回 None。"""
+    """读上次成功同步时间。缺失 / 读不了 / 空 / 非数字 / 非有限值一律当「从未同步」，返回 None。
+
+    注意 "inf" / "1e999" / "nan" 能被 float() 解析（不抛 ValueError），
+    但一旦参与 now - inf 就是 -inf，再 int() 会 OverflowError——所以必须
+    用 isfinite 挡掉，绝不能把非有限值当成有效时间戳。
+    """
     try:
-        raw = stamp_path(data_dir).read_text(encoding="utf-8").strip()
-        return float(raw)
+        value = float(stamp_path(data_dir).read_text(encoding="utf-8").strip())
     except (OSError, ValueError):
         return None
+    return value if math.isfinite(value) else None
 
 
 def write_stamp(data_dir, now=None):
@@ -95,9 +101,12 @@ def main(argv=None) -> int:
             print(reason, flush=True)
             return 0
         stats = push_archive(cfg, data_dir)
-        # 只有真的推成功（至少一群）才盖时间戳：失败的 run 必须让下一轮重试，
-        # 否则一次失败会被伪装成「刚同步过」，整整一个间隔都不会再试。
-        if stats and stats.get("ok", 0) > 0:
+        # 两重条件都必须满足才盖时间戳：
+        #  1) min_interval > 0——不限频的 run 不碰 stamp，保证 --min-interval 0
+        #     与改造前逐字节一致（否则一次 legacy `--palace` 也会凭空造出 stamp 文件）；
+        #  2) ok > 0——失败的 run 必须让下一轮重试，否则一次失败会被伪装成
+        #     「刚同步过」，整整一个间隔都不会再试。
+        if args.min_interval > 0 and stats and stats.get("ok", 0) > 0:
             write_stamp(data_dir)
         return 0
 

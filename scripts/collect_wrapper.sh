@@ -82,3 +82,9 @@ fi
 # 执行采集
 cd "$PROJECT_DIR" || exit 1
 python3 scripts/collect.py >> "$LOG_FILE" 2>&1
+
+# 同步 palace 档案层到云端（幂等：服务端按 message_id 去重）。
+# 限频 30 分钟 —— push_archive 每次都全量重推整份档案并触发一次全量重建，
+# 代价随档案行数线性上涨，所以不跟着采集每 5 分钟跑。
+# || true 不能删：本脚本是 set -euo pipefail，同步失败不该判成采集失败。
+python3 scripts/sync.py --palace --min-interval 1800 >> "$LOG_FILE" 2>&1 || true

@@ -67,9 +67,13 @@ def test_should_skip_min_interval_zero_never_skips(tmp_path):
 
 
 def test_should_skip_corrupt_or_empty_stamp_never_raises(tmp_path):
-    for raw in ("not-a-number", "", "   ", "\n", "{}", "12.3.4"):
+    # "inf" / "1e999" / "nan" 都能被 float() 解析：若当成有效时间戳，
+    # now - inf = -inf 会一路走到 int() 抛 OverflowError。
+    for raw in ("not-a-number", "", "   ", "\n", "{}", "12.3.4",
+                "inf", "-inf", "Infinity", "1e999", "nan"):
         _stamp(tmp_path).write_text(raw, encoding="utf-8")
         assert sync.should_skip_palace(tmp_path, 1800) is None, raw
+        assert sync.read_stamp(tmp_path) is None, raw
 
 
 # ---- main() 端到端（push_archive 被 monkeypatch） -----------------------
@@ -110,6 +114,21 @@ def test_main_min_interval_zero_runs_even_with_fresh_stamp(tmp_path, monkeypatch
 
     assert rc == 0
     assert calls == [1]
+
+
+def test_main_min_interval_zero_success_writes_no_stamp(tmp_path, monkeypatch):
+    """不限频的成功推送也不能盖戳，否则 legacy --palace 会凭空造出 stamp 文件。
+
+    这是「--min-interval 0 与改造前逐字节一致」的关键：旧行为从不写 data/ 下任何东西。
+    """
+    _patch_config(monkeypatch, tmp_path)
+    calls = _patch_push(monkeypatch, ok=1)
+
+    rc = sync.main(["--palace", "--min-interval", "0"])
+
+    assert rc == 0
+    assert calls == [1], "0 = 不限频，成功推送照跑"
+    assert not _stamp(tmp_path).exists(), "不限频的 run 不得写 stamp"
 
 
 def test_main_failed_push_does_not_stamp_so_next_run_retries(tmp_path, monkeypatch):

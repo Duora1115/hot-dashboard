@@ -1,5 +1,8 @@
 # 数据文件（本地存储）
 data/*.json
+# palace 同步限频戳：机器本地运行态（epoch 秒），不该进仓库。
+# 注意 data/.gitignore 只挡 *.json/*.jsonl，挡不住这个点文件，所以写在这里。
+data/.palace_sync_stamp
 
 # Python
 __pycache__/
