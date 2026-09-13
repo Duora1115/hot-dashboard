@@ -577,10 +577,13 @@ def compute_snapshot(all_analyzed, cutoff, cfg):
     }
 
 # ---- 主流程 ----
-def collect_live(cfg=None, data_dir=None):
+def collect_live(cfg=None, data_dir=None, stats=None):
     """
     实时采集当前时刻热点，写入 latest.json
     返回 snapshot 字典
+
+    ``stats`` 传入时被就地填充本次运行的档案统计（fetched / written /
+    skipped_no_id / skipped_dup，跨群累计），供调用方打健康行；不传则完全不变。
     """
     if cfg is None:
         cfg = load_config()
@@ -588,6 +591,11 @@ def collect_live(cfg=None, data_dir=None):
         data_dir = Path(cfg["server"]["data_dir"])
     elif isinstance(data_dir, str):
         data_dir = Path(data_dir)
+
+    # 档案统计：并发线程各写各的局部 dict，主线程 as_completed 里汇总，避免竞态。
+    archive_stats = stats if stats is not None else {}
+    for _k in ("fetched", "written", "skipped_no_id", "skipped_dup"):
+        archive_stats.setdefault(_k, 0)
 
     now = datetime.now(CST)
     date_str = now.strftime("%Y-%m-%d")
@@ -620,20 +628,29 @@ def collect_live(cfg=None, data_dir=None):
                     m["_analysis"] = analyze_text(text, cfg)
             # 顺带把当天全部原始消息写进档案层。用独立的 try 包住：
             # 档案写失败只记 warning，不抛出、不影响采集结果。
+            grp_stats = {}
             try:
-                append_messages(data_dir, g["chat_id"], g["name"], msgs)
+                append_messages(data_dir, g["chat_id"], g["name"], msgs, stats=grp_stats)
             except Exception as e:
                 logger.warning(f"档案追加失败 {g['name']}: {e}")
-            return g["name"], day_msgs
+            return g["name"], day_msgs, grp_stats
         except Exception as e:
             print(f"  跳过 {g['name']}: {e}")
-            return g["name"], []
+            return g["name"], [], {}
 
     # 并发执行：最多10个线程
     with ThreadPoolExecutor(max_workers=10) as pool:
         futures = {pool.submit(_fetch_one, g): g["name"] for g in cfg["groups"]}
         for future in as_completed(futures):
-            grp_name, day_msgs = future.result(timeout=30)
+            grp_name, day_msgs, grp_stats = future.result(timeout=30)
+            for _k in ("fetched", "written", "skipped_no_id", "skipped_dup"):
+                archive_stats[_k] += grp_stats.get(_k, 0)
+            # 抓到了消息却一条没进档案——静默丢弃的典型形态，必须留痕。
+            # print（而非 logger.info）是这条路径既定的运维输出通道，cron 会 2>&1 收走。
+            if grp_stats.get("fetched", 0) > 0 and grp_stats.get("written", 0) == 0:
+                print(f"  ⚠️ 档案未写入 {grp_name}: 抓取{grp_stats['fetched']} "
+                      f"缺id{grp_stats.get('skipped_no_id', 0)} "
+                      f"重复{grp_stats.get('skipped_dup', 0)}", flush=True)
             all_analyzed[grp_name] = day_msgs
             if day_msgs:
                 active += 1
@@ -864,13 +881,20 @@ def post_to_cloud(cfg, path: str, payload, label: str = "", timeout=None) -> boo
 
 
 def push_to_cloud(cfg, date_str, data_dir=None):
-    """推送数据到云端（latest + day）"""
+    """推送数据到云端（latest + day）。
+
+    返回 ``{"ok": [...], "failed": [...], "skipped": [...]}`` 端点小结，供调用方
+    打健康行；忽略返回值的旧调用方不受影响。
+    """
+    summary = {"ok": [], "failed": [], "skipped": []}
+
     if data_dir is None:
         data_dir = Path(cfg["server"]["data_dir"])
 
     if not cloud_base_url(cfg):
         print("  ☁️ 云端同步未启用或未配置地址", flush=True)
-        return
+        summary["skipped"].append("cloud")
+        return summary
 
     push_mode = cfg.get("cloud", {}).get("push_mode", "both")
 
@@ -880,17 +904,28 @@ def push_to_cloud(cfg, date_str, data_dir=None):
     if push_mode in ("both", "latest"):
         latest_file = data_dir / "latest.json"
         if latest_file.exists():
-            post_to_cloud(cfg, "/api/upload/latest", _load(latest_file), "latest")
+            if post_to_cloud(cfg, "/api/upload/latest", _load(latest_file), "latest"):
+                summary["ok"].append("latest")
+            else:
+                summary["failed"].append("latest")
         else:
             print(f"  ☁️ latest.json 不存在，跳过", flush=True)
+            summary["skipped"].append("latest")
 
     # 推送 day
     if push_mode in ("both", "day"):
         day_file = data_dir / f"day_{date_str}.json"
         if day_file.exists():
-            post_to_cloud(cfg, f"/api/upload/day/{date_str}", _load(day_file), f"day_{date_str}")
+            label = f"day_{date_str}"
+            if post_to_cloud(cfg, f"/api/upload/day/{date_str}", _load(day_file), label):
+                summary["ok"].append(label)
+            else:
+                summary["failed"].append(label)
         else:
             print(f"  ☁️ day_{date_str}.json 不存在，跳过", flush=True)
+            summary["skipped"].append(f"day_{date_str}")
+
+    return summary
 
 
 def cleanup_old_files(data_dir, retention_days=14):

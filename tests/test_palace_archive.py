@@ -57,6 +57,59 @@ def test_append_skips_message_without_id(tmp_path):
     assert load_ids(tmp_path, "oc_1") == set()
 
 
+def test_stats_report_missing_id_batch(tmp_path):
+    """生产故障形态：整批消息都没有 message_id/msg_id。
+
+    append_messages 返回 0 看着像成功，stats 必须点出原因是缺 id。
+    """
+    stats = {}
+    msgs = [
+        {"content": "无 id 1", "create_time": "2026-07-06 08:09"},
+        {"content": "无 id 2", "create_time": "2026-07-06 08:10"},
+    ]
+
+    n = append_messages(tmp_path, "oc_1", "253_橙子不糊涂", msgs, stats=stats)
+
+    assert n == 0
+    assert stats["fetched"] == 2
+    assert stats["written"] == 0
+    assert stats["skipped_no_id"] == 2
+    assert stats["skipped_dup"] == 0
+
+
+def test_stats_distinguish_dup_from_missing_id(tmp_path):
+    """重复 id 与缺 id 是两回事，stats 必须分开计数。"""
+    append_messages(tmp_path, "oc_1", "253_橙子不糊涂", [_msg("om_1")])
+
+    stats = {}
+    n = append_messages(tmp_path, "oc_1", "253_橙子不糊涂",
+                        [_msg("om_1"), {"content": "无 id"}], stats=stats)
+
+    assert n == 0
+    assert stats == {"fetched": 2, "written": 0, "skipped_no_id": 1, "skipped_dup": 1}
+
+
+def test_stats_count_written_and_leave_caller_intact(tmp_path):
+    """未传 stats 的调用方行为完全不变（返回 int，不依赖 stats）。"""
+    stats = {}
+    n = append_messages(tmp_path, "oc_1", "253_橙子不糊涂",
+                        [_msg("om_1"), _msg("om_2")], stats=stats)
+
+    assert n == 2
+    assert stats == {"fetched": 2, "written": 2, "skipped_no_id": 0, "skipped_dup": 0}
+    # 不传 stats 仍然是纯 int 返回
+    assert append_messages(tmp_path, "oc_2", "群", [_msg("om_9")]) == 1
+
+
+def test_append_rows_stats_report_skips(tmp_path):
+    stats = {}
+    n = append_rows(tmp_path, "oc_1", "群",
+                    [_row("om_1"), {"text": "无 id"}], stats=stats)
+
+    assert n == 1
+    assert stats == {"fetched": 2, "written": 1, "skipped_no_id": 1, "skipped_dup": 0}
+
+
 def test_known_ids_is_updated_in_place(tmp_path):
     known = load_ids(tmp_path, "oc_1")
     append_messages(tmp_path, "oc_1", "253_橙子不糊涂", [_msg("om_1")], known_ids=known)
@@ -185,3 +238,28 @@ def test_collect_live_survives_archive_failure(tmp_path):
 
     assert output["total_messages"] == 1, "档案失败不应影响采集结果"
     assert (tmp_path / "latest.json").exists()
+
+
+def test_collect_live_reports_whole_batch_dropped_for_missing_id(tmp_path, capsys):
+    """抓到了消息、档案却一条没写：必须留下可见的一行，点名群与原因。"""
+    stamp = datetime.now(collector.CST).strftime("%Y-%m-%d %H:%M")
+    no_id_msgs = [{"create_time": stamp, "content": "无 id", "msg_type": "text"}]
+
+    stats = {}
+    with patch("backend.collector.fetch_messages_incremental", return_value=no_id_msgs), \
+         patch("subprocess.run", return_value=_lark_reply([])):
+        collect_live(cfg=_cfg(tmp_path), data_dir=tmp_path, stats=stats)
+
+    assert stats == {"fetched": 1, "written": 0, "skipped_no_id": 1, "skipped_dup": 0}
+    out = capsys.readouterr().out
+    assert "档案未写入" in out
+    assert "253_橙子不糊涂" in out
+    assert "缺id1" in out
+
+
+def test_collect_live_quiet_when_archive_healthy(tmp_path, capsys):
+    """档案正常写入时不出现告警行，避免噪音。"""
+    with patch("subprocess.run", return_value=_lark_reply(_msgs_now())):
+        collect_live(cfg=_cfg(tmp_path), data_dir=tmp_path, stats={})
+
+    assert "档案未写入" not in capsys.readouterr().out

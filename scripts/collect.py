@@ -18,7 +18,8 @@ def main():
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     data_dir = os.path.join(base, cfg["server"]["data_dir"])
 
-    result = collect_live(cfg, data_dir)
+    archive_stats = {}
+    result = collect_live(cfg, data_dir, stats=archive_stats)
     date_str = result["time"][:10]
     time_str = result["time"]
     total_msgs = result["total_messages"]
@@ -98,7 +99,26 @@ def main():
     print("---NOTIFY_END---")
 
     # 云端同步
-    push_to_cloud(cfg, date_str, Path(data_dir))
+    push_summary = push_to_cloud(cfg, date_str, Path(data_dir)) or {}
+
+    # ===== 采集健康行：扫 cron 日志一眼分清正常/异常 =====
+    written = archive_stats.get("written", 0)
+    no_id = archive_stats.get("skipped_no_id", 0)
+    dup = archive_stats.get("skipped_dup", 0)
+    skipped = no_id + dup
+    if skipped:
+        # 主导跳过原因：缺 id 通常意味着上游字段名变了，比重复更值得警惕
+        reason = f"缺id{no_id}" if no_id >= dup else f"重复{dup}"
+        skip_txt = f"{skipped}(主因 {reason})"
+    else:
+        skip_txt = "0"
+    ok = push_summary.get("ok", [])
+    failed = push_summary.get("failed", [])
+    cloud_txt = f"ok{len(ok)} fail{len(failed)}"
+    if failed:
+        cloud_txt += f" [{','.join(failed)}]"
+    print(f"[{time_str}] 🏥 健康 消息{total_msgs} | "
+          f"档案 写{written}/跳过{skip_txt} | 云端 {cloud_txt}", flush=True)
 
 if __name__ == "__main__":
     main()

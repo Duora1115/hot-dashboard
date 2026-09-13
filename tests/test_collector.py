@@ -195,3 +195,32 @@ def test_compute_snapshot_dedups_duplicate_messages():
     assert snapshot["total_messages"] == 1, (
         f"总消息数应为 1，实际 {snapshot['total_messages']}"
     )
+
+
+def test_push_to_cloud_reports_ok_and_failed(tmp_path):
+    """push_to_cloud 要回报每个端点的成败，供采集脚本打健康行。"""
+    (tmp_path / "latest.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "day_2026-09-13.json").write_text("{}", encoding="utf-8")
+    cfg = {
+        "server": {"data_dir": str(tmp_path)},
+        "cloud": {"enabled": True, "base_url": "http://example.invalid", "push_mode": "both"},
+    }
+
+    def fake_post(cfg, path, payload, label="", timeout=None):
+        return label == "latest"
+
+    with patch("backend.collector.post_to_cloud", side_effect=fake_post):
+        summary = collector.push_to_cloud(cfg, "2026-09-13", tmp_path)
+
+    assert summary["ok"] == ["latest"]
+    assert summary["failed"] == ["day_2026-09-13"]
+    assert summary["skipped"] == []
+
+
+def test_push_to_cloud_disabled_reports_skipped(tmp_path):
+    cfg = {"server": {"data_dir": str(tmp_path)}, "cloud": {"enabled": False}}
+
+    summary = collector.push_to_cloud(cfg, "2026-09-13", tmp_path)
+
+    assert summary["ok"] == [] and summary["failed"] == []
+    assert summary["skipped"]

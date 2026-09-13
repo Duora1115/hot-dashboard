@@ -50,14 +50,39 @@ def load_ids(data_dir, chat_id: str) -> set[str]:
     return {row["id"] for row in iter_jsonl(archive_path(data_dir, chat_id)) if row.get("id")}
 
 
-def _dedupe(existing: set[str], pairs) -> list[dict]:
-    """按 id 去重：``pairs`` 是 (id, row) 序列，命中的 id 就地写进 ``existing``。"""
+def _fill_stats(stats: dict | None, fetched: int, skipped_no_id: int,
+                skipped_dup: int) -> None:
+    """把本次去重的计数写进可选的 ``stats``（不传就完全不动）。
+
+    ``written`` 由调用方在真正落盘后补上，避免写盘失败时统计还说写成功。
+    """
+    if stats is None:
+        return
+    stats["fetched"] = fetched
+    stats["skipped_no_id"] = skipped_no_id
+    stats["skipped_dup"] = skipped_dup
+
+
+def _dedupe(existing: set[str], pairs, stats: dict | None = None) -> list[dict]:
+    """按 id 去重：``pairs`` 是 (id, row) 序列，命中的 id 就地写进 ``existing``。
+
+    行被丢掉时不再无声无息：``stats`` 传入时记录 fetched / skipped_no_id /
+    skipped_dup。缺 id 与重复分开计数，因为前者意味着上游字段名变了，
+    后者只是正常的重推。
+    """
     rows = []
+    skipped_no_id = 0
+    skipped_dup = 0
     for mid, row in pairs:
-        if not mid or mid in existing:
+        if not mid:
+            skipped_no_id += 1
+            continue
+        if mid in existing:
+            skipped_dup += 1
             continue
         existing.add(mid)
         rows.append(row)
+    _fill_stats(stats, len(pairs), skipped_no_id, skipped_dup)
     return rows
 
 
@@ -73,11 +98,16 @@ def _write_rows(path: Path, rows: list[dict]) -> int:
 
 
 def append_messages(data_dir, chat_id: str, group_name: str,
-                    messages: list[dict], known_ids: set[str] | None = None) -> int:
+                    messages: list[dict], known_ids: set[str] | None = None,
+                    stats: dict | None = None) -> int:
     """把 lark-cli 原始消息追加进档案，返回实际写入条数。
 
     ``known_ids`` 传入时复用它做去重（并在写入后就地更新），避免回补翻页时
     每页都重读整个文件；不传则从磁盘读一次。
+
+    ``stats`` 传入时被就地填充 ``fetched`` / ``written`` / ``skipped_no_id`` /
+    ``skipped_dup``，让调用方能区分「没有新消息」与「消息全被静默丢掉」。
+    不传则行为与返回值完全不变。
 
     字段映射：id ← message_id（回落 msg_id）、ts ← create_time、
     text ← content、sender ← sender.id（lark-cli 的 sender 是对象，不是字符串）。
@@ -97,11 +127,16 @@ def append_messages(data_dir, chat_id: str, group_name: str,
             "text": m.get("content", ""),
         }))
 
-    return _write_rows(path, _dedupe(existing, pairs))
+    rows = _dedupe(existing, pairs, stats)
+    written = _write_rows(path, rows)
+    if stats is not None:
+        stats["written"] = written
+    return written
 
 
 def append_rows(data_dir, chat_id: str, group_name: str,
-                rows: list[dict], known_ids: set[str] | None = None) -> int:
+                rows: list[dict], known_ids: set[str] | None = None,
+                stats: dict | None = None) -> int:
     """追加**已映射**的档案行（``{id, ts, sender, text}``），返回实际写入条数。
 
     与 ``append_messages`` 的区别只在入参格式：那个吃 lark-cli 原始消息
@@ -110,6 +145,8 @@ def append_rows(data_dir, chat_id: str, group_name: str,
 
     行来自网络边界，所以只取已知字段并强制类型——避免客户端往档案里塞进
     下游解析不了的额外结构。``group`` 一律用服务端反查的名字。
+
+    ``stats`` 语义与 ``append_messages`` 一致（可选，就地填充，不传不变）。
     """
     path = archive_path(data_dir, chat_id)
     existing = known_ids if known_ids is not None else load_ids(data_dir, chat_id)
@@ -127,7 +164,11 @@ def append_rows(data_dir, chat_id: str, group_name: str,
             "text": text if isinstance(text, str) else "",
         }))
 
-    return _write_rows(path, _dedupe(existing, pairs))
+    mapped = _dedupe(existing, pairs, stats)
+    written = _write_rows(path, mapped)
+    if stats is not None:
+        stats["written"] = written
+    return written
 
 
 def iter_messages(data_dir, chat_id: str):
