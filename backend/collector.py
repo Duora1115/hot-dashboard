@@ -645,11 +645,14 @@ def collect_live(cfg=None, data_dir=None, stats=None):
             grp_name, day_msgs, grp_stats = future.result(timeout=30)
             for _k in ("fetched", "written", "skipped_no_id", "skipped_dup"):
                 archive_stats[_k] += grp_stats.get(_k, 0)
-            # 抓到了消息却一条没进档案——静默丢弃的典型形态，必须留痕。
+            # 只对「缺 id 丢行」告警：那是上游字段名变了的真异常。
+            # 注意 fetch_messages_incremental 返回的是当日累计消息，无新消息的
+            # 稳态就是 fetched>0 / written==0 / skipped_dup==fetched 的正常去重，
+            # 若按 written==0 触发，日志会被每 5 分钟一次的常态淹没。
             # print（而非 logger.info）是这条路径既定的运维输出通道，cron 会 2>&1 收走。
-            if grp_stats.get("fetched", 0) > 0 and grp_stats.get("written", 0) == 0:
-                print(f"  ⚠️ 档案未写入 {grp_name}: 抓取{grp_stats['fetched']} "
-                      f"缺id{grp_stats.get('skipped_no_id', 0)} "
+            if grp_stats.get("skipped_no_id", 0) > 0:
+                print(f"  ⚠️ 档案缺 id 丢行 {grp_name}: 抓取{grp_stats.get('fetched', 0)} "
+                      f"缺id{grp_stats['skipped_no_id']} "
                       f"重复{grp_stats.get('skipped_dup', 0)}", flush=True)
             all_analyzed[grp_name] = day_msgs
             if day_msgs:

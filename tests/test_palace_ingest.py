@@ -69,6 +69,34 @@ def test_ingest_skips_groups_outside_config(tmp_path):
     assert not archive_path(data, "oc_999").exists(), "配置外的群绝不能落进档案"
 
 
+def test_ingest_reports_missing_id_rows(tmp_path):
+    """导出里整批消息缺 id：added=0 之外必须能看到 skipped_no_id，而不是无声无息。"""
+    src, data = tmp_path / "src", tmp_path / "data"
+    no_id = [{"create_time": "2026-07-13 09:17", "content": "无 id", "msg_type": "text"}]
+    _write(src, "a.json", _export(messages=no_id))
+
+    result = ingest_dir(src, data, {"oc_1": "001_震哥仅ls"})
+
+    g = result["groups"]["oc_1"]
+    assert g["added"] == 0
+    assert g["skipped_no_id"] == 1, "缺 id 丢行必须被计数并暴露给调用方"
+    assert g["skipped_dup"] == 0
+
+
+def test_ingest_idempotent_rerun_is_dup_not_missing_id(tmp_path):
+    """重复导入是正常的，应记为 skipped_dup 而非缺 id。"""
+    src, data = tmp_path / "src", tmp_path / "data"
+    _write(src, "a.json", _export(messages=[_raw("om_1")]))
+    ingest_dir(src, data, {"oc_1": "001_震哥仅ls"})
+
+    second = ingest_dir(src, data, {"oc_1": "001_震哥仅ls"})
+
+    g = second["groups"]["oc_1"]
+    assert g["added"] == 0
+    assert g["skipped_dup"] == 1
+    assert g["skipped_no_id"] == 0
+
+
 def test_ingest_is_idempotent(tmp_path):
     src, data = tmp_path / "src", tmp_path / "data"
     _write(src, "a.json", _export(messages=[_raw("om_1"), _raw("om_2")]))

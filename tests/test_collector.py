@@ -224,3 +224,23 @@ def test_push_to_cloud_disabled_reports_skipped(tmp_path):
 
     assert summary["ok"] == [] and summary["failed"] == []
     assert summary["skipped"]
+
+
+def test_collect_script_health_line_labels_cumulative_and_cloud_skip(capsys):
+    """健康行要诚实：消息数是「今日累计」，云端禁用要有「跳过」而不是 ok0 fail0。"""
+    import scripts.collect as sc
+
+    def fake_collect(cfg, data_dir, stats=None):
+        stats.update({"fetched": 10, "written": 10, "skipped_no_id": 0, "skipped_dup": 0})
+        return {"time": "2026-09-13 10:00", "total_messages": 42, "active_groups": 7,
+                "overall_sentiment": "偏多", "top10_stocks": [], "top8_sectors": [],
+                "action_summary": {}, "sentiment_detail": {}}
+
+    with patch.object(sc, "collect_live", fake_collect), \
+         patch.object(sc, "push_to_cloud",
+                      lambda *a, **k: {"ok": [], "failed": [], "skipped": ["cloud"]}):
+        sc.main()
+
+    out = capsys.readouterr().out
+    assert "今日累计" in out
+    assert "跳过1" in out, "云端禁用必须能一眼区别于推送失败"

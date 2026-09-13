@@ -49,6 +49,19 @@ def test_summarize_counts_rows_and_newest_across_groups(tmp_path):
     assert by_chat["oc_2"]["newest_ts"] == "2026-09-13 10:00"
 
 
+def test_summarize_survives_non_dict_json_line(tmp_path):
+    """合法 JSON 但不是对象（如 [1,2,3]）不能让体检脚本崩。"""
+    p = tmp_path / "archive" / "oc_1.jsonl"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text('[1,2,3]\n{"id":"a","ts":"2026-09-13 10:00","text":"x"}\n',
+                 encoding="utf-8")
+
+    info = summarize(tmp_path)
+
+    assert info["total_rows"] == 2
+    assert info["newest_ts"] == "2026-09-13 10:00"
+
+
 def test_main_max_age_hours_exit_codes(tmp_path):
     old = (datetime.now(CST).replace(tzinfo=None) - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M")
     _write(tmp_path, "oc_1", [{"id": "a", "ts": old, "text": "x"}])

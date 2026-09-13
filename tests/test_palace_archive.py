@@ -252,14 +252,28 @@ def test_collect_live_reports_whole_batch_dropped_for_missing_id(tmp_path, capsy
 
     assert stats == {"fetched": 1, "written": 0, "skipped_no_id": 1, "skipped_dup": 0}
     out = capsys.readouterr().out
-    assert "档案未写入" in out
+    assert "⚠️ 档案" in out
     assert "253_橙子不糊涂" in out
     assert "缺id1" in out
 
 
-def test_collect_live_quiet_when_archive_healthy(tmp_path, capsys):
-    """档案正常写入时不出现告警行，避免噪音。"""
-    with patch("subprocess.run", return_value=_lark_reply(_msgs_now())):
-        collect_live(cfg=_cfg(tmp_path), data_dir=tmp_path, stats={})
+def test_collect_live_quiet_on_second_identical_run(tmp_path, capsys):
+    """无新消息的稳态全是重复——这是正常去重，绝不该告警。
 
-    assert "档案未写入" not in capsys.readouterr().out
+    fetch_messages_incremental 返回「今天」的累计消息（缓存+新增），所以每
+    5 分钟一次的 cron 稳态就是 fetched>0 / written==0 / skipped_dup==fetched。
+    告警若按 written==0 触发，日志会被这种正常态淹没。
+    """
+    with patch("subprocess.run", return_value=_lark_reply(_msgs_now())):
+        first = {}
+        collect_live(cfg=_cfg(tmp_path), data_dir=tmp_path, stats=first)
+        first_out = capsys.readouterr().out
+        second = {}
+        collect_live(cfg=_cfg(tmp_path), data_dir=tmp_path, stats=second)
+
+    assert first["written"] == 1 and first["skipped_dup"] == 0
+    assert second["written"] == 0, "第二轮不应再写入"
+    assert second["skipped_dup"] == 1, "第二轮那一条是重复"
+    assert second["skipped_no_id"] == 0
+    assert "⚠️ 档案" not in first_out
+    assert "⚠️ 档案" not in capsys.readouterr().out, "稳态全重复不该告警"

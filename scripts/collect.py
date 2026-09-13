@@ -114,10 +114,15 @@ def main():
         skip_txt = "0"
     ok = push_summary.get("ok", [])
     failed = push_summary.get("failed", [])
+    push_skipped = push_summary.get("skipped", [])
     cloud_txt = f"ok{len(ok)} fail{len(failed)}"
+    if push_skipped:
+        # 云端禁用/文件缺失会让 ok0 fail0，不加「跳过」就与推送失败长得一样
+        cloud_txt += f" 跳过{len(push_skipped)}"
     if failed:
         cloud_txt += f" [{','.join(failed)}]"
-    print(f"[{time_str}] 🏥 健康 消息{total_msgs} | "
+    # total_msgs 是「今天」的累计消息数，不是本轮新增——如实标注
+    print(f"[{time_str}] 🏥 健康 消息{total_msgs}(今日累计) | "
           f"档案 写{written}/跳过{skip_txt} | 云端 {cloud_txt}", flush=True)
 
 if __name__ == "__main__":

@@ -84,6 +84,8 @@ def summarize(data_dir) -> dict:
         group_newest = None
         for row in iter_jsonl(path):
             rows += 1
+            if not isinstance(row, dict):
+                continue  # 合法 JSON 但不是对象（如 [1,2,3]）——计行数但不解析
             ts = _parse_ts(row.get("ts"))
             if ts is not None and (group_newest is None or ts > group_newest):
                 group_newest = ts

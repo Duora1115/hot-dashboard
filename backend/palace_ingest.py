@@ -74,18 +74,26 @@ def ingest_dir(src, data_dir, chat_to_name: dict[str, str] | None = None) -> dic
 
         name = (chat_to_name or {}).get(chat_id) or doc.get("group_slug") \
             or doc.get("chat_name") or chat_id
-        added = append_messages(data_dir, chat_id, name, messages)
+        stats = {}
+        added = append_messages(data_dir, chat_id, name, messages, stats=stats)
+        if stats.get("skipped_no_id", 0) > 0:
+            logger.warning(f"{path.name}: {stats['skipped_no_id']} 条消息缺 "
+                           f"message_id/msg_id 被丢，未进档案（上游字段可能变了）")
 
         prev = groups.get(chat_id)
         if prev:
             prev["added"] += added
             prev["messages"] += len(messages)
+            prev["skipped_no_id"] += stats.get("skipped_no_id", 0)
+            prev["skipped_dup"] += stats.get("skipped_dup", 0)
             prev["files"].append(path.name)
         else:
             groups[chat_id] = {
                 "name": name,
                 "added": added,
                 "messages": len(messages),
+                "skipped_no_id": stats.get("skipped_no_id", 0),
+                "skipped_dup": stats.get("skipped_dup", 0),
                 "files": [path.name],
             }
 

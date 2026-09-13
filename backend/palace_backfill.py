@@ -63,6 +63,8 @@ def backfill_group(chat_id: str, group_name: str, since: str, data_dir,
     added = 0
     earliest = ""
     token = None
+    skipped_no_id = 0
+    skipped_dup = 0
 
     for _ in range(max_pages):
         messages, next_token, has_more = fetch(chat_id, token, page_size)
@@ -71,7 +73,11 @@ def backfill_group(chat_id: str, group_name: str, since: str, data_dir,
 
         fresh = [m for m in messages if _day_of(m.get("create_time", "")) >= since]
         if fresh:
-            added += append_messages(data_dir, chat_id, group_name, fresh, known_ids=known)
+            stats = {}
+            added += append_messages(data_dir, chat_id, group_name, fresh,
+                                     known_ids=known, stats=stats)
+            skipped_no_id += stats.get("skipped_no_id", 0)
+            skipped_dup += stats.get("skipped_dup", 0)
 
         stamps = [m.get("create_time", "") for m in messages if m.get("create_time")]
         if stamps:
@@ -97,7 +103,12 @@ def backfill_group(chat_id: str, group_name: str, since: str, data_dir,
             }
             save_state(data_dir, state)
 
-    return {"added": added, "earliest": earliest}
+    if skipped_no_id:
+        logger.warning(f"回补 {group_name}: {skipped_no_id} 条消息缺 "
+                       f"message_id/msg_id 被丢，未进档案（上游字段可能变了）")
+
+    return {"added": added, "earliest": earliest,
+            "skipped_no_id": skipped_no_id, "skipped_dup": skipped_dup}
 
 
 def resolve_groups(cfg: dict, selector: str) -> list[dict]:

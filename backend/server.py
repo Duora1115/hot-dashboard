@@ -296,8 +296,14 @@ def api_palace_archive(payload: dict = Body(...)):
     if group_name is None:
         raise HTTPException(400, f"未知 chat_id：{chat_id}")
 
-    added = append_rows(data_dir, chat_id, group_name, rows)
-    return {"status": "ok", "chat_id": chat_id, "received": len(rows), "added": added}
+    stats = {}
+    added = append_rows(data_dir, chat_id, group_name, rows, stats=stats)
+    if stats.get("skipped_no_id", 0) > 0:
+        logger.warning(f"档案推送 {group_name}: {stats['skipped_no_id']} 行缺 id 被丢 "
+                       f"（{stats.get('skipped_dup', 0)} 行重复）")
+    return {"status": "ok", "chat_id": chat_id, "received": len(rows), "added": added,
+            "skipped_no_id": stats.get("skipped_no_id", 0),
+            "skipped_dup": stats.get("skipped_dup", 0)}
 
 
 @app.post("/api/palace/rebuild")

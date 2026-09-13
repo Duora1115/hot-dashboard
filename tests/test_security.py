@@ -142,7 +142,28 @@ def test_palace_archive_accepts_correct_key(client):
     )
 
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok", "chat_id": chat_id, "received": 1, "added": 1}
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["chat_id"] == chat_id
+    assert body["received"] == 1
+    assert body["added"] == 1
+    assert body["skipped_no_id"] == 0 and body["skipped_dup"] == 0
+
+
+def test_palace_archive_reports_missing_id_rows(client):
+    """推送行缺 id 时，added=0 但响应必须点出 skipped_no_id。"""
+    chat_id = server.cfg["groups"][0]["chat_id"]
+    resp = client.post(
+        "/api/palace/archive",
+        json={"chat_id": chat_id, "rows": [{"ts": "2026-07-06 08:09", "text": "无 id"}]},
+        headers={"X-API-Key": "test-secret"},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["added"] == 0
+    assert body["skipped_no_id"] == 1
+    assert body["skipped_dup"] == 0
 
 
 def test_palace_archive_rejects_unknown_chat_id(client):

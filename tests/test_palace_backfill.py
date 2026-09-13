@@ -71,6 +71,29 @@ def test_backfill_is_idempotent(tmp_path):
     assert len(lines) == 1
 
 
+def test_backfill_reports_missing_id_rows(tmp_path):
+    """翻到的消息缺 id：added=0 之外必须能看到 skipped_no_id。"""
+    no_id = [{"create_time": "2026-07-08 08:09", "content": "无 id"}]
+    result = backfill_group("oc_1", "群", "2026-07-01", tmp_path,
+                            fetch=_pager([no_id]), sleep=0)
+
+    assert result["added"] == 0
+    assert result["skipped_no_id"] == 1
+    assert result["skipped_dup"] == 0
+
+
+def test_backfill_rerun_is_dup_not_missing_id(tmp_path):
+    pages = [[_msg("om_1", "2026-07-08")]]
+    backfill_group("oc_1", "群", "2026-07-01", tmp_path, fetch=_pager(pages), sleep=0)
+
+    result = backfill_group("oc_1", "群", "2026-07-01", tmp_path,
+                            fetch=_pager(pages), sleep=0)
+
+    assert result["added"] == 0
+    assert result["skipped_dup"] == 1
+    assert result["skipped_no_id"] == 0
+
+
 def test_backfill_stops_when_has_more_is_false(tmp_path):
     pages = [[_msg("om_1", "2026-07-08")]]
     fetch = _pager(pages)
